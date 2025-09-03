@@ -308,100 +308,100 @@ Sua unidade no SI é \textbf{N·m/$\sqrt{\text{W}}$}. $K_m$ representa a capacid
 \subsection{Influência da Temperatura}
 
 Embora chamadas de "constantes", $K_T$ e $K_e$ são afetadas pela temperatura. O aquecimento do motor causa uma redução na força magnética dos ímãs permanentes. Como ambas as constantes são diretamente proporcionais à densidade de fluxo magnético, um motor operando em alta temperatura produzirá menos torque para a mesma corrente (menor $K_T$) e precisará girar mais rápido para gerar a mesma FCEM (menor $K_e$, consequentemente um $K_V$ ligeiramente maior), resultando em uma performance geral degradada.
+%---
+\section{Controlador Eletrônico de Velocidade (ESC)} 
+ Os controladores eletrônicos de velocidade, são dispositivos eletrônicos que controlam a velocidade e o torque de motores BLDC. São classificados pela sua corrente e tensão máxima de saída. São constituídos dos seguintes componentes básicos: 
 
-\section{Controlador Eletrônico de Velocidade (ESC)}
-Os controladores eletrônicos de velocidade, são dispositivos eletrônicos que controlam a velocidade e o torque de motores BLDC. São classificados pela sua corrente e tensão máxima de saída. São constituídos dos seguintes componentes básicos:
+ \begin{itemize} 
+ \item Circuito de entrada: O circuito de entrada converte a tensão fornecida pela bateria em tensão que pode ser usada pelo circuito de controle utilizando PWM para gerar uma tensão média desejada que será fornecida ao motor. Também pode inverter a sequência de comutação das fases fazendo com que o sentido de rotação também seja invertido. 
+ \item Circuito de controle: O circuito de controle é responsável por calcular a corrente que deve ser fornecida às bobinas do motor. Normalmente se utilizam de sinais com características de PWM como sinal de referência para definir a velocidade e sentido de rotação. 
+ \item Circuito de saída: O circuito de saída fornece a corrente necessária às bobinas do motor. 
+ \end{itemize} 
 
-\begin{itemize}
-\item Circuito de entrada: O circuito de entrada converte a tensão fornecida pela bateria em tensão que pode ser usada pelo circuito de controle utilizando PWM para gerar uma tensão média desejada que será fornecida ao motor. Também pode inverter a sequência de comutação das fases fazendo com que o sentido de rotação também seja invertido.
-\item Circuito de controle: O circuito de controle é responsável por calcular a corrente que deve ser fornecida às bobinas do motor. Normalmente se utilizam de sinais com características de PWM como sinal de referência para definir a velocidade e sentido de rotação.
-\item Circuito de saída: O circuito de saída fornece a corrente necessária às bobinas do motor.
-\end{itemize}
+ Além desses componentes básicos, os ESCs para motor BLDC pode incluir os seguintes recursos, além dos já discutidos anteriormente: 
 
-Além desses componentes básicos, os ESCs para motor BLDC pode incluir os seguintes recursos, além dos já discutidos anteriormente:
+ \begin{itemize} 
+ \item Filtro de ruído: O filtro de ruído é usado para reduzir o ruído elétrico que pode ser gerado pelo motor. 
+ \item Proteção térmica: A proteção térmica é usada para proteger o motor de superaquecimento. 
+ \item Proteção contra sobrecarga: O ESC pode desligar o motor se ele experimentar correntes superiores às nominais que representam riscos de deterioração das bobinas do motor. 
+ \end{itemize} 
 
-\begin{itemize}
-\item Filtro de ruído: O filtro de ruído é usado para reduzir o ruído elétrico que pode ser gerado pelo motor.
-\item Proteção térmica: A proteção térmica é usada para proteger o motor de superaquecimento.
-\item Proteção contra sobrecarga: O ESC pode desligar o motor se ele experimentar correntes superiores às nominais que representam riscos de deterioração das bobinas do motor.
-\end{itemize}
+ \subsection{O Papel do Controlador (ESC) e o Controle Vetorial (FOC)} 
 
-\subsection{O Papel do Controlador (ESC) e o Controle Vetorial (FOC)}
+ As equações lineares de um motor DC só são diretamente aplicáveis a um motor BLDC devido à ação sofisticada do seu \textbf{Controlador Eletrônico de Velocidade (ESC)}. O ESC realiza a comutação eletrônica, energizando sequencialmente os enrolamentos do estator para criar um campo magnético giratório. 
 
-As equações lineares de um motor DC só são diretamente aplicáveis a um motor BLDC devido à ação sofisticada do seu \textbf{Controlador Eletrônico de Velocidade (ESC)}. O ESC realiza a comutação eletrônica, energizando sequencialmente os enrolamentos do estator para criar um campo magnético giratório.
+ A técnica de controle de ponta que aperfeiçoa essa analogia é o \textbf{Controle Vetorial (FOC)}. O FOC transforma matematicamente as correntes trifásicas em um referencial giratório (d-q), separando a corrente em um componente que produz fluxo ($I_d$) e outro que produz torque ($I_q$). Ao manter $I_d = 0$, o controlador faz com que o torque seja linearmente proporcional apenas a $I_q$. Isso força a complexa máquina AC a se comportar como o motor DC idealizado, tornando as constantes $K_T$ e $K_e$ ferramentas de análise e projeto perfeitamente válidas \parencite{hendershot1994design}. 
 
-A técnica de controle de ponta que aperfeiçoa essa analogia é o \textbf{Controle Vetorial (FOC)}. O FOC transforma matematicamente as correntes trifásicas em um referencial giratório (d-q), separando a corrente em um componente que produz fluxo ($I_d$) e outro que produz torque ($I_q$). Ao manter $I_d = 0$, o controlador faz com que o torque seja linearmente proporcional apenas a $I_q$. Isso força a complexa máquina AC a se comportar como o motor DC idealizado, tornando as constantes $K_T$ e $K_e$ ferramentas de análise e projeto perfeitamente válidas \parencite{hendershot1994design}.
+ \subsection{Consequências Práticas da Seleção de $K_V$} 
 
-\subsection{Consequências Práticas da Seleção de $K_V$}
+ A seleção de $K_V$ é uma decisão de projeto crítica que estabelece um compromisso fundamental: 
+ \begin{itemize} 
+ \item \textbf{Motores de Alto $K_V$:} Possuem menos espiras de fio mais grosso. Resultam em baixo $K_T$, baixa resistência e baixa indutância. Para produzir torque, exigem alta corrente, mas atingem altas velocidades. Ideais para aplicações de alta velocidade e baixo torque, como drones de corrida e fusos de usinagem \parencite{tmotor2019kv}. 
+ \item \textbf{Motores de Baixo $K_V$:} Possuem mais espiras de fio mais fino. Resultam em alto $K_T$, alta resistência e alta indutância. Geram alto torque com baixas correntes, sendo mais eficientes para essa finalidade, mas com menor velocidade máxima. Ideais para aplicações de acionamento direto e alto torque, como drones de carga, guinchos e atuadores robóticos \parencite{byod2018kv}. 
+ \end{itemize} 
 
-A seleção de $K_V$ é uma decisão de projeto crítica que estabelece um compromisso fundamental:
-\begin{itemize}
-    \item \textbf{Motores de Alto $K_V$:} Possuem menos espiras de fio mais grosso. Resultam em baixo $K_T$, baixa resistência e baixa indutância. Para produzir torque, exigem alta corrente, mas atingem altas velocidades. Ideais para aplicações de alta velocidade e baixo torque, como drones de corrida e fusos de usinagem \parencite{tmotor2019kv}.
-    \item \textbf{Motores de Baixo $K_V$:} Possuem mais espiras de fio mais fino. Resultam em alto $K_T$, alta resistência e alta indutância. Geram alto torque com baixas correntes, sendo mais eficientes para essa finalidade, mas com menor velocidade máxima. Ideais para aplicações de acionamento direto e alto torque, como drones de carga, guinchos e atuadores robóticos \parencite{byod2018kv}.
-\end{itemize}
+ \subsection{Princípios de Operação} 
 
-\subsection{Princípios de Operação}
+  O controlador do motor deve fornecer corrente e tensão adequadas às bobinas do estator do motor, a fim de controlar a velocidade e o torque do motor \cite{jahns1996pulsating}. O circuito básico que realiza esse papel é o de uma ponte inversora trifásica, onde o motor BLDC pode estar conectado em Estrela ou Delta. O controle do circuito de disparo dos transistores do inversor deve ser feito de forma que cada fase do estator seja percorrida por uma corrente com a forma de onda senoidal ou trapezoidal, voltadas respectively para alto rendimento e baixo custo. As formas de onda de cada uma das fases devem estar defasadas entre si, permitindo que o motor gire de forma contínua. 
 
- O controlador do motor deve fornecer corrente e tensão adequadas às bobinas do estator do motor, a fim de controlar a velocidade e o torque do motor \cite{jahns1996pulsating}. O circuito básico que realiza esse papel é o de uma ponte inversora trifásica, onde o motor BLDC pode estar conectado em Estrela ou Delta. O controle do circuito de disparo dos transistores do inversor deve ser feito de forma que cada fase do estator seja percorrida por uma corrente com a forma de onda senoidal ou trapezoidal, voltadas respectivamente para alto rendimento e baixo custo. As formas de onda de cada uma das fases devem estar defasadas entre si, permitindo que o motor gire de forma contínua.
+ \subsubsection{Comutação de Seis Passos} 
 
-\subsubsection{Comutação de Seis Passos}
+ A comutação de seis passos demanda um sincronismo de disparo dos transistores, de modo que sempre dois deles estejam fechados, formando um circuito tal que a cada $60 ^\circ$ elétricos o par de fases percorridas pela corrente se alterne (Figura \ref{Sequência de acionamento para um BLDC trifásico}). Cada transistor permanece em condução durante $120 ^\circ$ elétricos. Vale ressaltar que os eventos de condução e bloqueio, denominados comutações dos transistores, geram variações na corrente e isso é responsável pelas oscilações no torque do motor \cite{kim2017electric}.  
 
-A comutação de seis passos demanda um sincronismo de disparo dos transistores, de modo que sempre dois deles estejam fechados, formando um circuito tal que a cada $60 ^\circ$ elétricos o par de fases percorridas pela corrente se alterne (Figura \ref{Sequência de acionamento para um BLDC trifásico}). Cada transistor permanece em condução durante $120 ^\circ$ elétricos. Vale ressaltar que os eventos de condução e bloqueio, denominados comutações dos transistores, geram variações na corrente e isso é responsável pelas oscilações no torque do motor \cite{kim2017electric}. 
+ \begin{figure}[p] 
+     \centering 
+     \caption{Sequência de acionamento para um BLDC trifásico.} 
+     \includegraphics[width=10cm]{imagens/acionamento.png} 
+     \caption*{Fonte:\cite{kim2017electric}.} 
+  \label{Sequência de acionamento para um BLDC trifásico} 
+ \end{figure} 
 
-\begin{figure}[p]
-	\centering
-	\caption{Sequência de acionamento para um BLDC trifásico.}
-	\includegraphics[width=10cm]{imagens/acionamento.png}
-	\caption*{Fonte:\cite{kim2017electric}.}
- \label{Sequência de acionamento para um BLDC trifásico}
-\end{figure}
+ Esse algoritmo de acionamento dos transistores, também chamado de Controle Trapezoidal, é um dos métodos utilizados para controlar motores BLDC. Para se saber quando e quais deles acionar, existem duas opções: o Controle de Malha Fechada, no qual é preciso saber a posição que o rotor se encontra de forma a acionar o conjunto de transistores seguinte, e o Controle de Malha Aberta. Neste último, é possível acionar os indutores a partir de uma sequência fixa determinada pelo circuito, o que faz com que o rotor comece a girar em algum momento da sequência e siga girando a partir da sequência determinada. Esse tipo de controle é mais simples e de menor custo, porém não tão preciso, recebendo o nome de Controle de Malha Aberta, e será o método inicialmente utilizado neste trabalho. 
 
-Esse é o algoritmo de acionamento dos transistores mais amplamente utilizado para controlar motores BLDC e é também chamada de Controle Trapezoidal. Para se saber quando e quais deles acionar, existem duas opções, saber a posição que o rotor se encontra de forma a acionar o conjunto de transistores seguinte. Para esse tipo de controle se dá o nome de Controle de Malha Fechada. Também é possível acionar os indutores a partir de uma sequência fixa determinada pelo circuito, o que faz com que o rotor comece a girar em algum momento da sequência e siga girando a partir da sequência determinada. Esse tipo de controle é mais simples e de menor custo, porém não tão preciso, recebendo o nome de Controle de Malha Aberta.
+  Para a realização do Controle de Malha Fechada é possível usar um sensor de efeito Hall capaz de identificar o campo magnético resultante da interação do campo eletromagnético das bobinas e do campo magnético dos imãs permanentes do rotor, indicando a seção que o campo eletromagnético resultante encontra-se, ou seja, sua posição angular. Partindo dessa referência, se pode saber quais transistores devem ser acionadas para que o rotor continue a girar. A utilização de sensor Hall também propicia a determinação da velocidade angular do motor. Esse método é mais complexo e de maior custo, porém garante uma maior confiabilidade em relação a velocidade. 
 
- Para a realização do Controle de Malha Fechada é possível usar um sensor de efeito Hall capaz de identificar o campo magnético resultante da interação do campo eletromagnético das bobinas e do campo magnético dos imãs permanentes do rotor, indicando a seção que o campo eletromagnético resultante encontra-se, ou seja, sua posição angular. Partindo dessa referência, se pode saber quais transistores devem ser acionadas para que o rotor continue a girar. A utilização de sensor Hall também propicia a determinação da velocidade angular do motor. Esse método é mais complexo e de maior custo, porém garante uma maior confiabilidade em relação a velocidade.
+ Quando a aplicação necessita que o motor possua apenas uma velocidade, a fonte de alimentação de tensão fixa é suficiente. Para casos onde é necessário variar a velocidade do motor, a técnica de Modulação por Largura de Pulso (PWM) é normalmente empregada. Um ESC, por exemplo, utiliza PWM para ajustar a tensão média aplicada ao motor, controlando assim sua velocidade. Essa técnica, no entanto, pode demandar a utilização de controladores que comparem a velocidade desejada com a medida no rotor para um controle preciso. 
 
-Quando a aplicação necessita que o motor possua apenas uma velocidade, a fonte de alimentação de tensão fixa é suficiente, mas para casos onde é necessário varia a velocidade do motor precisa-se de uma ponte trifásica com controle PWM, um ESC por exemplo, entretanto essa técnica demanda a utilização de controladores que comparem a velocidade desejada da medida no rotor.
+ \newpage 
 
-\newpage
+ \subsubsection{Modulação por Largura de Pulso} 
 
-\subsubsection{Modulação por Largura de Pulso}
+ Fontes de tensão fixa, como baterias, são as mais acessíveis do mercado. A partir delas, é possível gerar uma tensão média de alimentação variável utilizando uma técnica conhecida como PWM (Modulação por Largura de Pulso), permitindo o controle de velocidade de um BLDC. Para isso, utiliza-se um circuito simples capaz de transformar a tensão contínua em uma onda quadrada de frequência fixa e amplitude igual à tensão da fonte de alimentação. A própria ponte trifásica pode ajustar a largura dos pulsos, fazendo com que a tensão média entregue à ponte inversora seja proporcional à velocidade desejada (Figura \ref{Modulação por largura de pulso utilizando uma fonte de 100V}). 
 
-Fontes de tensão fixa, como baterias, são as mais acessíveis do mercado. A partir delas, é possível gerar uma tensão média de alimentação variável utilizando uma técnica conhecida como PWM (Modulação por Largura de Pulso), permitindo o controle de velocidade de um BLDC. Para isso, utiliza-se um circuito simples capaz de transformar a tensão contínua em uma onda quadrada de frequência fixa e amplitude igual à tensão da fonte de alimentação. A própria ponte trifásica pode ajustar a largura dos pulsos, fazendo com que a tensão média entregue à ponte inversora seja proporcional à velocidade desejada (Figura \ref{Modulação por largura de pulso utilizando uma fonte de 100V}).
+ \begin{figure}[h] 
+     \centering 
+     \caption{Modulação por largura de pulso utilizando uma fonte de $100V$.} 
+     \includegraphics[width=13cm]{imagens/PWM.png} 
+     \caption*{Fonte:\cite{matlabBLDC}.} 
+  \label{Modulação por largura de pulso utilizando uma fonte de 100V} 
+ \end{figure} 
 
-\begin{figure}[h]
-	\centering
-	\caption{Modulação por largura de pulso utilizando uma fonte de $100V$.}
-	\includegraphics[width=13cm]{imagens/PWM.png}
-	\caption*{Fonte:\cite{matlabBLDC}.}
- \label{Modulação por largura de pulso utilizando uma fonte de 100V}
-\end{figure}
+ \subsubsection{Outros Algoritmos de Controle} 
 
-\subsubsection{Outros Algoritmos de Controle}
+ Além do Controle Trapezoidal existem outras formas de controle que envolvem algorítimos mais complexos, como o Controle de Torque Vetorial e o Controle de Campo Orientado, ambos em malha fechada. 
 
-Além do Controle Trapezoidal existem outras formas de controle que envolvem algorítimos mais complexos, como o Controle de Torque Vetorial e o Controle de Campo Orientado, ambos em malha fechada.
+ No controle de torque vetorial, o controlador de motor calcula a corrente que deve ser fornecida às bobinas do estator usando um modelo matemático do motor. O modelo matemático do motor descreve a relação entre a corrente nas bobinas do estator, o campo magnético do rotor e o torque produzido pelo motor. O controlador vetorial de torque do motor calcula o torque desejado e, em seguida, usa o modelo matemático do motor para calcular a corrente necessária para produzir o tal torque. Este controle é um método preciso e flexível que pode ser usado em uma variedade de aplicações. Ele é adequado para aplicações onde a exatidão de velocidade e torque é crítica 
 
-No controle de torque vetorial, o controlador de motor calcula a corrente que deve ser fornecida às bobinas do estator usando um modelo matemático do motor. O modelo matemático do motor descreve a relação entre a corrente nas bobinas do estator, o campo magnético do rotor e o torque produzido pelo motor. O controlador vetorial de torque do motor calcula o torque desejado e, em seguida, usa o modelo matemático do motor para calcular a corrente necessária para produzir o tal torque. Este controle é um método preciso e flexível que pode ser usado em uma variedade de aplicações. Ele é adequado para aplicações onde a exatidão de velocidade e torque é crítica
+ No controle de campo orientado, o controlador do motor calcula a corrente que deve ser fornecida às bobinas do estator usando a orientação do campo magnético do rotor. O controlador de motor usa um sensor para medir a orientação do campo magnético do rotor, sendo que o sensor envia um sinal para o controlador, o utiliza sinal para calcular a corrente necessária para manter o campo magnético do rotor na orientação desejada. O controle de campo orientado é um método preciso e eficiente que pode ser usado em aplicações de alta velocidade. 
 
-No controle de campo orientado, o controlador do motor calcula a corrente que deve ser fornecida às bobinas do estator usando a orientação do campo magnético do rotor. O controlador de motor usa um sensor para medir a orientação do campo magnético do rotor, sendo que o sensor envia um sinal para o controlador, o utiliza sinal para calcular a corrente necessária para manter o campo magnético do rotor na orientação desejada. O controle de campo orientado é um método preciso e eficiente que pode ser usado em aplicações de alta velocidade.
+ \pagebreak 
 
-\pagebreak
+ \section{Vantagens e Desvantagens no uso de motores BLDC} 
+ Os motores sem escovas, ou BLDC, apresentam diversas vantagens que contribuem para seu destaque em várias aplicações. O rendimento é uma característica proeminente, uma vez que convertem mais eficientemente a energia elétrica em torque quando comparados aos motores com escovas. Isso implica em uma demanda menor de energia para gerar a mesma quantidade de torque, resultando em um melhor desempenho global. A durabilidade é significativamente aprimorada, visto que a vida útil estendida desses motores está relacionada à ausência das escovas, componentes propensos a desgaste em motores convencionais. 
 
-\section{Vantagens e Desvantagens no uso de motores BLDC}
-Os motores sem escovas, ou BLDC, apresentam diversas vantagens que contribuem para seu destaque em várias aplicações. O rendimento é uma característica proeminente, uma vez que convertem mais eficientemente a energia elétrica em torque quando comparados aos motores com escovas. Isso implica em uma demanda menor de energia para gerar a mesma quantidade de torque, resultando em um melhor desempenho global. A durabilidade é significativamente aprimorada, visto que a vida útil estendida desses motores está relacionada à ausência das escovas, componentes propensos a desgaste em motores convencionais.
+ Os motores de indução trifásicos (MIT) são concorrentes diretos dos motores BLDC, sendo que ambos são amplamente utilizados em diversas aplicações, cada uma com suas características distintas e vantagens específicas. Os motores de indução trifásicos são conhecidos pela sua confiabilidade, simplicidade de construção e custo relativamente baixo, quando comparado aos BLDC, utilizando os princípios da indução eletromagnética para gerar o torque e velocidade necessários para a aplicação. Embora tenham menor custo de produção quando comparados com os motores BLDC e podem ser controlados utilizando os mesmos protocolos, os MITs tendem a ter uma densidade de potência e torque menor em comparação com os motores BLDC, principalmente em baixas velocidades, o que pode ser uma consideração importante em aplicações que requerem alta potência em um espaço limitado. No entanto, os MITs apresentam melhor rendimento em operações de baixo torque, o que pode ser relevante em aplicações de mobilidade, como em veículos elétricos. 
 
-Os motores de indução trifásicos (MIT) são concorrentes diretos dos motores BLDC, sendo que ambos são amplamente utilizados em diversas aplicações, cada uma com suas características distintas e vantagens específicas. Os motores de indução trifásicos são conhecidos pela sua confiabilidade, simplicidade de construção e custo relativamente baixo, quando comparado aos BLDC, utilizando os princípios da indução eletromagnética para gerar o torque e velocidade necessários para a aplicação. Embora tenham menor custo de produção quando comparados com os motores BLDC e podem ser controlados utilizando os mesmos protocolos, os MITs tendem a ter uma densidade de potência e torque menor em comparação com os motores BLDC, principalmente em baixas velocidades, o que pode ser uma consideração importante em aplicações que requerem alta potência em um espaço limitado. No entanto, os MITs apresentam melhor rendimento em operações de baixo torque, o que pode ser relevante em aplicações de mobilidade, como em veículos elétricos.
+ Os motores BLDC são conhecidos por seu rendimento energético superior, controle preciso de velocidade e torque, além de uma vida útil mais longa devido à ausência de escovas mecânicas \cite{gieras2009permanent}. Embora os BLDCs tenham um custo inicial mais elevado em comparação com os MITs, eles oferecem uma operação mais eficiente, especialmente em condições de carga variável e velocidade ajustável. 
 
-Os motores BLDC são conhecidos por seu rendimento energético superior, controle preciso de velocidade e torque, além de uma vida útil mais longa devido à ausência de escovas mecânicas \cite{gieras2009permanent}. Embora os BLDCs tenham um custo inicial mais elevado em comparação com os MITs, eles oferecem uma operação mais eficiente, especialmente em condições de carga variável e velocidade ajustável.
+ Em resumo, os motores sem escovas oferecem um conjunto de vantagens notáveis, incluindo rendimento aprimorado, operação mais silenciosa, maior durabilidade e menor necessidade de manutenção. Contudo, esses benefícios vêm com um custo inicial mais elevado e a exigência de um controlador de velocidade, o que pode tornar sua implementação menos acessível em certos contextos. A escolha entre motores com escovas e sem escovas dependerá das prioridades específicas de uma aplicação, considerando tanto os benefícios quanto as limitações de cada tecnologia. 
 
-Em resumo, os motores sem escovas oferecem um conjunto de vantagens notáveis, incluindo rendimento aprimorado, operação mais silenciosa, maior durabilidade e menor necessidade de manutenção. Contudo, esses benefícios vêm com um custo inicial mais elevado e a exigência de um controlador de velocidade, o que pode tornar sua implementação menos acessível em certos contextos. A escolha entre motores com escovas e sem escovas dependerá das prioridades específicas de uma aplicação, considerando tanto os benefícios quanto as limitações de cada tecnologia.
+ \pagebreak 
 
-\pagebreak
+ \section{Aplicações} 
+ Os motores BLDC são amplamente utilizados em diversas aplicações devido às suas características únicas, como elevado rendimento, alta densidade de potência, baixo ruído, baixa manutenção e longa vida útil. Esses motores são preferidos em aplicações que necessitam de controle preciso de torque com oscilações inferiores em comparação com outros motores. 
 
-\section{Aplicações}
-Os motores BLDC são amplamente utilizados em diversas aplicações devido às suas características únicas, como elevado rendimento, alta densidade de potência, baixo ruído, baixa manutenção e longa vida útil. Esses motores são preferidos em aplicações que necessitam de controle preciso de torque com oscilações inferiores em comparação com outros motores.
-
-Uma das principais aplicações dos motores BLDC é em veículos elétricos, como carros, motocicletas, bicicletas e \textit{scooters} \cite{chau2007emerging}. Com o aumento da demanda por veículos elétricos, espera-se que os motores com tecnologia derivada do BLDC desempenhem um papel vital na indústria automotiva. Esses motores são usados para acionar o sistema de propulsão do veículo, fornecendo torque e potência para as rodas. Eles são preferidos em veículos elétricos devido à seu alta rendimento, baixo ruído e baixa manutenção. Essas motores são usados em aplicações que exigem alta precisão, controle de velocidade e torque, e baixo ruído.
-
+ Uma das principais aplicações dos motores BLDC é em veículos elétricos, como carros, motocicletas, bicicletas e \textit{scooters} \cite{chau2007emerging}. Com o aumento da demanda por veículos elétricos, espera-se que os motores com tecnologia derivada do BLDC desempenhem um papel vital na indústria automotiva. Esses motores são usados para acionar o sistema de propulsão do veículo, fornecendo torque e potência para as rodas. Eles são preferidos em veículos elétricos devido à seu alta rendimento, baixo ruído e baixa manutenção. Essas motores são usados em aplicações que exigem alta precisão, controle de velocidade e torque, e baixo ruído.
+%---
 \chapter{Objetivos}
 Estudar o princípio de funcionamento de um controlador de motores Brushless, tornando possível o projeto e desenvolvimento de um protótipo que possa oferecer uma operação suave e precisa em diferentes cenários de aplicação.
 
