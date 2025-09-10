@@ -326,11 +326,7 @@ Embora chamadas de "constantes", $K_T$ e $K_e$ são afetadas pela temperatura. O
  \item Proteção contra sobrecarga: O ESC pode desligar o motor se ele experimentar correntes superiores às nominais que representam riscos de deterioração das bobinas do motor. 
  \end{itemize} 
 
- \subsection{O Papel do Controlador (ESC) e o Controle Vetorial (FOC)} 
-
- As equações lineares de um motor DC só são diretamente aplicáveis a um motor BLDC devido à ação sofisticada do seu \textbf{Controlador Eletrônico de Velocidade (ESC)}. O ESC realiza a comutação eletrônica, energizando sequencialmente os enrolamentos do estator para criar um campo magnético giratório. 
-
- A técnica de controle de ponta que aperfeiçoa essa analogia é o \textbf{Controle Vetorial (FOC)}. O FOC transforma matematicamente as correntes trifásicas em um referencial giratório (d-q), separando a corrente em um componente que produz fluxo ($I_d$) e outro que produz torque ($I_q$). Ao manter $I_d = 0$, o controlador faz com que o torque seja linearmente proporcional apenas a $I_q$. Isso força a complexa máquina AC a se comportar como o motor DC idealizado, tornando as constantes $K_T$ e $K_e$ ferramentas de análise e projeto perfeitamente válidas \parencite{hendershot1994design}. 
+  As equações lineares de um motor DC só são diretamente aplicáveis a um motor BLDC devido à ação sofisticada do seu \textbf{Controlador Eletrônico de Velocidade (ESC)}. O ESC realiza a comutação eletrônica, energizando sequencialmente os enrolamentos do estator para criar um campo magnético giratório. Isso força a complexa máquina AC a se comportar como o motor DC idealizado, tornando as constantes $K_T$ e $K_e$ ferramentas de análise e projeto perfeitamente válidas \parencite{hendershot1994design}.
 
  \subsection{Consequências Práticas da Seleção de $K_V$} 
 
