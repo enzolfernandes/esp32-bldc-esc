@@ -1,0 +1,64 @@
+\changetocdepth {4}
+\babel@toc {brazil}{}\relax 
+\setlength {\cftchapterindent }{\cftlastnumwidth } \setlength {\cftchapternumwidth }{2em}
+\setlength {\cftchapterindent }{\cftlastnumwidth } \setlength {\cftchapternumwidth }{2em}
+\setlength {\cftchapterindent }{\cftlastnumwidth } \setlength {\cftchapternumwidth }{2em}
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {1}\MakeTextUppercase []{Introdução Teórica}}{7}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Motores CC Sem Escova}{7}{section.1.1}%
+\contentsline {subsection}{\numberline {1.1.1}Fundamentos Físicos da Conversão Eletromecânica}{8}{subsection.1.1.1}%
+\contentsline {subsubsection}{\numberline {1.1.1.1}A Força de Lorentz e a Condição de Torque Máximo}{8}{subsubsection.1.1.1.1}%
+\contentsline {subsubsection}{\numberline {1.1.1.2}A Lei de Faraday}{9}{subsubsection.1.1.1.2}%
+\contentsline {subsection}{\numberline {1.1.2}Modelo Matemático do Motor e a Definição das Constantes}{9}{subsection.1.1.2}%
+\contentsline {subsection}{\numberline {1.1.3}A constante de Torque $K_T$}{10}{subsection.1.1.3}%
+\contentsline {subsection}{\numberline {1.1.4}As constantes de Velocidade $K_V$}{10}{subsection.1.1.4}%
+\contentsline {subsection}{\numberline {1.1.5}A Equivalência entre $K_T$ e $K_e$}{11}{subsection.1.1.5}%
+\contentsline {subsection}{\numberline {1.1.6}Conversão de Unidades}{12}{subsection.1.1.6}%
+\contentsline {subsection}{\numberline {1.1.7}A Constante do Motor ($K_m$) como Figura de Mérito}{12}{subsection.1.1.7}%
+\contentsline {subsection}{\numberline {1.1.8}Influência da Temperatura}{12}{subsection.1.1.8}%
+\contentsline {section}{\numberline {1.2}Controlador Eletrônico de Velocidade (ESC)}{13}{section.1.2}%
+\contentsline {subsection}{\numberline {1.2.1}Consequências Práticas da Seleção de $K_V$}{14}{subsection.1.2.1}%
+\contentsline {subsection}{\numberline {1.2.2}Princípios de Operação}{14}{subsection.1.2.2}%
+\contentsline {subsubsection}{\numberline {1.2.2.1}Comutação de Seis Passos}{14}{subsubsection.1.2.2.1}%
+\contentsline {subsubsection}{\numberline {1.2.2.2}Análise da Ondulação de Torque (Torque Ripple)}{16}{subsubsection.1.2.2.2}%
+\contentsline {subsubsection}{\numberline {1.2.2.3}Modulação por Largura de Pulso}{18}{subsubsection.1.2.2.3}%
+\contentsline {subsection}{\numberline {1.2.3}Estratégia de Partida em Malha Aberta para Operação \textit {Sensorless}}{18}{subsection.1.2.3}%
+\contentsline {subsubsection}{\numberline {1.2.3.1}Alinhamento do Rotor}{18}{subsubsection.1.2.3.1}%
+\contentsline {subsection}{\numberline {1.2.4}Outros Algoritmos de Controle}{19}{subsection.1.2.4}%
+\contentsline {section}{\numberline {1.3}Vantagens e Desvantagens no uso de motores BLDC}{21}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Aplicações}{22}{section.1.4}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {2}\MakeTextUppercase []{Objetivos}}{23}{chapter.2}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {3}\MakeTextUppercase []{Metodologia}}{24}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Simulação}{24}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Projeto}{25}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Prototipagem}{25}{section.3.3}%
+\contentsline {section}{\numberline {3.4}Escolha de Componentes}{26}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}Motor}{26}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {3.4.2}Alimentação do Circuito}{26}{subsection.3.4.2}%
+\contentsline {subsection}{\numberline {3.4.3}Microcontrolador}{28}{subsection.3.4.3}%
+\contentsline {subsection}{\numberline {3.4.4}Alimentação do Microcontrolador}{30}{subsection.3.4.4}%
+\contentsline {section}{\numberline {3.5}Lógica de Chaveamento}{30}{section.3.5}%
+\contentsline {section}{\numberline {3.6}Cálculo de Componentes}{30}{section.3.6}%
+\vspace {\cftbeforechapterskip }
+\setlength {\cftchapterindent }{\cftlastnumwidth } \setlength {\cftchapternumwidth }{2em}
+\contentsline {chapter}{Refer\^encias}{31}{section*.15}%
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
+\babel@toc {brazil}{}\relax 
