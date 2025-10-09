@@ -1,17 +1,22 @@
-[0] Config.pm:328> INFO - This is Biber 2.21
-[0] Config.pm:331> INFO - Logfile is '.aux/main.blg'
-[161] biber-MSWIN64:342> INFO - === 
-[223] Biber.pm:421> INFO - Reading '.aux/main.bcf'
-[397] Biber.pm:1002> INFO - Found 33 citekeys in bib section 0
-[417] Biber.pm:4487> INFO - Processing section 0
-[433] Biber.pm:4678> INFO - Looking for bibtex file 'bibliografia.bib' for section 0
-[532] bibtex.pm:1713> INFO - LaTeX decoding ...
-[612] bibtex.pm:1519> INFO - Found BibTeX data source 'bibliografia.bib'
-[856] UCollate.pm:68> INFO - Overriding locale 'pt-BR' defaults 'variable = shifted' with 'variable = non-ignorable'
-[856] UCollate.pm:68> INFO - Overriding locale 'pt-BR' defaults 'normalization = NFD' with 'normalization = prenormalized'
-[856] Biber.pm:4307> INFO - Sorting list 'nty/global//global/global/global' of type 'entry' with template 'nty' and locale 'pt-BR'
-[856] Biber.pm:4313> INFO - No sort tailoring available for locale 'pt-BR'
-[896] bbl.pm:676> INFO - Writing '.aux/main.bbl' with encoding 'UTF-8'
-[915] bbl.pm:779> INFO - Output to .aux/main.bbl
-[916] Biber.pm:132> WARN - legacy month field 'April' in entry 'jones2025failures' is not an integer - this will probably not sort properly.
-[916] Biber.pm:134> INFO - WARNINGS: 1
+[1] Config.pm:328> INFO - This is Biber 2.21
+[1] Config.pm:331> INFO - Logfile is '.aux/main.blg'
+[333] biber-MSWIN64:342> INFO - === 
+[423] Biber.pm:421> INFO - Reading '.aux/main.bcf'
+[883] Biber.pm:1002> INFO - Found 39 citekeys in bib section 0
+[943] Biber.pm:4487> INFO - Processing section 0
+[975] Biber.pm:4678> INFO - Looking for bibtex file 'bibliografia.bib' for section 0
+[1109] bibtex.pm:1713> INFO - LaTeX decoding ...
+[1284] bibtex.pm:1519> INFO - Found BibTeX data source 'bibliografia.bib'
+[2081] UCollate.pm:68> INFO - Overriding locale 'pt-BR' defaults 'variable = shifted' with 'variable = non-ignorable'
+[2081] UCollate.pm:68> INFO - Overriding locale 'pt-BR' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[2081] Biber.pm:4307> INFO - Sorting list 'nty/global//global/global/global' of type 'entry' with template 'nty' and locale 'pt-BR'
+[2081] Biber.pm:4313> INFO - No sort tailoring available for locale 'pt-BR'
+[2199] bbl.pm:676> INFO - Writing '.aux/main.bbl' with encoding 'UTF-8'
+[2249] bbl.pm:779> INFO - Output to .aux/main.bbl
+[2250] Biber.pm:132> WARN - legacy month field 'April' in entry 'jones2025failures' is not an integer - this will probably not sort properly.
+[2250] Biber.pm:132> WARN - I didn't find a database entry for 'smith2018control' (section 0)
+[2251] Biber.pm:132> WARN - I didn't find a database entry for 'davis2019bldc' (section 0)
+[2251] Biber.pm:132> WARN - I didn't find a database entry for 'williams2021startup' (section 0)
+[2251] Biber.pm:132> WARN - I didn't find a database entry for 'brown2022transient' (section 0)
+[2251] Biber.pm:132> WARN - I didn't find a database entry for 'miller2020efficiency' (section 0)
+[2251] Biber.pm:134> INFO - WARNINGS: 6

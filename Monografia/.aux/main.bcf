@@ -2508,17 +2508,34 @@
     <bcf:citekey order="34" intorder="1">ti2022minimizing</bcf:citekey>
     <bcf:citekey order="35" intorder="1">ti2022minimizing</bcf:citekey>
     <bcf:citekey order="35" intorder="2">jones2025failures</bcf:citekey>
-    <bcf:citekey order="36" intorder="1">gieras2009permanent</bcf:citekey>
-    <bcf:citekey order="37" intorder="1">chau2007emerging</bcf:citekey>
-    <bcf:citekey order="38" intorder="1">turnigyMotor</bcf:citekey>
-    <bcf:citekey order="39" intorder="1">turnigyBattery</bcf:citekey>
-    <bcf:citekey order="40" intorder="1">esp32-wroom-32Datasheet</bcf:citekey>
-    <bcf:citekey order="41" intorder="1">ESP32-DevKitCOverview</bcf:citekey>
-    <bcf:citekey order="42" intorder="1">esp32DevkitV1</bcf:citekey>
-    <bcf:citekey order="43" intorder="1">esp32-technical-reference-manual</bcf:citekey>
-    <bcf:citekey order="44" intorder="1">ESP32-DevKitCOverview</bcf:citekey>
-    <bcf:citekey order="45" intorder="1">TIBuckCalculation</bcf:citekey>
-    <bcf:citekey order="46" intorder="1">LM2596</bcf:citekey>
+    <bcf:citekey order="36" intorder="1">nxp2023sensorless</bcf:citekey>
+    <bcf:citekey order="37" intorder="1">ti2022minimizing</bcf:citekey>
+    <bcf:citekey order="38" intorder="1">ti2022minimizing</bcf:citekey>
+    <bcf:citekey order="39" intorder="1">ti2022minimizing</bcf:citekey>
+    <bcf:citekey order="39" intorder="2">nxp2023sensorless</bcf:citekey>
+    <bcf:citekey order="40" intorder="1">nxp2023sensorless</bcf:citekey>
+    <bcf:citekey order="40" intorder="2">silva2012controle</bcf:citekey>
+    <bcf:citekey order="41" intorder="1">ti2022minimizing</bcf:citekey>
+    <bcf:citekey order="42" intorder="1">jones2025failures</bcf:citekey>
+    <bcf:citekey order="43" intorder="1">smith2018control</bcf:citekey>
+    <bcf:citekey order="43" intorder="2">davis2019bldc</bcf:citekey>
+    <bcf:citekey order="44" intorder="1">williams2021startup</bcf:citekey>
+    <bcf:citekey order="44" intorder="2">brown2022transient</bcf:citekey>
+    <bcf:citekey order="45" intorder="1">jones2025failures</bcf:citekey>
+    <bcf:citekey order="45" intorder="2">miller2020efficiency</bcf:citekey>
+    <bcf:citekey order="46" intorder="1">ti2022minimizing</bcf:citekey>
+    <bcf:citekey order="46" intorder="2">nxp2023sensorless</bcf:citekey>
+    <bcf:citekey order="47" intorder="1">gieras2009permanent</bcf:citekey>
+    <bcf:citekey order="48" intorder="1">chau2007emerging</bcf:citekey>
+    <bcf:citekey order="49" intorder="1">turnigyMotor</bcf:citekey>
+    <bcf:citekey order="50" intorder="1">turnigyBattery</bcf:citekey>
+    <bcf:citekey order="51" intorder="1">esp32-wroom-32Datasheet</bcf:citekey>
+    <bcf:citekey order="52" intorder="1">ESP32-DevKitCOverview</bcf:citekey>
+    <bcf:citekey order="53" intorder="1">esp32DevkitV1</bcf:citekey>
+    <bcf:citekey order="54" intorder="1">esp32-technical-reference-manual</bcf:citekey>
+    <bcf:citekey order="55" intorder="1">ESP32-DevKitCOverview</bcf:citekey>
+    <bcf:citekey order="56" intorder="1">TIBuckCalculation</bcf:citekey>
+    <bcf:citekey order="57" intorder="1">LM2596</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">
