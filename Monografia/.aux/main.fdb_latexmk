@@ -1,18 +1,18 @@
 # Fdb version 4
-["biber .aux/main"] 1760052396.08203 ".aux/main.bcf" ".aux/main.bbl" ".aux/main" 1760052426.39376 0
-  ".aux/main.bcf" 1760052425 119335 6389d82866a3603590e7de9c6069e779 "pdflatex"
-  "bibliografia.bib" 1760052006 11007 0d6219cdfbfff5edccf843faf268e1e7 ""
+["biber .aux/main"] 1760653751.94457 ".aux/main.bcf" ".aux/main.bbl" ".aux/main" 1760653800.39596 0
+  ".aux/main.bcf" 1760653799 119335 6389d82866a3603590e7de9c6069e779 "pdflatex"
+  "bibliografia.bib" 1760653748 10510 dd737a852f2445252e2afcad0e5ff578 ""
   (generated)
   ".aux/main.bbl"
   ".aux/main.blg"
   (rewritten before read)
-["pdflatex"] 1760052415.81952 "c:/Users/Enzo Fernandes/Desktop/TCC/Monografia/main.tex" ".aux/main.pdf" "main" 1760052426.39581 0
-  ".aux/main.aux" 1760052425 37429 745196f6532a1faf25bf87c7f3a4869d "pdflatex"
-  ".aux/main.bbl" 1760052403 48473 8ee4e47eb9cee6ae4ef554cf26fd25f9 "biber .aux/main"
-  ".aux/main.lof" 1760052425 1461 96639f0621f209ddee6a94661cf5dabd "pdflatex"
-  ".aux/main.lot" 1760052425 693 edff96b7a863aaa0c8d2b76a01110fb9 "pdflatex"
-  ".aux/main.run.xml" 1760052425 2512 1565ac7b8610b9cd18463b10db8a3eb5 "pdflatex"
-  ".aux/main.toc" 1760052425 5267 dd1780048515c5f12f029ecc8abf00be "pdflatex"
+["pdflatex"] 1760653788.02903 "c:/Users/Enzo Fernandes/Desktop/TCC/Monografia/main.tex" ".aux/main.pdf" "main" 1760653800.39824 0
+  ".aux/main.aux" 1760653799 37130 7f1e060511ea889aff841e2d93754ff4 "pdflatex"
+  ".aux/main.bbl" 1760653766 45810 985569939cda1d61a65389ef947de7b5 "biber .aux/main"
+  ".aux/main.lof" 1760653799 1461 96639f0621f209ddee6a94661cf5dabd "pdflatex"
+  ".aux/main.lot" 1760653799 693 edff96b7a863aaa0c8d2b76a01110fb9 "pdflatex"
+  ".aux/main.run.xml" 1760653799 2512 1565ac7b8610b9cd18463b10db8a3eb5 "pdflatex"
+  ".aux/main.toc" 1760653799 5267 dd1780048515c5f12f029ecc8abf00be "pdflatex"
   "c:/Users/Enzo Fernandes/Desktop/TCC/Monografia/main.tex" 1760052380 60647 8dd423678f56cc9c32ae9ce67938d28a ""
   "c:/texlive/2025/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1753407054 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "c:/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1753408717 3524 cb3e574dea2d1052e39280babc910dc8 ""

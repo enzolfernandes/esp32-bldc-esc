@@ -675,34 +675,6 @@
       \field{pages}{1531\bibrangedash 1545}
       \range{pages}{15}
     \endentry
-    \entry{jones2025failures}{article}{}{}
-      \name{author}{1}{}{%
-        {{un=0,uniquepart=base,hash=bdc9b8adb7815034d31acb54b92513b8}{%
-           family={Jones},
-           familyi={J\bibinitperiod},
-           given={Nicole},
-           giveni={N\bibinitperiod},
-           givenun=0}}%
-      }
-      \strng{namehash}{bdc9b8adb7815034d31acb54b92513b8}
-      \strng{fullhash}{bdc9b8adb7815034d31acb54b92513b8}
-      \strng{fullhashraw}{bdc9b8adb7815034d31acb54b92513b8}
-      \strng{bibnamehash}{bdc9b8adb7815034d31acb54b92513b8}
-      \strng{authorbibnamehash}{bdc9b8adb7815034d31acb54b92513b8}
-      \strng{authornamehash}{bdc9b8adb7815034d31acb54b92513b8}
-      \strng{authorfullhash}{bdc9b8adb7815034d31acb54b92513b8}
-      \strng{authorfullhashraw}{bdc9b8adb7815034d31acb54b92513b8}
-      \field{sortinit}{J}
-      \field{sortinithash}{b2f54a9081ace9966a7cb9413811edb4}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{journaltitle}{Anaheim Automation Blog}
-      \field{month}{4}
-      \field{title}{Top 5 BLDC Motor and Controller Failures: A Practical Troubleshooting Guide}
-      \field{year}{2025}
-    \endentry
     \entry{kim2017electric}{book}{}{}
       \name{author}{1}{}{%
         {{un=1,uniquepart=given,hash=3f2795c89ac6dc999a049193306f41b7}{%
@@ -882,40 +854,6 @@
       \verb{url}
       \verb https://www.robocore.net/wifi/esp32-wifi-bluetooth
       \endverb
-    \endentry
-    \entry{silva2012controle}{thesis}{}{}
-      \name{author}{1}{}{%
-        {{un=0,uniquepart=base,hash=a71a87f12f3c3c81a619184d28a1b22a}{%
-           family={Silva},
-           familyi={S\bibinitperiod},
-           given={João\bibnamedelima da},
-           giveni={J\bibinitperiod\bibinitdelim d\bibinitperiod},
-           givenun=0}}%
-      }
-      \list{institution}{1}{%
-        {Pontifícia Universidade Católica do Rio de Janeiro}%
-      }
-      \list{location}{1}{%
-        {Rio de Janeiro}%
-      }
-      \strng{namehash}{a71a87f12f3c3c81a619184d28a1b22a}
-      \strng{fullhash}{a71a87f12f3c3c81a619184d28a1b22a}
-      \strng{fullhashraw}{a71a87f12f3c3c81a619184d28a1b22a}
-      \strng{bibnamehash}{a71a87f12f3c3c81a619184d28a1b22a}
-      \strng{authorbibnamehash}{a71a87f12f3c3c81a619184d28a1b22a}
-      \strng{authornamehash}{a71a87f12f3c3c81a619184d28a1b22a}
-      \strng{authorfullhash}{a71a87f12f3c3c81a619184d28a1b22a}
-      \strng{authorfullhashraw}{a71a87f12f3c3c81a619184d28a1b22a}
-      \field{sortinit}{S}
-      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{bookpagination}{sheet}
-      \field{title}{Controle de Posição de Motores de Passo em Malha Fechada}
-      \field{type}{phdthesis}
-      \field{year}{2012}
     \endentry
     \entry{ESP32-DevKitCOverview}{misc}{}{}
       \name{author}{1}{}{%
@@ -1129,7 +1067,9 @@
   \enddatalist
   \missing{brown2022transient}
   \missing{davis2019bldc}
+  \missing{jones2025failures}
   \missing{miller2020efficiency}
+  \missing{silva2012controle}
   \missing{smith2018control}
   \missing{williams2021startup}
 \endrefsection

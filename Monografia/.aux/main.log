@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.7.25)  9 OCT 2025 20:26
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.7.25)  16 OCT 2025 19:29
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1224,7 +1224,21 @@ Package biblatex Warning: The following entry could not be found
 
 Package biblatex Warning: The following entry could not be found
 (biblatex)                in the database:
+(biblatex)                jones2025failures
+(biblatex)                Please verify the spelling and rerun
+(biblatex)                LaTeX afterwards.
+
+
+Package biblatex Warning: The following entry could not be found
+(biblatex)                in the database:
 (biblatex)                miller2020efficiency
+(biblatex)                Please verify the spelling and rerun
+(biblatex)                LaTeX afterwards.
+
+
+Package biblatex Warning: The following entry could not be found
+(biblatex)                in the database:
+(biblatex)                silva2012controle
 (biblatex)                Please verify the spelling and rerun
 (biblatex)                LaTeX afterwards.
 
@@ -1422,6 +1436,10 @@ LaTeX Font Info:    Font shape `OT1/cmss/m/it' in size <14.4> not available
 
 
 [18 <./imagens/PWM.png>]
+
+LaTeX Warning: Citation 'jones2025failures' on page 19 undefined on input line 401.
+
+
 Overfull \hbox (3.0317pt too wide) in paragraph at lines 407--408
 []\OT1/cmr/m/n/12 Durante esta fase, o con-tro-la-dor es-sen-ci-al-mente co-manda a rota^^Xc~ao do campo magn^^Setico
  []
@@ -1429,6 +1447,12 @@ Overfull \hbox (3.0317pt too wide) in paragraph at lines 407--408
 
 
 [19]
+
+LaTeX Warning: Citation 'silva2012controle' on page 20 undefined on input line 415.
+
+
+LaTeX Warning: Citation 'jones2025failures' on page 20 undefined on input line 417.
+
 
 LaTeX Warning: Citation 'smith2018control' on page 20 undefined on input line 417.
 
@@ -1444,6 +1468,9 @@ LaTeX Warning: Citation 'brown2022transient' on page 20 undefined on input line 
 
 
 [20]
+
+LaTeX Warning: Citation 'jones2025failures' on page 21 undefined on input line 425.
+
 
 LaTeX Warning: Citation 'miller2020efficiency' on page 21 undefined on input line 425.
 
@@ -1464,7 +1491,7 @@ LaTeX Warning: Citation 'miller2020efficiency' on page 21 undefined on input lin
 ]
 
 [26]
-<imagens/Turnigy XK3674-2200KV.jpg, id=420, 426.09187pt x 312.41719pt>
+<imagens/Turnigy XK3674-2200KV.jpg, id=413, 426.09187pt x 312.41719pt>
 File: imagens/Turnigy XK3674-2200KV.jpg Graphic file (type jpg)
 <use imagens/Turnigy XK3674-2200KV.jpg>
 Package pdftex.def Info: imagens/Turnigy XK3674-2200KV.jpg  used on input line 490.
@@ -1472,7 +1499,7 @@ Package pdftex.def Info: imagens/Turnigy XK3674-2200KV.jpg  used on input line 4
 
 
 [27 <./imagens/Turnigy XK3674-2200KV.jpg>]
-<imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg, id=429, 426.09187pt x 312.41719pt>
+<imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg, id=422, 426.09187pt x 312.41719pt>
 File: imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg Graphic file (type jpg)
 <use imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg>
 Package pdftex.def Info: imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg  used on input line 517.
@@ -1480,7 +1507,7 @@ Package pdftex.def Info: imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg  us
 
 
 [28 <./imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg>]
-<imagens/esp32-devkitc-v4-functional-overview.jpg, id=440, 963.6pt x 542.025pt>
+<imagens/esp32-devkitc-v4-functional-overview.jpg, id=433, 963.6pt x 542.025pt>
 File: imagens/esp32-devkitc-v4-functional-overview.jpg Graphic file (type jpg)
 <use imagens/esp32-devkitc-v4-functional-overview.jpg>
 Package pdftex.def Info: imagens/esp32-devkitc-v4-functional-overview.jpg  used on input line 528.
@@ -1488,7 +1515,7 @@ Package pdftex.def Info: imagens/esp32-devkitc-v4-functional-overview.jpg  used 
 
 
 [29 <./imagens/esp32-devkitc-v4-functional-overview.jpg>]
-<imagens/esp32_devkitC_v4_pinlayout.png, id=456, 3303.77142pt x 2252.75914pt>
+<imagens/esp32_devkitC_v4_pinlayout.png, id=449, 3303.77142pt x 2252.75914pt>
 File: imagens/esp32_devkitC_v4_pinlayout.png Graphic file (type png)
 <use imagens/esp32_devkitC_v4_pinlayout.png>
 Package pdftex.def Info: imagens/esp32_devkitC_v4_pinlayout.png  used on input line 542.
@@ -1525,18 +1552,18 @@ Package logreq Info: Writing requests to 'main.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 28161 strings out of 467815
- 487207 string characters out of 5436410
- 1433677 words of memory out of 5000000
- 56262 multiletter control sequences out of 15000+600000
+ 28146 strings out of 467815
+ 486765 string characters out of 5436410
+ 1434579 words of memory out of 5000000
+ 56249 multiletter control sequences out of 15000+600000
  643109 words of font info for 99 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  99i,13n,107p,1493b,4312s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmcsc10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmss10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmss12.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmss17.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmssbx10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmssi12.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmti12.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt12.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/cm-super/sfbx1200.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/cm-super/sfrm1200.pfb>
-Output written on .aux/main.pdf (35 pages, 1235578 bytes).
+Output written on .aux/main.pdf (35 pages, 1235172 bytes).
 PDF statistics:
- 762 PDF objects out of 1000 (max. 8388607)
- 662 compressed objects within 7 object streams
- 147 named destinations out of 1000 (max. 500000)
+ 755 PDF objects out of 1000 (max. 8388607)
+ 655 compressed objects within 7 object streams
+ 145 named destinations out of 1000 (max. 500000)
  393 words of extra memory for PDF output out of 10000 (max. 10000000)
 
