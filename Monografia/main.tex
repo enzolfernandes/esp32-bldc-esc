@@ -427,7 +427,6 @@ Além do risco de perda de passo, a partida forçada apresenta outras desvantage
 
 É fundamental reiterar que a partida forçada em malha aberta é uma fase transitória e um meio para um fim. É uma estratégia de \textit{bootstrap} projetada exclusivamente para levar o motor de um estado de repouso para uma velocidade operacional mínima, onde métodos de controle em malha fechada, mais eficientes, precisos e robustos, podem ser ativados para a operação contínua do sistema \cite{ti2022minimizing, nxp2023sensorless}.
 
-
  \subsection{Outros Algoritmos de Controle} 
 
  Além do Controle Trapezoidal existem outras formas de controle que envolvem algorítimos mais complexos, como o Controle de Torque Vetorial e o Controle de Campo Orientado, ambos em malha fechada. 
@@ -553,7 +552,16 @@ Existem duas abordagens possíveis para a alimentação do microcontrolador, uti
 
 Dentre as topologias disponíveis, destacam-se os conversores buck (step-down) e os conversores isolados do tipo flyback. O conversor chaveado Buck é amplamente utilizada para a redução de tensão, operando com elevada eficiência (tipicamente superior a $85\%$) \cite{TIBuckCalculation}, mesmo sob variação da carga ou da tensão de entrada, caso seja implementado com circuito de retroalimentação. Sua estrutura básica é composta por um interruptor (geralmente um MOSFET), um diodo, um indutor e um capacitor de filtro. Diferentemente dos reguladores lineares, o Buck dissipa pouca energia em forma de calor, o que o torna ideal para aplicações com restrições térmicas e de consumo energético. Além disso, sua implementação é mais simples e compacta em relação a conversores Flyback, os quais requerem transformadores e circuitos de controle mais complexos, além de maiores dimensões físicas.
 
-Em aplicações onde não há necessidade de isolamento galvânico entre a bateria e o circuito lógico, o conversor Buck é a solução preferencial. No projeto será aplicado o módulo comercial de baixo custo LM2596, um conversor buck de $150kHz$ e $3A$ de corrente de saída e tensão de saída ajustável que nesse caso será $5V$, capaz de receber até $40V$ de tensão de entrada, mais que o suficiente para essa implementação \cite{LM2596}.
+Em aplicações onde não há necessidade de isolamento galvânico entre a bateria e o circuito lógico, o 
+conversor Buck é a solução preferencial. No projeto será aplicado o módulo comercial de baixo custo LM2596, um conversor buck de $150kHz$ e $3A$ de corrente de saída e tensão de saída ajustável que nesse caso será $5V$, capaz de receber até $40V$ de tensão de entrada, mais que o suficiente para essa implementação \cite{LM2596}.
+
+
+ \begin{figure}[h] 
+     \centering 
+     \caption{Módulo Comercial LM2596.} 
+     \includegraphics[width=7cm]{imagens/Módulo LM2596.jpg} 
+     \caption*{Fonte:\cite{usinaInfoLM2596}.}
+ \end{figure}
 
 \section{Lógica de Chaveamento}
 \section{Cálculo de Componentes}
