@@ -564,6 +564,73 @@ conversor Buck é a solução preferencial. No projeto será aplicado o módulo 
  \end{figure}
 
 \section{Lógica de Chaveamento}
+A lógica de chaveamento constitui o núcleo funcional do ESC, sendo responsável por orquestrar a energização sequencial dos enrolamentos do estator para gerar o campo magnético giratório que impulsiona o rotor. Conforme detalhado na fundamentação teórica, a estratégia mais fundamental para operar um motor BLDC, especialmente em uma partida de malha aberta (sensorless), é a comutação de seis passos.
+
+Nesta abordagem inicial, o controle é realizado de forma forçada, onde o microcontrolador impõe uma sequência fixa de acionamento dos transistores da ponte inversora, sem depender de sensores para determinar a posição do rotor. O sistema opera sob a premissa de que o torque gerado será suficiente para que o rotor vença a inércia e o atrito, sincronizando seu movimento com o campo magnético girante imposto pelo estator.
+
+\subsection{Sequência de Comutação de Seis Passos}
+A ponte inversora trifásica, composta por seis MOSFETs (um par high-side e low-side para cada uma das três fases A, B e C), é a atuadora deste processo. Em cada um dos seis passos da comutação, apenas dois MOSFETs são ativados simultaneamente: um MOSFET high-side em uma fase e um MOSFET low-side em uma segunda fase. Esta configuração permite que a corrente flua da fonte de alimentação, entre pela primeira fase, saia pela segunda e retorne ao terra, enquanto a terceira fase permanece em alta impedância (desconectada).
+
+A sequência completa para uma rotação elétrica de $360^{\circ}$ é projetada para avançar o vetor do campo magnético em incrementos de $60^{\circ}$.
+
+\begin{table}[H]
+    \centering
+    \caption{Sequência de Comutação de Seis Passos e Estado dos MOSFETs}
+    \label{tab:logica_seis_passos}
+    % A CORREÇÃO ESTÁ AQUI: de {ccccccc} para {cccccccc}
+    \begin{tabular}{@{}cccccccc@{}} 
+        \toprule
+        \textbf{Passo} & \textbf{Pos. Elétrica} & \textbf{High A} & \textbf{Low B} & \textbf{High C} & \textbf{Low A} & \textbf{High B} & \textbf{Low C} \\ \midrule
+        1 & 0° -- 60°   & ON & ON  & OFF & OFF & OFF & OFF \\
+        2 & 60° -- 120°  & ON & OFF & OFF & OFF & OFF & ON  \\
+        3 & 120° -- 180° & OFF& OFF & ON  & OFF & ON  & OFF \\
+        4 & 180° -- 240° & OFF& OFF & ON  & ON  & OFF & OFF \\
+        5 & 240° -- 300° & OFF& ON  & OFF & ON  & OFF & OFF \\
+        6 & 300° -- 360° & OFF& OFF & OFF & OFF & ON  & ON  \\ \bottomrule
+    \end{tabular}
+    \caption*{Fonte: Elaborado pelo autor.}
+\end{table}
+
+Por exemplo, no Passo 1, o MOSFET high-side da Fase A e o MOSFET low-side da Fase B são ligados. Isso cria um caminho para a corrente fluir da bateria através do enrolamento A e sair pelo enrolamento B, estabelecendo um vetor de campo magnético no estator. Ao final da duração deste passo, o controlador desliga o MOSFET low-side da Fase B e liga o MOSFET low-side da Fase C, iniciando o Passo 2. Este processo se repete ciclicamente, fazendo com que o campo magnético gire de forma contínua.
+
+\subsection{Implementação Prática com o Periférico MCPWM do ESP32}
+
+A transição da estratégia de controle teórica para uma implementação funcional requer o uso eficaz dos periféricos do microcontrolador escolhido. Felizmente, o ESP32 é equipado com um módulo de hardware especializado que simplifica e otimiza significativamente esta tarefa: o periférico \textit{Motor Control Pulse Width Modulator} (MCPWM) \cite{espressif2025technical}.
+
+Este módulo dedicado desonera as CPUs principais da tarefa intensiva e de tempo crítico de gerar sinais PWM, permitindo que o firmware se concentre na lógica de controle de alto nível. Uma única unidade MCPWM é perfeitamente adequada para acionar a ponte inversora trifásica, pois contém três pares de saídas PWM (seis canais no total), um para cada fase do motor \cite{espressif2022mcpwm}.
+
+A implementação da comutação no firmware envolverá a configuração do periférico MCPWM através da API fornecida pelo ESP-IDF, seguindo estes passos:
+
+\begin{enumerate}
+    \item \textbf{Inicialização e Mapeamento de Pinos:} Seleciona-se uma unidade MCPWM (e.g., \texttt{MCPWM\_UNIT\_0}) e mapeiam-se os seis pinos GPIO do ESP32 para as saídas do periférico (PWM0A, PWM0B, etc.), que controlarão os gates dos transistores.
+    
+    \item \textbf{Configuração dos Temporizadores:} Os temporizadores internos do MCPWM são configurados para definir a frequência base do PWM, que é um parâmetro importante para a eficiência e a audibilidade do motor.
+    
+    \item \textbf{Controle de Velocidade via \textit{Duty Cycle}:} A velocidade do motor é controlada ajustando-se o ciclo de trabalho (\textit{duty cycle}) do sinal PWM. Em vez de manter o MOSFET high-side continuamente ativo durante um passo, ele será acionado com este sinal modulado. A tensão média aplicada ao motor torna-se, assim, proporcional ao \textit{duty cycle}, que pode ser ajustado no firmware através de chamadas a funções como \texttt{mcpwm\_set\_duty()}.
+    
+    \item \textbf{Implementação do Tempo Morto (\textit{Dead Time}):} Para proteger a ponte inversora, é essencial implementar um "tempo morto". Este é um pequeno intervalo de tempo inserido automaticamente pelo MCPWM entre o desligamento de um MOSFET e o acionamento de seu par complementar no mesmo braço da ponte. Isso previne a ocorrência de "\textit{shoot-through}", uma condição de curto-circuito que pode destruir os transistores \cite{lee2019embedded}.
+\end{enumerate}
+
+O núcleo do firmware de controle será uma máquina de estados, onde cada estado corresponde a um dos seis passos da comutação. A cada transição de estado, o firmware reconfigurará os geradores do MCPWM para produzir o padrão de saída correto, conforme detalhado na Tabela \ref{tab:mcpwm_map}. Esta tabela serve como uma ponte direta entre a teoria de controle e a implementação concreta no hardware, tornando a metodologia clara e reprodutível.
+
+\begin{table}[H]
+    \centering
+    \caption{Mapeamento dos Estados de Comutação para os Geradores MCPWM do ESP32}
+    \label{tab:mcpwm_map}
+    \begin{tabular}{@{}ccccccc@{}}
+        \toprule
+        \textbf{Passo} & \textbf{Fases Energizadas} & \textbf{High-Side} & \textbf{Low-Side} & \textbf{OPR 0 (A)} & \textbf{OPR 1 (B)} & \textbf{OPR 2 (C)} \\ \midrule
+        1 & A+ B- & T1 & T4 & PWM / LOW & LOW / ACTIVE & Hi-Z / Hi-Z \\
+        2 & A+ C- & T1 & T6 & PWM / LOW & Hi-Z / Hi-Z & LOW / ACTIVE \\
+        3 & B+ C- & T3 & T6 & Hi-Z / Hi-Z & PWM / LOW & LOW / ACTIVE \\
+        4 & B+ A- & T3 & T2 & LOW / ACTIVE & PWM / LOW & Hi-Z / Hi-Z \\
+        5 & C+ A- & T5 & T2 & LOW / ACTIVE & Hi-Z / Hi-Z & PWM / LOW \\
+        6 & C+ B- & T5 & T4 & Hi-Z / Hi-Z & LOW / ACTIVE & PWM / LOW \\ \bottomrule
+    \end{tabular}
+    \flushleft
+    \footnotesize{\textit{Nota:} "PWM / LOW" indica que o gerador A do operador modula o sinal e o B está forçado em nível baixo. "LOW / ACTIVE" indica que o gerador A está forçado em baixo e o B está ativo (conduzindo ao terra). "Hi-Z / Hi-Z" significa que ambos os geradores estão em alta impedância.}
+\end{table}
+
 \section{Cálculo de Componentes}
 
 % --- ELEMENTOS PÓS-TEXTUAIS ---
