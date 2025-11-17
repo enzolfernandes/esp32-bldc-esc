@@ -47,9 +47,9 @@
 % --- CONFIGURAÇÃO DE HIPERLINKS ---
 \hypersetup{
     colorlinks=true,
-    linkcolor=blue,
-    citecolor=green!50!black,
-    urlcolor=blue!80!black,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=black,
     pdftitle={Desenvolvimento e Análise de um Controlador Eletrônico de Velocidade para Motores de Corrente Contínua Sem Escovas},
     pdfauthor={Enzo Luiz Fernandes},
     bookmarksopen=true
@@ -569,7 +569,7 @@ A lógica de chaveamento constitui o núcleo funcional do ESC, sendo responsáve
 Nesta abordagem inicial, o controle é realizado de forma forçada, onde o microcontrolador impõe uma sequência fixa de acionamento dos transistores da ponte inversora, sem depender de sensores para determinar a posição do rotor. O sistema opera sob a premissa de que o torque gerado será suficiente para que o rotor vença a inércia e o atrito, sincronizando seu movimento com o campo magnético girante imposto pelo estator.
 
 \subsection{Sequência de Comutação de Seis Passos}
-A ponte inversora trifásica, composta por seis MOSFETs (um par high-side e low-side para cada uma das três fases A, B e C), é a atuadora deste processo. Em cada um dos seis passos da comutação, apenas dois MOSFETs são ativados simultaneamente: um MOSFET high-side em uma fase e um MOSFET low-side em uma segunda fase. Esta configuração permite que a corrente flua da fonte de alimentação, entre pela primeira fase, saia pela segunda e retorne ao terra, enquanto a terceira fase permanece em alta impedância (desconectada).
+A ponte inversora trifásica, composta por seis MOSFETs (um par high-side e low-side para cada uma das três fases A, B e C), é a atuadora deste processo. Em cada um dos seis passos da comutação, apenas dois MOSFETs são ativados simultaneamente: um MOSFET high-side em uma fase e um MOSFET low-side em uma segunda fase. Esta configuração permite que a corrente flua da fonte de alimentação, entre pela primeira fase, saia pela segunda e retorne ao terra, enquanto a terceira fase permanece em alta impedância, ou seja, desconectada.
 
 A sequência completa para uma rotação elétrica de $360^{\circ}$ é projetada para avançar o vetor do campo magnético em incrementos de $60^{\circ}$.
 
@@ -577,7 +577,6 @@ A sequência completa para uma rotação elétrica de $360^{\circ}$ é projetada
     \centering
     \caption{Sequência de Comutação de Seis Passos e Estado dos MOSFETs}
     \label{tab:logica_seis_passos}
-    % A CORREÇÃO ESTÁ AQUI: de {ccccccc} para {cccccccc}
     \begin{tabular}{@{}cccccccc@{}} 
         \toprule
         \textbf{Passo} & \textbf{Pos. Elétrica} & \textbf{High A} & \textbf{Low B} & \textbf{High C} & \textbf{Low A} & \textbf{High B} & \textbf{Low C} \\ \midrule
@@ -617,18 +616,23 @@ O núcleo do firmware de controle será uma máquina de estados, onde cada estad
     \centering
     \caption{Mapeamento dos Estados de Comutação para os Geradores MCPWM do ESP32}
     \label{tab:mcpwm_map}
-    \begin{tabular}{@{}ccccccc@{}}
-        \toprule
-        \textbf{Passo} & \textbf{Fases Energizadas} & \textbf{High-Side} & \textbf{Low-Side} & \textbf{OPR 0 (A)} & \textbf{OPR 1 (B)} & \textbf{OPR 2 (C)} \\ \midrule
-        1 & A+ B- & T1 & T4 & PWM / LOW & LOW / ACTIVE & Hi-Z / Hi-Z \\
-        2 & A+ C- & T1 & T6 & PWM / LOW & Hi-Z / Hi-Z & LOW / ACTIVE \\
-        3 & B+ C- & T3 & T6 & Hi-Z / Hi-Z & PWM / LOW & LOW / ACTIVE \\
-        4 & B+ A- & T3 & T2 & LOW / ACTIVE & PWM / LOW & Hi-Z / Hi-Z \\
-        5 & C+ A- & T5 & T2 & LOW / ACTIVE & Hi-Z / Hi-Z & PWM / LOW \\
-        6 & C+ B- & T5 & T4 & Hi-Z / Hi-Z & LOW / ACTIVE & PWM / LOW \\ \bottomrule
-    \end{tabular}
+    
+    % Força a tabela a ter a largura da página, encolhendo a fonte
+    \resizebox{\textwidth}{!}{%
+        \begin{tabular}{@{}ccccccc@{}}
+            \toprule
+            \textbf{Passo} & \textbf{Fases Energizadas} & \textbf{High-Side} & \textbf{Low-Side} & \textbf{OPR 0 (A)} & \textbf{OPR 1 (B)} & \textbf{OPR 2 (C)} \\ \midrule
+            1 & A+ B- & T1 & T4 & PWM / LOW & LOW / ACTIVE & Hi-Z / Hi-Z \\
+            2 & A+ C- & T1 & T6 & PWM / LOW & Hi-Z / Hi-Z & LOW / ACTIVE \\
+            3 & B+ C- & T3 & T6 & Hi-Z / Hi-Z & PWM / LOW & LOW / ACTIVE \\
+            4 & B+ A- & T3 & T2 & LOW / ACTIVE & PWM / LOW & Hi-Z / Hi-Z \\
+            5 & C+ A- & T5 & T2 & LOW / ACTIVE & Hi-Z / Hi-Z & PWM / LOW \\
+            6 & C+ B- & T5 & T4 & Hi-Z / Hi-Z & LOW / ACTIVE & PWM / LOW \\ \bottomrule
+        \end{tabular}
+    }
+    
     \flushleft
-    \footnotesize{\textit{Nota:} "PWM / LOW" indica que o gerador A do operador modula o sinal e o B está forçado em nível baixo. "LOW / ACTIVE" indica que o gerador A está forçado em baixo e o B está ativo (conduzindo ao terra). "Hi-Z / Hi-Z" significa que ambos os geradores estão em alta impedância.}
+    \footnotesize{\textit{Nota:} "PWM / LOW" indica que o gerador A do operador modula o sinal e o B está forçado em nível baixo. "LOW / ACTIVE" indica que o gerador A está forçado em baixo e o B está ativo (conduzindo ao terra). "Hi-Z / Hi-Z" significa que ambos os geradores estão em alta impedância.} 
 \end{table}
 
 \section{Cálculo de Componentes}
