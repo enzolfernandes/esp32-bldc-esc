@@ -276,7 +276,7 @@ Esta prova revela que o mesmo mecanismo de acoplamento eletromagnético que prod
 
 A elegância teórica é frequentemente obscurecida pelo uso de unidades inconsistentes na prática. A habilidade de converter valores de folhas de dados para o padrão SI é indispensável. A relação prática mais importante é entre $K_T$ e $K_V$:
 \begin{equation}
-    K_T \text{ [N·m/A]} \approx \frac{9.549}{K_V \text{ [RPM/V]}}
+    K_T \text{ [N·m/A]} = \frac{2\pi }{60 \: K_V \text{ [RPM/V]}}
 \end{equation}
 Esta fórmula é derivada diretamente da equivalência $K_T = K_e = 1/K_V$ após a conversão de RPM para rad/s \parencite{infineon2011bldc}. A tabela abaixo resume as conversões chave.
 
@@ -457,121 +457,113 @@ Além do risco de perda de passo, a partida forçada apresenta outras desvantage
 Estudar o princípio de funcionamento de um controlador de motores Brushless, tornando possível o projeto e desenvolvimento de um protótipo que possa oferecer uma operação suave e precisa em diferentes cenários de aplicação.
 
 \chapter{Metodologia}
-O desenvolvimento do ESC será realizado em três etapas principais. A primeira conta com uma simulação computacional do sistema para entender a transformação da energia elétrica e a coordenação dos chaveamentos, analisando o controle de rotação e velocidade do motor. Em seguida, na fase de projeto, serão definidos os requisitos mínimos, escolhidos os componentes eletrônicos e desenvolvido o circuito, incluindo controle de tensão, corrente com sinais PWM e proteções. Por último, na prototipagem, o controlador será montado em uma PCB, programado e testado em laboratório para garantir o funcionamento e identificar melhorias.
+O desenvolvimento do ESC será realizado seguindo uma abordagem de engenharia de sistemas, partindo da especificação da carga e fonte de energia, passando pelo dimensionamento dos estágios de potência e controle, e finalizando com a validação experimental. A metodologia está estruturada em: definição da arquitetura do sistema, dimensionamento do hardware de potência, desenvolvimento do firmware de controle, simulação computacional e, por fim, a montagem e prototipagem do dispositivo.
 
-\section{Simulação}
-Para o desenvolvimento de um ESC, primeiramente, apresenta-se a simulação do sistema via software, permitindo assim um maior entendimento de cada etapa de transformação da energia elétrica, como a metodologia adotada para coordenação dos chaveamentos, sem as limitações físicas impostas na implementação do circuito real. A simulação gera uma análise teórica funcional sobre o controle de sentido de rotação e velocidade imposta ao motor.
+\section{Arquitetura do Sistema}
+Para a elaboração do projeto físico é necessário o levantamento dos requisitos mínimos que o projeto deve atender, como a categoria de motores e sua fonte de alimentação. A arquitetura proposta consiste em um fluxo de energia que parte de uma bateria de alta descarga, passa por um inversor trifásico controlado, o ESC, e alimenta o motor BLDC. O controle é supervisionado por um microcontrolador que monitora os parâmetros e gera os sinais de modulação.
 
-\pagebreak
+O projeto do circuito começa pelo levantamento das especificações de carga, seguido pelo dimensionamento da fonte de energia e dos semicondutores de potência. Em paralelo, projeta-se o sistema de controle, definindo o microcontrolador adequado, a lógica de acionamento dos drivers de gate e as estratégias de proteção térmica e de sobrecorrente.
 
-\section{Projeto}
-Para a elaboração do projeto físico é necessário o levantamento dos requisitos mínimos que o projeto deve atender, como a categoria de motores que deve atender e sua fonte de alimentação. Em seguida será necessária a seleção dos componentes eletrônicos (drivers, transistores, bateria, entre outros), considerando características como um controlador adequado, tensão de operação, frequência de comutação, corrente máxima suportada e possíveis proteções para o sistema.
+\section{Dimensionamento e Hardware de Potência}
+A escolha dos componentes de potência baseia-se nas especificações do motor selecionado, garantindo margens de segurança para operação em regime contínuo e transitório.
 
-O projeto do circuito começa pelo controle de tensão, em seguida será projetado o controle de corrente fornecida às bobinas do motor através de sinais de PWM para controle de velocidade e sentido de rotação, ou seja o drive para motor BLDC e recursos adicionais como proteções térmicas ou de sobrecarga.
-
-\section{Prototipagem}
-Com o fim do projeto do circuito inicia-se a implementação do controlador em uma placa de circuito impresso (PCB) por meio de um software de design eletrônico. Com a montagem dos componentes na PCB, será necessária a programação do microcontrolador implementado a lógica de chaveamento e outras funções. Também serão realizados teste de funcionamento em laboratório para garantir o funcionamento correto do circuito e levantar possíveis melhorias ou correções. Após as devidas correções serão realizados testes de desempenho afim de verificar se o projeto atende os requisitos estabelecidos de potência e tempo de resposta.
-
-Todas as partes relevantes durante o trabalho de graduação serão documentadas através da redação do relatório acadêmico e apresentação para a defesa do trabalho de graduação.
-
-%% Por enquanto não sei onde colocar essa parte, mas será útil para estudo e será aproveitado
-\newpage
-
-\section{Escolha de Componentes}
-A escolha dos outros itens do projeto foi baseada em um motor brushless comercial e a partir de suas especificações os outros componentes foram sendo escolhidos com características compatíveis ao motor ou que atendessem as necessidades do projeto.
-
-\subsection{Motor}
-O motor BLDC Turnigy XK3674-$2200KV$ é um modelo comercial projetado principalmente para Automodelismo, sendo do tipo Inrunner possui quatro polos, $2200KV$, Tensão Nominal de $25,2V$, Corrente Nominal de $70A$ e sendo capaz de produzir até $1750W$ de potência. A velocidade e torque a vazio do motor, como já vistos nos segmentos \ref{KV} \ref{KT}, é de $55440 RPM$ e $X Nm$, desconsiderando efeitos dissipativos, como o atrito.
+\subsection{Especificações do Motor e Carga}
+O motor BLDC Turnigy XK3674-$2200KV$ é um modelo comercial projetado principalmente para Automodelismo, sendo do tipo Inrunner possui quatro polos, $2200KV$, Tensão Nominal de $25,2V$, Corrente Nominal de $70A$ e sendo capaz de produzir até $1750W$ de potência. A velocidade e torque a vazio do motor, como já vistos nos segmentos anteriores, é de $55440 RPM$ e $0,3 Nm$, desconsiderando efeitos dissipativos, como o atrito.
 
 \begin{figure}[h]
-	\centering
-	\caption{Motor Brushless Turnigy XK3674-$2200KV$.}
-	\includegraphics[width=8cm]{imagens/Turnigy XK3674-2200KV.jpg}
-	\caption*{Fonte:\cite{turnigyMotor}.}
+    \centering
+    \caption{Motor Brushless Turnigy XK3674-$2200KV$.}
+    \includegraphics[width=8cm]{imagens/Turnigy XK3674-2200KV.jpg}
+    \caption*{Fonte:\cite{turnigyMotor}.}
  \label{Motor Brushless Turnigy XK3674-2200KV}
 \end{figure}
 
-\subsection{Alimentação do Circuito}
+\subsection{Fonte de Alimentação Principal (Bateria)}
 Em uma aplicação móvel para o ESC devemos fazer uso de baterias como a única fonte de potência para alimentar todo o sistema. Os valores nominais de tensão e corrente do motor a devem ser supridos pela bateria, por volta de $26V$ e $70A$, mas considerando momentos de pico de corrente como por exemplo, uma situação de rotor travado ou de inversão de sentido de rotação é usada uma margem de segurança arbitrária de $30\%$, logo a bateria deve ser capaz de entregar $91A$ de corrente na descarga, um valor considerado alto para baterias.
 
-Baterias tem três principais características:
+Atualmente, a tecnologia de bateria com a maior taxa de descarga disponível comercialmente é a bateria de lítio de polímero (LiPo), podendo atingir taxas de descarga muito altas, que podem ultrapassar a $100C$, dependendo da aplicação e do design. 
+
+Baterias LiPo tem três principais características:
 \begin{itemize}
 \item Tensão Nominal: Diferença de potencial fornecida pela bateria, normalmente é apresentado em em $S$, sendo esse o número de células que a bateira possui, sendo cada célula em média de $3,7V$, logo uma bateria de $7S$ tem uma tensão nominal de $25,9V$; 
 \item Capacidade: Indica a quantidade de carga que a bateria pode fornecer antes de ser descarregada completamente, Normalmente é medida em miliampere-horas ($mAh$) ou ampere-horas ($Ah$);
 \item Taxa de Descarga (ou \textit{C-rate}): Define a quantidade de corrente que a bateria pode fornecer sem danificar-se, é expressa em múltiplos de $C$.
 \end{itemize}
 
-Atualmente, a tecnologia de bateria com a maior taxa de descarga disponível comercialmente é a bateria de lítio de polímero (LiPo), podendo atingir taxas de descarga muito altas, que podem ultrapassar a $100C$, dependendo da aplicação e do design. Para calcular a corrente que tais baterias conseguem fornecer podemos aplicar a equação \ref{Corrente de uma bateria LiPo}, desconsiderando efeitos dissipativos ou a variação de tensão nominal que varia de acordo com o nível de carga da bateria, vale ressaltar que a capacidade da bateria deve estar em $Ah$.
+Para calcular a corrente que tais baterias conseguem fornecer podemos aplicar a equação \ref{Corrente de uma bateria LiPo}, desconsiderando efeitos dissipativos ou a variação de tensão nominal que varia de acordo com o nível de carga da bateria, vale ressaltar que a capacidade da bateria deve estar em $Ah$.
 
 \begin{equation}
 I = C-rate * Capacidade
 \label{Corrente de uma bateria LiPo}
 \end{equation}
 
+
 Uma bateria comercial que atende as especificações do projeto é o modelo Turnigy Graphene Panther $1300mAh$ $6S$ $75C$, capaz de fornecer por volta de $97,5A$, superior a margem de segurança estabelecida. Vale ressaltar que a baterias entrega de tensão nominal $22,2V$, inferior a tensão nominal o que para motores BLDC não é um problema, resultando apenas na redução da  sua velocidade nominal de $55440 RPM$ para $48840RPM$ a vazio, uma redução de aproximadamente $12\%$. 
 
 \begin{figure}[h]
-	\centering
-	\caption{Turnigy Graphene Panther $1300mAh$ $6S$ $75C$.}
-	\includegraphics[width=9cm]{imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg}
-	\caption*{Fonte:\cite{turnigyBattery}.}
+    \centering
+    \caption{Turnigy Graphene Panther $1300mAh$ $6S$ $75C$.}
+    \includegraphics[width=9cm]{imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg}
+    \caption*{Fonte:\cite{turnigyBattery}.}
  \label{Turnigy Graphene Panther 1300mAh 6S 75C}
 \end{figure}
 
-\subsection{Microcontrolador}
-Responsável por interpretar comando de entrada do usuário e gerar o acionamento correto da eletrônica para que assim o motor atue conforme o esperado pelo usuário. Para essa aplicação, foi selecionado ESP32-DevKit C, um microcontrolador de baixo custo e de código aberto,  utilizando o como principal elemento o módulo ESP32-WROOM-32 que opera entre $3V$ e $3,6V$ \cite{esp32-wroom-32Datasheet}, apresenta uma solução relevante para tais aplicações, especialmente em cenários que demandam controle em tempo real, conectividade IoT (\textit{Internet of Things}) ou arquiteturas de sistemas multifuncionais.
+\subsection{Dimensionamento do Inversor (MOSFETs)}
+Para o estágio de comutação da ponte inversora trifásica, a escolha do MOSFET foi governada por dois parâmetros críticos: a tensão de ruptura dreno-fonte ($V_{DSS}$), representa o limite máximo de tensão que o dispositivo suporta em seus terminais principais enquanto está em estado de não-condução e a capacidade de dissipação térmica. Considerando que a bateria 6S carregada atinge $25,2V$, e prevendo picos de tensão indutiva ($V_{spike}$) durante o chaveamento, selecionou-se o modelo \textbf{IRFS7530TRL7PP}. Este componente possui um $V_{DSS}$ de $60V$, oferecendo uma margem de segurança superior a 100\% em relação à tensão do barramento DC.
+
+A validação térmica foi realizada considerando a resistência em condução ($R_{DS(on)}$) máxima do componente, que é de aproximadamente $1,4 m\Omega$. Para a corrente de pico projetada de $91A$, a potência dissipada estimada ($P_{diss}$) é dada por:
+
+\begin{equation}
+    P_{diss} = I^2 \cdot R_{DS(on)} = 91^2 \cdot 0,0014 \approx 11,6 W
+\end{equation}
+
+Embora o encapsulamento D2PAK-7 suporte altas correntes, a dissipação de aproximadamente $11,6W$ exige o uso de uma área de cobre estendida na PCB ou acoplamento com dissipador térmico externo para manter a temperatura de junção dentro dos limites operacionais seguros.
+
+\subsection{Driver de Gate e Circuito de Bootstrap}
+O microcontroladores no geral operam com lógica de $3,3V$ ou $5V$, tensão insuficiente para saturar o gate dos MOSFETs de potência, que requerem tipicamente entre $10V$ e $15V$ para garantir a mínima resistência $R_{DS(on)}$. Além disso, o acionamento dos MOSFETs do lado alto (\textit{High-Side}) exige uma tensão flutuante superior à tensão da bateria.
+
+Para solucionar essa interface, foi selecionado o driver de meia-ponte \textbf{IR2110}, capaz de fornecer correntes de pico de até $2A$ para carga e descarga rápida da capacitância de gate ($Q_g$). O driver é alimentado com $15V$ (derivados do circuito BEC), garantindo a saturação completa dos transistores.
+
+Para o acionamento do \textit{High-Side}, utiliza-se a técnica de \textit{Bootstrap}. O capacitor de bootstrap ($C_{boot}$) foi dimensionado para sustentar a carga do gate durante o período de condução. Considerando a carga total de gate do IRFS7530 ($Q_g \approx 360nC$) e as perdas por fuga, optou-se por uma associação em paralelo de um capacitor eletrolítico de $10\mu F$ (reserva de energia) e um cerâmico de $100nF$ (para resposta em alta frequência), garantindo que a queda de tensão no gate seja desprezível mesmo em baixas frequências de comutação.
+
+\subsection{Fonte de Alimentação Auxiliar}
+Existem duas abordagens possíveis para a alimentação do microcontrolador e drivers: utilizar uma segunda bateria ou reduzir o nível de tensão da bateria principal. Para otimizar peso e volume, optou-se por um circuito BEC (\textit{Battery Elimination Circuit}).
+
+Dentre as topologias disponíveis, destacam-se os conversores buck (step-down). O conversor Buck é amplamente utilizado para a redução de tensão, operando com elevada eficiência (tipicamente superior a $85\%$) \cite{TIBuckCalculation}. No projeto será aplicado o módulo comercial de baixo custo \textbf{LM2596}, um conversor buck de $150kHz$ e $3A$. O sistema é configurado em cascata: a tensão da bateria ($22,2V - 25,2V$) é regulada para $15V$ para alimentar os drivers IR2110, e subsequentemente reduzida para $5V/3,3V$ para o microcontrolador ESP32.
+
+\begin{figure}[h] 
+    \centering 
+    \caption{Módulo Comercial LM2596.} 
+    \includegraphics[width=7cm]{imagens/Módulo LM2596.jpg} 
+    \caption*{Fonte:\cite{usinaInfoLM2596}.}
+\end{figure}
+
+\section{Sistema de Controle e Firmware}
+O controle lógico do inversor é centralizado no microcontrolador, responsável pela leitura de sinais, implementação da máquina de estados de comutação e geração dos sinais PWM.
+
+\subsection{O Microcontrolador ESP32}
+Para essa aplicação, foi selecionado o ESP32-DevKit C. Utilizando como principal elemento o módulo ESP32-WROOM-32, ele apresenta uma solução robusta para controle em tempo real. Capaz de operar em velocidades de clock de até $240 MHz$, permite a execução paralela de tarefas, característica crítica para sistemas ESC. A resolução de 16 bits dos geradores PWM amplia a precisão no controle da velocidade.
 
 \begin{figure}[H]
-	\centering
-	\caption{Visão Geral do Microcontrolador ESP32-DevKit C.}
-	\includegraphics[width=10cm]{imagens/esp32-devkitc-v4-functional-overview.jpg}
-	\caption*{Fonte:\cite{ESP32-DevKitCOverview}.}
+    \centering
+    \caption{Visão Geral do Microcontrolador ESP32-DevKit C.}
+    \includegraphics[width=10cm]{imagens/esp32-devkitc-v4-functional-overview.jpg}
+    \caption*{Fonte:\cite{ESP32-DevKitCOverview}.}
  \label{esp32DevkitC}
 \end{figure}
 
-Por ser um projeto de código aberto existem diferentes implementações do mesmo módulo produzidas por vários fabricantes, a grande maioria delas possui as mesmas funcionalidades principais e variando tamanho da placa, outros módulos já implementados ou até mesmo reguladores de tensão permitindo a alimentação de $4,5V$ a $9V$ como é o caso do fornecido pela Robocore \cite{esp32DevkitV1}. No caso da ESP32-DevKit C, que será utilizado como base, é possível fornecer energia a mesma de três formas: Micro USB, $5V$ ou $3.3V$
-
-Capaz de operar em velocidades de clock de até $240 MHz$, permitindo a execução paralela de tarefas, característica crítica para sistemas ESC que exigem simultaneidade entre o controle do motor (geração de sinais de modulação por largura de pulso (PWM)) e processos secundários, como aquisição de dados de sensores ou protocolos de comunicação. A resolução de 16 bits de até seis PWM de até 40 MHz no microcontrolador \cite{esp32-technical-reference-manual} amplia a precisão na comutação do motor, suportando frequências ajustáveis de até $40 MHz$, essenciais para minimizar a ondulação de torque em sistemas BLDC.
-
-A integração de Wi-Fi e Bluetooth Low Energy (BLE) na arquitetura do ESP32 atende a demandas emergentes por sistemas de controle de motor habilitados para IoT. Essa capacidade viabiliza monitoramento remoto, atualizações de firmware over-the-air (OTA) e integração com plataformas baseadas em nuvem, aspectos cada vez mais prioritários em automação industrial e robótica inteligente. Adicionalmente, a extensa interface GPIO (Figura \ref{esp32DevkitCPinLayout}) do microcontrolador suporta componentes periféricos, como sensores de efeito Hall, codificadores incrementais, conversores analógico-digitais (ADCs) e acionamento de drivers, permitindo configurações de controle em malha fechada ou abertas sem circuitos externos de condicionamento de sinal.
-
 \begin{figure}[H]
-	\centering
-	\caption{Pinagem do Microcontrolador ESP32-DevKit C.}
-	\includegraphics[width=16cm]{imagens/esp32_devkitC_v4_pinlayout.png}
-	\caption*{Fonte:\cite{ESP32-DevKitCOverview}.}
+    \centering
+    \caption{Pinagem do Microcontrolador ESP32-DevKit C.}
+    \includegraphics[width=16cm]{imagens/esp32_devkitC_v4_pinlayout.png}
+    \caption*{Fonte:\cite{ESP32-DevKitCOverview}.}
  \label{esp32DevkitCPinLayout}
 \end{figure}
 
-A flexibilidade de software reforça ainda mais a viabilidade do ESP32. A compatibilidade com os ecossistemas Arduino e PlatformIO acelera o desenvolvimento por meio de bibliotecas pré-validadas para controle de motores. Por exemplo, um núcleo do processador pode ser dedicado a algoritmos de controle orientado a campo (field-oriented control, FOC), enquanto o segundo gerencia comunicação sem fio ou interfaces de usuário, reduzindo riscos de latência inerentes a arquiteturas single-core.
+Apesar dessas vantagens, os níveis lógicos de $3,3V$ exigiram o uso dos drivers IR2110 mencionados anteriormente para a interface com a potência.
 
-Apesar dessas vantagens, algumas limitações merecem consideração. Os níveis lógicos de $3,3V$ do ESP32 podem exigir circuitos de conversão de nível ao interagir com drivers de motor ou sensores de $5V$, aumentando a complexidade do projeto. Além disso, embora seu poder computacional seja vantajoso para sistemas multifuncionais, aplicações ESC mais simples sem requisitos de IoT podem incorrer em custo ou consumo energético desnecessários em comparação com MCUs dedicadas ao controle de motores (série STM32F3).
-
-\subsection{Alimentação do Microcontrolador}
-Existem duas abordagens possíveis para a alimentação do microcontrolador, utilizar uma segunda bateria de $5V$ ou reduzir o nível de tensão da bateria principal, apesar de ser a solução mais fácil pode impactar economia de peso e volume, fatores determinantes na autonomia e desempenho de sistemas móveis. Além disso, a manutenção e a operação do sistema tornam-se mais complexa, pois haverão duas fonte de alimentação para serem monitoradas e recarregadas. Para otimizar o sistema é possível elaborar um circuito BEC (\textit{Battery Elimination Circuit}) que reduz, para um valor compatível com o  microcontrolador, a tensão fornecida pela a bateria. Nesta aplicação, a tensão será inicialmente reduzida para $15V$ para alimentar os drivers e depois para $5V$ para o microcontrolador.
-
-Dentre as topologias disponíveis, destacam-se os conversores buck (step-down) e os conversores isolados do tipo flyback. O conversor chaveado Buck é amplamente utilizada para a redução de tensão, operando com elevada eficiência (tipicamente superior a $85\%$) \cite{TIBuckCalculation}, mesmo sob variação da carga ou da tensão de entrada, caso seja implementado com circuito de retroalimentação. Sua estrutura básica é composta por um interruptor (geralmente um MOSFET), um diodo, um indutor e um capacitor de filtro. Diferentemente dos reguladores lineares, o Buck dissipa pouca energia em forma de calor, o que o torna ideal para aplicações com restrições térmicas e de consumo energético. Além disso, sua implementação é mais simples e compacta em relação a conversores Flyback, os quais requerem transformadores e circuitos de controle mais complexos, além de maiores dimensões físicas.
-
-Em aplicações onde não há necessidade de isolamento galvânico entre a bateria e o circuito lógico, o 
-conversor Buck é a solução preferencial. No projeto será aplicado o módulo comercial de baixo custo LM2596, um conversor buck de $150kHz$ e $3A$ de corrente de saída e tensão de saída ajustável que nesse caso será $5V$, capaz de receber até $40V$ de tensão de entrada, mais que o suficiente para essa implementação \cite{LM2596}.
-
-
- \begin{figure}[h] 
-     \centering 
-     \caption{Módulo Comercial LM2596.} 
-     \includegraphics[width=7cm]{imagens/Módulo LM2596.jpg} 
-     \caption*{Fonte:\cite{usinaInfoLM2596}.}
- \end{figure}
-
-\section{Lógica de Chaveamento}
-A lógica de chaveamento constitui o núcleo funcional do ESC, sendo responsável por orquestrar a energização sequencial dos enrolamentos do estator para gerar o campo magnético giratório que impulsiona o rotor. Conforme detalhado na fundamentação teórica, a estratégia mais fundamental para operar um motor BLDC, especialmente em uma partida de malha aberta (sensorless), é a comutação de seis passos.
-
-Nesta abordagem inicial, o controle é realizado de forma forçada, onde o microcontrolador impõe uma sequência fixa de acionamento dos transistores da ponte inversora, sem depender de sensores para determinar a posição do rotor. O sistema opera sob a premissa de que o torque gerado será suficiente para que o rotor vença a inércia e o atrito, sincronizando seu movimento com o campo magnético girante imposto pelo estator.
-
-\subsection{Sequência de Comutação de Seis Passos}
-A ponte inversora trifásica, composta por seis MOSFETs (um par high-side e low-side para cada uma das três fases A, B e C), é a atuadora deste processo. Em cada um dos seis passos da comutação, apenas dois MOSFETs são ativados simultaneamente: um MOSFET high-side em uma fase e um MOSFET low-side em uma segunda fase. Esta configuração permite que a corrente flua da fonte de alimentação, entre pela primeira fase, saia pela segunda e retorne ao terra, enquanto a terceira fase permanece em alta impedância, ou seja, desconectada.
-
-A sequência completa para uma rotação elétrica de $360^{\circ}$ é projetada para avançar o vetor do campo magnético em incrementos de $60^{\circ}$.
+\subsection{Lógica de Comutação de Seis Passos}
+A lógica de chaveamento constitui o núcleo funcional do ESC. Nesta abordagem, utiliza-se a comutação de seis passos em malha aberta (\textit{Sensorless}). A ponte inversora trifásica é acionada de forma que apenas dois MOSFETs conduzam simultaneamente a cada passo, criando um campo magnético giratório que avança em incrementos de $60^{\circ}$.
 
 \begin{table}[H]
     \centering
@@ -590,34 +582,15 @@ A sequência completa para uma rotação elétrica de $360^{\circ}$ é projetada
     \caption*{Fonte: Elaborado pelo autor.}
 \end{table}
 
-Por exemplo, no Passo 1, o MOSFET high-side da Fase A e o MOSFET low-side da Fase B são ligados. Isso cria um caminho para a corrente fluir da bateria através do enrolamento A e sair pelo enrolamento B, estabelecendo um vetor de campo magnético no estator. Ao final da duração deste passo, o controlador desliga o MOSFET low-side da Fase B e liga o MOSFET low-side da Fase C, iniciando o Passo 2. Este processo se repete ciclicamente, fazendo com que o campo magnético gire de forma contínua.
+\subsection{Implementação Prática com o Periférico MCPWM}
+A implementação da comutação no firmware utiliza o periférico dedicado \textit{Motor Control Pulse Width Modulator} (MCPWM) do ESP32 \cite{esp32-technical-reference-manual}. Este módulo desonera a CPU da geração de sinais e insere automaticamente o tempo morto (\textit{Dead Time}) necessário para evitar curto-circuitos na ponte H (shoot-through).
 
-\subsection{Implementação Prática com o Periférico MCPWM do ESP32}
-
-A transição da estratégia de controle teórica para uma implementação funcional requer o uso eficaz dos periféricos do microcontrolador escolhido. Felizmente, o ESP32 é equipado com um módulo de hardware especializado que simplifica e otimiza significativamente esta tarefa: o periférico \textit{Motor Control Pulse Width Modulator} (MCPWM) \cite{esp32-technical-reference-manual}.
-
-Este módulo dedicado desonera as CPUs principais da tarefa intensiva e de tempo crítico de gerar sinais PWM, permitindo que o firmware se concentre na lógica de controle de alto nível. Uma única unidade MCPWM é perfeitamente adequada para acionar a ponte inversora trifásica, pois contém três pares de saídas PWM (seis canais no total), um para cada fase do motor \cite{esp32-technical-reference-manual}.
-
-A implementação da comutação no firmware envolverá a configuração do periférico MCPWM através da API fornecida pelo ESP-IDF, seguindo estes passos:
-
-\begin{enumerate}
-    \item \textbf{Inicialização e Mapeamento de Pinos:} Seleciona-se uma unidade MCPWM (e.g., \texttt{MCPWM\_UNIT\_0}) e mapeiam-se os seis pinos GPIO do ESP32 para as saídas do periférico (PWM0A, PWM0B, etc.), que controlarão os gates dos transistores.
-    
-    \item \textbf{Configuração dos Temporizadores:} Os temporizadores internos do MCPWM são configurados para definir a frequência base do PWM, que é um parâmetro importante para a eficiência e a audibilidade do motor.
-    
-    \item \textbf{Controle de Velocidade via \textit{Duty Cycle}:} A velocidade do motor é controlada ajustando-se o ciclo de trabalho (\textit{duty cycle}) do sinal PWM. Em vez de manter o MOSFET high-side continuamente ativo durante um passo, ele será acionado com este sinal modulado. A tensão média aplicada ao motor torna-se, assim, proporcional ao \textit{duty cycle}, que pode ser ajustado no firmware através de chamadas a funções como \texttt{mcpwm\_set\_duty()}.
-    
-    \item \textbf{Implementação do Tempo Morto (\textit{Dead Time}):} Para proteger a ponte inversora, é essencial implementar um "tempo morto". Este é um pequeno intervalo de tempo inserido automaticamente pelo MCPWM entre o desligamento de um MOSFET e o acionamento de seu par complementar no mesmo braço da ponte. Isso previne a ocorrência de "\textit{shoot-through}", uma condição de curto-circuito que pode destruir os transistores.
-\end{enumerate}
-
-O núcleo do firmware de controle será uma máquina de estados, onde cada estado corresponde a um dos seis passos da comutação. A cada transição de estado, o firmware reconfigurará os geradores do MCPWM para produzir o padrão de saída correto, conforme detalhado na Tabela \ref{tab:mcpwm_map}. Esta tabela serve como uma ponte direta entre a teoria de controle e a implementação concreta no hardware, tornando a metodologia clara e reprodutível.
+A configuração segue o mapeamento da Tabela \ref{tab:mcpwm_map}, onde o \textit{Duty Cycle} é aplicado ao transistor do lado alto (High-Side) para controle de corrente, enquanto o lado baixo (Low-Side) é mantido em condução plena ou chaveado de forma complementar, dependendo da estratégia de frenagem regenerativa desejada.
 
 \begin{table}[H]
     \centering
     \caption{Mapeamento dos Estados de Comutação para os Geradores MCPWM do ESP32}
     \label{tab:mcpwm_map}
-    
-    % Força a tabela a ter a largura da página, encolhendo a fonte
     \resizebox{\textwidth}{!}{%
         \begin{tabular}{@{}ccccccc@{}}
             \toprule
@@ -630,12 +603,20 @@ O núcleo do firmware de controle será uma máquina de estados, onde cada estad
             6 & C+ B- & T5 & T4 & Hi-Z / Hi-Z & LOW / ACTIVE & PWM / LOW \\ \bottomrule
         \end{tabular}
     }
-    
     \flushleft
-    \footnotesize{\textit{Nota:} "PWM / LOW" indica que o gerador A do operador modula o sinal e o B está forçado em nível baixo. "LOW / ACTIVE" indica que o gerador A está forçado em baixo e o B está ativo (conduzindo ao terra). "Hi-Z / Hi-Z" significa que ambos os geradores estão em alta impedância.} 
+    \footnotesize{\textit{Nota:} "PWM / LOW" indica modulação. "LOW / ACTIVE" indica condução ao terra. "Hi-Z" alta impedância.} 
 \end{table}
 
-\section{Cálculo de Componentes}
+\subsection{Estratégia de Partida (Malha Aberta)}
+Dado que o controle \textit{Sensorless} não possui informação de posição em velocidade zero, implementa-se uma rotina de partida em duas etapas. Primeiramente, a fase de \textbf{Alinhamento}, onde uma tensão fixa é aplicada a um par de fases específico por um tempo determinado (ex: 500ms), forçando o rotor a uma posição conhecida. Em seguida, inicia-se a \textbf{Rampa de Aceleração}, onde a frequência de comutação entre os estados da Tabela \ref{tab:logica_seis_passos} é incrementada gradualmente em malha aberta até que o motor atinja velocidade suficiente para estabilização mecânica.
+
+\section{Simulação Computacional}
+Para validar a lógica de controle e a integridade dos sinais de disparo antes da montagem física, utiliza-se a simulação computacional. Devido à complexidade dos modelos SPICE proprietários para os drivers de gate, opta-se pelo uso de modelos comportamentais equivalentes em software de simulação de circuitos (ex: LTSpice ou Proteus). A simulação foca na verificação das formas de onda de tensão de linha e de fase, bem como na garantia de que a sequência de seis passos não gera sobreposição de condução nos braços do inversor.
+
+\section{Montagem e Prototipagem}
+A etapa final consiste na integração física dos subsistemas. O controlador é montado em uma placa de circuito impresso (PCB) desenhada para suportar as altas correntes do barramento DC, com trilhas reforçadas e planos de terra adequados. O microcontrolador é programado com a lógica desenvolvida e o sistema é submetido a testes de bancada, iniciando com cargas leves e alimentação limitada para verificação de segurança (teste de fumaça), progredindo para o acionamento do motor em rampa de velocidade para validação do protótipo funcional.
+
+Todas as etapas de validação e os resultados obtidos, tanto na simulação quanto nos ensaios práticos, são documentados no capítulo subsequente de Resultados.
 
 % --- ELEMENTOS PÓS-TEXTUAIS ---
 \postextual
