@@ -358,9 +358,9 @@ Embora chamadas de "constantes", $K_T$ e $K_e$ são afetadas pela temperatura. O
   \label{Sequência de acionamento para um BLDC trifásico} 
  \end{figure} 
 
- Esse algoritmo de acionamento dos transistores, também chamado de Controle Trapezoidal, é um dos métodos utilizados para controlar motores BLDC. Para se saber quando e quais deles acionar, existem duas opções: o Controle de Malha Fechada, no qual é preciso saber a posição que o rotor se encontra de forma a acionar o conjunto de transistores seguinte, e o Controle de Malha Aberta. Neste último, é possível acionar os indutores a partir de uma sequência fixa determinada pelo circuito, o que faz com que o rotor comece a girar em algum momento da sequência e siga girando a partir da sequência determinada. Esse tipo de controle é mais simples e de menor custo, porém não tão preciso, recebendo o nome de Controle de Malha Aberta, e será o método inicialmente utilizado neste trabalho. 
+Esse algoritmo de acionamento dos transistores, também chamado de Controle Trapezoidal, é a base para o funcionamento do motor BLDC. Embora seja possível operá-lo em malha aberta (sequência fixa), esta abordagem é ineficiente e propensa a perda de sincronismo sob variações de carga. Portanto, neste trabalho, adota-se o **Controle de Malha Fechada \textit{Sensorless}**.
 
-  Para a realização do Controle de Malha Fechada é possível usar um sensor de efeito Hall capaz de identificar o campo magnético resultante da interação do campo eletromagnético das bobinas e do campo magnético dos imãs permanentes do rotor, indicando a seção que o campo eletromagnético resultante encontra-se, ou seja, sua posição angular. Partindo dessa referência, se pode saber quais transistores devem ser acionadas para que o rotor continue a girar. A utilização de sensor Hall também propicia a determinação da velocidade angular do motor. Esse método é mais complexo e de maior custo, porém garante uma maior confiabilidade em relação a velocidade. 
+Nesta topologia, a sequência de comutação não é fixa no tempo, mas sincronizada dinamicamente com a posição do rotor. A detecção da posição é realizada monitorando-se a Força Contraeletromotriz (FCEM) na fase não energizada. Assim, o microcontrolador detecta o momento exato em que o rotor cruzou uma posição angular específica e dispara a próxima comutação, garantindo que o ângulo entre os campos magnéticos permaneça próximo de $90^\circ$ elétricos (torque máximo).
 
  Quando a aplicação necessita que o motor possua apenas uma velocidade, a fonte de alimentação de tensão fixa é suficiente. Para casos onde é necessário variar a velocidade do motor, a técnica de Modulação por Largura de Pulso (PWM) é normalmente empregada. Um ESC, por exemplo, utiliza PWM para ajustar a tensão média aplicada ao motor, controlando assim sua velocidade. Essa técnica, no entanto, pode demandar a utilização de controladores que comparem a velocidade desejada com a medida no rotor para um controle preciso. 
 
@@ -607,8 +607,74 @@ A configuração segue o mapeamento da Tabela \ref{tab:mcpwm_map}, onde o \texti
     \footnotesize{\textit{Nota:} "PWM / LOW" indica modulação. "LOW / ACTIVE" indica condução ao terra. "Hi-Z" alta impedância.} 
 \end{table}
 
-\subsection{Estratégia de Partida (Malha Aberta)}
-Dado que o controle \textit{Sensorless} não possui informação de posição em velocidade zero, implementa-se uma rotina de partida em duas etapas. Primeiramente, a fase de \textbf{Alinhamento}, onde uma tensão fixa é aplicada a um par de fases específico por um tempo determinado (ex: 500ms), forçando o rotor a uma posição conhecida. Em seguida, inicia-se a \textbf{Rampa de Aceleração}, onde a frequência de comutação entre os estados da Tabela \ref{tab:logica_seis_passos} é incrementada gradualmente em malha aberta até que o motor atinja velocidade suficiente para estabilização mecânica.
+\subsection{Estratégia de Partida e Transição para Malha Fechada}
+
+A técnica de detecção de cruzamento por zero da FCEM possui uma limitação física intrínseca: a amplitude da FCEM é proporcional à velocidade do rotor ($e = K_e \cdot \omega$). Na partida ($t=0$), a FCEM é nula, impossibilitando a determinação da posição do rotor pelos comparadores. Para contornar isso, implementou-se uma máquina de estados finitos composta por três estágios:
+
+\begin{enumerate}
+    \item \textbf{Alinhamento (Estágio Estático):} 
+    Aplica-se uma tensão constante em um par de fases específico (ex: Fase A em High, Fase B em Low) por um período fixo de $500ms$. Isso força o rotor a se alinhar fisicamente com o campo magnético do estator, estabelecendo uma posição inicial conhecida ($\theta_0$) antes do início do movimento.
+    
+    \item \textbf{Aceleração em Malha Aberta (Blind Commutation):} 
+    A partir da posição conhecida, o controlador inicia a sequência de comutação de seis passos utilizando um temporizador interno, ignorando os sinais dos comparadores. A frequência de comutação é incrementada linearmente (Rampa) para acelerar o motor.
+    
+    Este estágio é mantido pelo menor tempo possível, apenas o suficiente para que o motor atinja cerca de 5\% a 10\% da sua velocidade nominal, ponto em que a amplitude da FCEM supera o limiar de histerese e ruído dos comparadores LM339.
+    
+    \item \textbf{Transição e Auto-Comutação (Closed-Loop):} 
+    Assim que o microcontrolador detecta uma sequência válida de cruzamentos por zero (ZCD) nos comparadores, o sistema realiza o \textit{handover}. O temporizador de malha aberta é desativado e o controle passa a ser orientado a eventos: cada detecção de ZCD dispara uma interrupção que, após um atraso calculado de $30^\circ$ elétricos, executa a próxima comutação de fase. A partir deste momento, o motor opera em malha fechada, auto-sincronizado.
+\end{enumerate}
+
+Essa abordagem híbrida elimina a necessidade de rampas longas e ineficientes, garantindo uma partida robusta e uma operação contínua otimizada.
+
+
+\section{Sistema de Realimentação e Detecção de Cruzamento por Zero}
+
+Para viabilizar a operação em malha fechada sem o uso de sensores de posição dedicados (sensores Hall), implementou-se a técnica de detecção de cruzamento por zero (\textit{Zero-Crossing Detection} - ZCD) da força contraeletromotriz (FCEM). Esta técnica baseia-se no monitoramento da tensão na fase não energizada do motor durante a sequência de comutação de seis passos. O instante em que a FCEM cruza o nível de tensão do ponto neutro do motor indica uma posição angular conhecida do rotor, permitindo a sincronização precisa da comutação eletrônica.
+
+Como o motor utilizado (Turnigy XK3674) possui fechamento interno em triângulo ou estrela sem acesso ao ponto neutro, o sistema de realimentação foi projetado em três estágios: reconstrução do neutro virtual, condicionamento de sinal e comparação.
+
+\subsection{Reconstrução do Neutro Virtual e Divisores de Tensão}
+
+A ausência de um terminal de neutro físico acessível exigiu a criação de um ponto de neutro virtual. Para isso, conectou-se um resistor de $33k\Omega$ em cada uma das três fases do motor ($A, B, C$), unindo as extremidades opostas em um nó comum. Este nó fornece a referência de tensão média do sistema ($V_{ref}$) para os comparadores.
+
+Considerando a escalabilidade do projeto para operar com baterias de até 6 células (6S, $\approx 25,2V$), a rede de divisores resistivos foi dimensionada para garantir a segurança do microcontrolador no pior caso de tensão. Utilizou-se uma topologia composta por um resistor de lado alto ($R_{high}$) de $33k\Omega$ e um resistor de lado baixo ($R_{low}$) de $3,3k\Omega$, resultando em um fator de atenuação $\alpha$:
+
+\begin{equation}
+    V_{out} = V_{in} \cdot \frac{R_{low}}{R_{high} + R_{low}} = 25,2 \cdot \frac{3,3k}{33k + 3,3k} \approx 2,29V
+\end{equation}
+
+Esta configuração garante que a tensão máxima no pino do microcontrolador permaneça abaixo de $3,3V$, preservando uma margem de segurança para picos indutivos (spikes) típicos de comutação.
+
+\subsection{Filtragem de Ruído PWM}
+
+O sinal de tensão proveniente das fases contém componentes de alta frequência resultantes da modulação por largura de pulso (PWM), tipicamente na ordem de $20kHz$. Para evitar múltiplos disparos falsos no comparador, adicionou-se um capacitor cerâmico ($C_f$) de $10nF$ em paralelo com o resistor $R_{low}$, formando um filtro passa-baixa passivo de primeira ordem. A frequência de corte ($f_c$) foi dimensionada para preservar a componente fundamental da FCEM (proporcional à velocidade do motor) enquanto atenua o ruído de chaveamento:
+
+\begin{equation}
+    f_c = \frac{1}{2\pi \cdot (R_{high} || R_{low}) \cdot C_f} \approx \frac{1}{2\pi \cdot 3000 \cdot 10 \cdot 10^{-9}} \approx 5,3kHz
+\end{equation}
+
+\subsection{Estágio Comparador com LM339}
+
+A digitalização dos sinais analógicos é realizada pelo circuito integrado \textbf{LM339N} (encapsulamento DIP-14), que contém quatro comparadores de tensão independentes. A escolha deste componente justifica-se por sua saída em coletor aberto (\textit{Open-Collector}). Esta característica permite que o comparador seja alimentado com uma tensão superior (ex: $5V$ ou $12V$) para garantir a linearidade, enquanto a saída é referenciada ao nível lógico do microcontrolador ($3,3V$) através de resistores de \textit{pull-up} de $10k\Omega$.
+
+O circuito utiliza três comparadores configurados da seguinte forma:
+\begin{itemize}
+    \item \textbf{Entrada Não-Inversora (+):} Tensão da Fase ($A, B$ ou $C$) atenuada e filtrada.
+    \item \textbf{Entrada Inversora (-):} Tensão do Neutro Virtual atenuada.
+    \item \textbf{Saída:} Conectada a pinos GPIO do ESP32 configurados para interrupção externa.
+\end{itemize}
+
+\subsection{Considerações de Sensibilidade e Escalabilidade}
+
+O dimensionamento dos divisores de tensão impõe um compromisso de engenharia (\textit{trade-off}) entre a proteção contra sobretensão e a sensibilidade em baixas velocidades. Com a atenuação de aproximadamente 11:1, sistemas operando com tensões de barramento menores (ex: baterias 2S ou 3S) ou motores em baixa rotação apresentarão sinais de amplitude reduzida na entrada do comparador.
+
+Para mitigar o risco de instabilidade com sinais pequenos, recomenda-se a implementação de \textbf{histerese} no circuito comparador. Isso pode ser realizado através da realimentação positiva, conectando um resistor de alta impedância (ex: $1M\Omega$) entre a saída do comparador e sua entrada não-inversora.
+
+Ressalta-se que a escalabilidade é limitada por dois fatores físicos:
+\begin{enumerate}
+    \item \textbf{Limite Inferior (3S):} A tensão mínima de operação é definida pelos drivers de gate (IR2110) e pela tensão de limiar ($V_{GS}$) dos MOSFETs. Operar abaixo de $11,1V$ (3S) sem conversores Boost adicionais coloca os transistores na região linear, causando superaquecimento.
+    \item \textbf{Limite Superior (6S):} A tensão máxima é estritamente limitada pela tensão de ruptura ($V_{DSS}$) dos MOSFETs utilizados (IRFS7530, $60V$). Embora baterias 7S ($29,4V$) ou 8S ($33,6V$) pareçam estar dentro do limite estático, os picos indutivos gerados durante a comutação podem atingir o dobro da tensão de barramento, excedendo o $V_{DSS}$ e causando falha catastrófica. Portanto, o limite de 6S ($25,2V$) garante a margem de segurança necessária para a robustez do inversor.
+\end{enumerate}
 
 \section{Simulação Computacional}
 Para validar a lógica de controle e a integridade dos sinais de disparo antes da montagem física, utiliza-se a simulação computacional. Devido à complexidade dos modelos SPICE proprietários para os drivers de gate, opta-se pelo uso de modelos comportamentais equivalentes em software de simulação de circuitos (ex: LTSpice ou Proteus). A simulação foca na verificação das formas de onda de tensão de linha e de fase, bem como na garantia de que a sequência de seis passos não gera sobreposição de condução nos braços do inversor.
