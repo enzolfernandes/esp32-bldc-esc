@@ -375,9 +375,6 @@ A principal desvantagem intrínseca à comutação forçada de seis passos (malh
 
 A ondulação de torque não é apenas um efeito colateral indesejado; é a manifestação mecânica de uma conversão de energia eletromecânica periodicamente ineficiente. O objetivo do motor é converter potência elétrica em potência mecânica (torque vezes velocidade) de forma contínua e suave. Durante os intervalos de comutação, o vetor de corrente do estator está em transição entre duas posições estáveis. Neste período, o alinhamento entre o campo magnético do estator e o campo magnético do rotor desvia-se momentaneamente da orientação ótima de $90^{\circ}$ elétricos necessária para a produção máxima de torque. Consequentemente, para uma mesma magnitude de corrente de entrada, o torque de saída é reduzido, representando uma queda transitória na eficiência da conversão de energia. A ondulação de torque observada é, portanto, o resultado direto desses intervalos de conversão sub-ótima, inerentes à natureza discreta do chaveamento de seis passos.
 
-
- \newpage 
-
  \subsubsection{Modulação por Largura de Pulso} 
 
  Fontes de tensão fixa, como baterias, são as mais acessíveis do mercado. A partir delas, é possível gerar uma tensão média de alimentação variável utilizando uma técnica conhecida como PWM (Modulação por Largura de Pulso), permitindo o controle de velocidade de um BLDC. Para isso, utiliza-se um circuito simples capaz de transformar a tensão contínua em uma onda quadrada de frequência fixa e amplitude igual à tensão da fonte de alimentação. A própria ponte trifásica pode ajustar a largura dos pulsos, fazendo com que a tensão média entregue à ponte inversora seja proporcional à velocidade desejada (Figura \ref{Modulação por largura de pulso utilizando uma fonte de 100V}). 
@@ -408,7 +405,7 @@ Durante esta fase, o controlador essencialmente comanda a rotação do campo mag
 
 \subsection{Desafios e Limitações da Partida Forçada}
 
-Apesar de sua necessidade em sistemas \textit{sensorless}, a estratégia de partida em malha aberta não é isenta de desafios e limitações significativas. A sua natureza "cega" a torna vulnerável a variações de carga e a parâmetros não ideais do sistema.
+A estratégia de partida em malha aberta não é isenta de desafios e limitações significativas. A sua natureza "cega" a torna vulnerável a variações de carga e a parâmetros não ideais do sistema.
 
 \subsubsection{Análise do Fenômeno de Perda de Sincronismo (Stall)}
 
@@ -461,13 +458,13 @@ Consequentemente, o dimensionamento deste capacitor depende intrinsecamente da q
     Q_{tot} = \underbrace{Q_g}_{\text{Carga do MOSFET}} + \underbrace{(I_{qbs} + I_{leak}) \cdot T_{on}}_{\text{Consumo do Driver e Fugas}}
 \end{equation}
 
-\noindent onde $I_{qbs}$ é a corrente quiescente do estágio de alta do driver e $I_{leak}$ representa as correntes de fuga. Como $Q_g$ é tipicamente muito maior que o consumo do driver em frequências usuais, ele é o fator determinante no dimensionamento. Para garantir que a tensão no capacitor não sofra uma queda brusca ($\Delta V_{boot}$) ao transferir essa carga para o MOSFET — o que poderia reduzir a tensão $V_{GS}$ abaixo do nível seguro de saturação —, a capacitância mínima é calculada como \cite{infineonAN978}:
+\noindent onde $I_{qbs}$ é a corrente quiescente do estágio de alta do driver e $I_{leak}$ representa as correntes de fuga. Como $Q_g$ é tipicamente muito maior que o consumo do driver em frequências usuais, ele é o fator determinante no dimensionamento. Para garantir que a tensão no capacitor não sofra uma queda brusca ($\Delta V_{boot}$) ao transferir essa carga para o MOSFET o que poderia reduzir a tensão $V_{GS}$ abaixo do nível seguro de saturação, a capacitância mínima é calculada como \cite{infineonAN978}:
 
 \begin{equation}
     C_{boot} \geq \frac{Q_{tot}}{\Delta V_{boot}}
 \end{equation}
 
-Na prática de engenharia, para assegurar robustez contra transitórios e variações de temperatura, adota-se um capacitor capaz de armazenar pelo menos 15 vezes a carga do gate do MOSFET ($Q_g$), garantindo uma fonte de tensão rígida para o driver.
+Na prática de engenharia, para assegurar robustez contra transitórios e variações de temperatura, adota-se um capacitor capaz de armazenar pelo menos 15 vezes a carga do gate do MOSFET ($Q_g$), garantindo uma fonte de tensão rígida para o driver \cite{adamsDT98}.
 
 \section{Estado da Arte em Algoritmos de Controle e Estimação}
 \label{sec:estado_da_arte}
@@ -742,7 +739,7 @@ O sinal de tensão proveniente das fases contém componentes de alta frequência
 
 \subsection{Análise e Compensação do Atraso de Fase do Filtro}
 
-A introdução do capacitor $C_f$ no circuito divisor de tensão, embora essencial para a integridade do sinal, insere um polo no sistema que causa um atraso de fase ($\phi$) dependente da frequência. Em um filtro RC de primeira ordem, o atraso de fase entre o sinal de entrada (BEMF real) e o sinal de saída (lido pelo comparador) é dado por:
+A introdução do capacitor $C_f$ no circuito divisor de tensão, embora essencial para a integridade do sinal, insere um polo no sistema que causa um atraso de fase ($\phi$) dependente da frequência. Em um filtro RC de primeira ordem, o atraso de fase entre o sinal de entrada (BEMF real) e o sinal de saída (lido pelo comparador) é dado por \cite{ti2013sensorless}:
 
 \begin{equation}
     \phi = \arctan(2\pi f_{el} R_{eq} C_f) = \arctan\left(\frac{f_{el}}{f_c}\right)
@@ -756,7 +753,7 @@ Este atraso angular é crítico para o sincronismo da comutação. Na estratégi
 Considerando as especificações do motor Turnigy XK3674 ($2200KV$, 4 polos) operando à tensão nominal de $22,2V$, a velocidade máxima teórica aproxima-se de $48.840$ RPM. A frequência elétrica máxima correspondente é:
 
 \begin{equation}
-    f_{el\_max} = \frac{RPM \cdot P}{120} = \frac{48840 \cdot 4}{120} \approx 1.628 Hz
+    f_{el\_max} = \frac{RPM \cdot P}{120} = \frac{48840 \cdot 4}{120} \approx 1.628 \text{ Hz}
 \end{equation}
 
 Substituindo na Equação \ref{eq:phase_lag}:
@@ -765,7 +762,7 @@ Substituindo na Equação \ref{eq:phase_lag}:
     \phi_{max} = \arctan\left(\frac{1628}{5300}\right) \approx 17,07^{\circ}
 \end{equation}
 
-Como o atraso máximo projetado ($17,07^{\circ}$) é inferior ao intervalo de comutação padrão ($30^{\circ}$), é possível realizar a compensação via software. A estratégia adotada consiste em calcular dinamicamente o ângulo de atraso $\phi$ a cada ciclo e ajustar o temporizador de espera para a comutação ($T_{wait}$):
+Como o atraso máximo projetado ($17,07^{\circ}$) é inferior ao intervalo de comutação padrão ($30^{\circ}$), é possível realizar a compensação via software. A estratégia adotada, alinhada às recomendações da literatura especializada \cite{ti2013sensorless}, consiste em calcular dinamicamente o ângulo de atraso $\phi$ a cada ciclo e ajustar o temporizador de espera ($T_{wait}$):
 
 \begin{equation}
     T_{wait} = T_{30^{\circ}} - T_{lag}
