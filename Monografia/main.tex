@@ -432,12 +432,12 @@ Além do risco de perda de passo, a partida forçada apresenta outras desvantage
 A implementação física do inversor exige a compreensão de componentes e técnicas que viabilizam a comutação em alta frequência e corrente.
 
 \subsection{O MOSFET de Potência e Perdas}
-O MOSFET (\textit{Metal-Oxide-Semiconductor Field-Effect Transistor}) é o dispositivo de chaveamento predominante em aplicações de baixa e média tensão devido à sua alta velocidade de comutação e facilidade de acionamento. Em um inversor para controle de motores, o MOSFET não atua na região linear (amplificação), mas alterna entre os estados de corte (chave aberta) e saturação (chave fechada).
+O MOSFET (\textit{Metal-Oxide-Semiconductor Field-Effect Transistor}) é o dispositivo de chaveamento predominante em aplicações de baixa e média tensão devido à sua alta velocidade de comutação e facilidade de acionamento \cite{rashid2014power}. Em um inversor para controle de motores, o MOSFET não atua na região linear (amplificação), mas alterna entre os estados de corte (chave aberta) e saturação (chave fechada).
 
-A eficiência do inversor é limitada por dois mecanismos principais de perda no MOSFET:
+A eficiência do inversor é limitada por dois mecanismos principais de perda no MOSFET \cite{kim2017electric}:
 \begin{itemize}
     \item \textbf{Perdas por Condução ($P_{cond}$):} Quando o transistor está ligado, ele apresenta uma resistência interna residual entre dreno e fonte, denominada $R_{DS(on)}$. A potência dissipada é dada por $P_{cond} = I_{D}^2 \cdot R_{DS(on)}$. Componentes modernos buscam minimizar o $R_{DS(on)}$ para reduzir o aquecimento.
-    \item \textbf{Perdas por Comutação ($P_{sw}$):} Ocorrem durante a transição entre ligado e desligado. Como a tensão e a corrente não variam instantaneamente, há um breve período em que ambas são não-nulas, gerando um pico de potência dissipada. Esta perda é diretamente proporcional à frequência de chaveamento ($f_{sw}$) e à carga total de gate ($Q_g$) que o driver deve fornecer.
+    \item \textbf{Perdas por Comutação ($P_{sw}$):} Ocorrem durante a transição entre ligado e desligado. Como a tensão e a corrente não variam instantaneamente, há um breve período em que ambas são não-nulas, gerando um pico de potência dissipada. Esta perda é diretamente proporcional à frequência de chaveamento ($f_{sw}$) e à carga total de gate ($Q_g$) que o driver deve fornecer \cite{rashid2014power}.
 \end{itemize}
 
 \subsection{Técnica de \textit{Bootstrap} para Acionamento \textit{High-Side}}
@@ -453,17 +453,15 @@ A técnica de \textit{Bootstrap} é a solução mais comum e econômica para ger
 
 \subsubsection{Dimensionamento do Capacitor de Bootstrap}
 
-O capacitor de \textit{bootstrap} ($C_{boot}$), embora fisicamente conectado ao circuito do driver, tem como função primária atuar como um reservatório de energia flutuante para alimentar a porta (\textit{gate}) do MOSFET superior. O driver atua apenas como a chave de transferência, drenando carga de $C_{boot}$ e injetando-a na capacitância de entrada do MOSFET para promover sua saturação.
+O capacitor de \textit{bootstrap} ($C_{boot}$), embora fisicamente conectado ao circuito do driver, tem como função primária atuar como um reservatório de energia flutuante para alimentar a porta (\textit{gate}) do MOSFET superior \cite{infineonAN978}. O driver atua apenas como a chave de transferência, drenando carga de $C_{boot}$ e injetando-a na capacitância de entrada do MOSFET para promover sua saturação.
 
-Consequentemente, o dimensionamento deste capacitor depende intrinsecamente da quantidade de carga que o MOSFET exige para ligar, parâmetro conhecido como Carga Total de Gate ($Q_g$). A carga total ($Q_{tot}$) demandada do capacitor a cada ciclo de comutação é composta pela carga do MOSFET somada às perdas internas do driver:
+Consequentemente, o dimensionamento deste capacitor depende intrinsecamente da quantidade de carga que o MOSFET exige para ligar, parâmetro conhecido como Carga Total de Gate ($Q_g$). A carga total ($Q_{tot}$) demandada do capacitor a cada ciclo de comutação é composta pela carga do MOSFET somada às perdas internas do driver \cite{infineonAN978}:
 
 \begin{equation}
     Q_{tot} = \underbrace{Q_g}_{\text{Carga do MOSFET}} + \underbrace{(I_{qbs} + I_{leak}) \cdot T_{on}}_{\text{Consumo do Driver e Fugas}}
 \end{equation}
 
-\noindent onde $I_{qbs}$ é a corrente quiescente do estágio de alta do driver e $I_{leak}$ representa as correntes de fuga. Como $Q_g$ é tipicamente muito maior que o consumo do driver em frequências usuais, ele é o fator determinante no dimensionamento.
-
-Para garantir que a tensão no capacitor não sofra uma queda brusca ($\Delta V_{boot}$) ao transferir essa carga para o MOSFET — o que poderia reduzir a tensão $V_{GS}$ abaixo do nível seguro de saturação —, a capacitância mínima é calculada como:
+\noindent onde $I_{qbs}$ é a corrente quiescente do estágio de alta do driver e $I_{leak}$ representa as correntes de fuga. Como $Q_g$ é tipicamente muito maior que o consumo do driver em frequências usuais, ele é o fator determinante no dimensionamento. Para garantir que a tensão no capacitor não sofra uma queda brusca ($\Delta V_{boot}$) ao transferir essa carga para o MOSFET — o que poderia reduzir a tensão $V_{GS}$ abaixo do nível seguro de saturação —, a capacitância mínima é calculada como \cite{infineonAN978}:
 
 \begin{equation}
     C_{boot} \geq \frac{Q_{tot}}{\Delta V_{boot}}
@@ -724,7 +722,7 @@ Como o motor utilizado (Turnigy XK3674) possui fechamento interno em triângulo 
 
 \subsection{Reconstrução do Neutro Virtual e Divisores de Tensão}
 
-A ausência de um terminal de neutro físico acessível exigiu a criação de um ponto de neutro virtual. Para isso, conectou-se um resistor de $33k\Omega$ em cada uma das três fases do motor ($A, B, C$), unindo as extremidades opostas em um nó comum. Este nó fornece a referência de tensão média do sistema ($V_{ref}$) para os comparadores.
+A ausência de um terminal de neutro físico acessível exigiu a criação de um ponto de neutro virtual. Para isso, conectou-se um resistor de $33k\Omega$ em cada uma das três fases do motor ($A, B, C$), unindo as extremidades opostas em um nó comum. Este nó fornece a referência de tensão média do sistema ($V_{ref}$) para os comparadores, conforme topologia clássica para controle trapezoidal \textit{sensorless} \cite{ti2013sensorless}.
 
 Considerando a escalabilidade do projeto para operar com baterias de até 6 células (6S, $\approx 25,2V$), a rede de divisores resistivos foi dimensionada para garantir a segurança do microcontrolador no pior caso de tensão. Utilizou-se uma topologia composta por um resistor de lado alto ($R_{high}$) de $33k\Omega$ e um resistor de lado baixo ($R_{low}$) de $3,3k\Omega$, resultando em um fator de atenuação $\alpha$:
 
@@ -777,7 +775,7 @@ Como o atraso máximo projetado ($17,07^{\circ}$) é inferior ao intervalo de co
 
 \subsection{Estágio Comparador com LM339}
 
-A digitalização dos sinais analógicos é realizada pelo circuito integrado \textbf{LM339N} (encapsulamento DIP-14), que contém quatro comparadores de tensão independentes. A escolha deste componente justifica-se por sua saída em coletor aberto (\textit{Open-Collector}). Esta característica permite que o comparador seja alimentado com uma tensão superior (ex: $5V$ ou $12V$) para garantir a linearidade, enquanto a saída é referenciada ao nível lógico do microcontrolador ($3,3V$) através de resistores de \textit{pull-up} de $10k\Omega$.
+A digitalização dos sinais analógicos é realizada pelo circuito integrado \textbf{LM339N} (encapsulamento DIP-14), que contém quatro comparadores de tensão independentes. A escolha deste componente justifica-se por sua saída em coletor aberto (\textit{Open-Collector}) \cite{tiLM339}. Esta característica permite que o comparador seja alimentado com uma tensão superior (ex: $5V$ ou $12V$) para garantir a linearidade, enquanto a saída é referenciada ao nível lógico do microcontrolador ($3,3V$) através de resistores de \textit{pull-up} de $10k\Omega$.
 
 O circuito utiliza três comparadores configurados da seguinte forma:
 \begin{itemize}
