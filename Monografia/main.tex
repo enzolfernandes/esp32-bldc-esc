@@ -412,7 +412,7 @@ Apesar de sua necessidade em sistemas \textit{sensorless}, a estratégia de part
 
 \subsubsection{Análise do Fenômeno de Perda de Sincronismo (Stall)}
 
-O risco mais proeminente do controle em malha aberta é a perda de sincronismo, comumente conhecida como \textit{stall} ou perda de passo. Este fenômeno ocorre quando a aceleração real do rotor não consegue acompanhar a velocidade de rotação do campo magnético do estator imposta pelo controlador. Se o torque de carga aplicado ao eixo do motor, somado à sua própria inércia, for maior que o torque eletromagnético que o motor consegue produzir em um determinado passo, o rotor "perderá o passo" e ficará para trás \cite{nxp2023sensorless, silva2012controle}. Isso pode ser causado por uma carga inicial muito elevada ou por uma rampa de aceleração excessivamente agressiva, que aumenta a frequência de comutação mais rápido do que o rotor consegue acelerar \cite{ti2022minimizing}.
+O risco mais proeminente do controle em malha aberta é a perda de sincronismo, comumente conhecida como \textit{stall} ou perda de passo. Este fenômeno ocorre quando a aceleração real do rotor não consegue acompanhar a velocidade de rotação do campo magnético do estator imposta pelo controlador. Se o torque de carga aplicado ao eixo do motor, somado à sua própria inércia, for maior que o torque eletromagnético que o motor consegue produzir em um determinado passo, o rotor "perderá o passo" e ficará para trás \cite{nxp2023sensorless}. Isso pode ser causado por uma carga inicial muito elevada ou por uma rampa de aceleração excessivamente agressiva, que aumenta a frequência de comutação mais rápido do que o rotor consegue acelerar \cite{ti2022minimizing}.
 
 Uma vez que o sincronismo é perdido, o alinhamento entre os campos do rotor e do estator se torna desfavorável, e a produção de torque efetivo colapsa. O resultado é um movimento errático, vibrações intensas, ruído audível e, frequentemente, a parada completa do motor, enquanto o controlador continua a injetar corrente nos enrolamentos de forma ineficaz. Este estado pode levar a picos de corrente perigosos para a eletrônica de potência. Por essa razão, o controle em malha aberta é inadequado para aplicações com cargas variáveis ou que exigem alto torque de partida.
 
@@ -421,19 +421,103 @@ Uma vez que o sincronismo é perdido, o alinhamento entre os campos do rotor e d
 Além do risco de perda de passo, a partida forçada apresenta outras desvantagens:
 
 \begin{itemize}
-    \item \textbf{Picos de Corrente:} No início da partida, a velocidade do motor é baixa ou nula, o que significa que a FCEM — que normalmente se opõe à tensão de alimentação e limita a corrente — também é baixa ou inexistente. Sem essa oposição, a corrente que flui para os enrolamentos é limitada apenas pela resistência ôhmica e pela tensão aplicada, podendo atingir valores muito elevados se não for cuidadosamente controlada pelo \textit{duty cycle} do PWM. Estes picos de corrente podem estressar a bateria e os componentes da ponte inversora.
+    \item \textbf{Picos de Corrente:} No início da partida, a velocidade do motor é baixa ou nula, o que significa que a FCEM, que normalmente se opõe à tensão de alimentação e limita a corrente, também é baixa ou inexistente. Sem essa oposição, a corrente que flui para os enrolamentos é limitada apenas pela resistência ôhmica e pela tensão aplicada, podendo atingir valores muito elevados se não for cuidadosamente controlada pelo \textit{duty cycle} do PWM. Estes picos de corrente podem estressar a bateria e os componentes da ponte inversora.
     \item \textbf{Vibração e Ineficiência:} Como o controle é feito "às cegas", o alinhamento entre o campo do estator e o rotor durante a rampa de aceleração nunca é perfeito. Este desalinhamento constante é a fonte da ondulação de torque discutida anteriormente, que se manifesta como vibração mecânica e resulta em uma operação ineficiente, onde uma parte da energia elétrica consumida é dissipada em vez de ser convertida em torque útil.
 \end{itemize}
 
 É fundamental reiterar que a partida forçada em malha aberta é uma fase transitória e um meio para um fim. É uma estratégia de \textit{bootstrap} projetada exclusivamente para levar o motor de um estado de repouso para uma velocidade operacional mínima, onde métodos de controle em malha fechada, mais eficientes, precisos e robustos, podem ser ativados para a operação contínua do sistema \cite{ti2022minimizing, nxp2023sensorless}.
 
- \subsection{Outros Algoritmos de Controle} 
+\section{Aspectos de Eletrônica de Potência}
 
- Além do Controle Trapezoidal existem outras formas de controle que envolvem algorítimos mais complexos, como o Controle de Torque Vetorial e o Controle de Campo Orientado, ambos em malha fechada. 
+A implementação física do inversor exige a compreensão de componentes e técnicas que viabilizam a comutação em alta frequência e corrente.
 
- No controle de torque vetorial, o controlador de motor calcula a corrente que deve ser fornecida às bobinas do estator usando um modelo matemático do motor. O modelo matemático do motor descreve a relação entre a corrente nas bobinas do estator, o campo magnético do rotor e o torque produzido pelo motor. O controlador vetorial de torque do motor calcula o torque desejado e, em seguida, usa o modelo matemático do motor para calcular a corrente necessária para produzir o tal torque. Este controle é um método preciso e flexível que pode ser usado em uma variedade de aplicações. Ele é adequado para aplicações onde a exatidão de velocidade e torque é crítica 
+\subsection{O MOSFET de Potência e Perdas}
+O MOSFET (\textit{Metal-Oxide-Semiconductor Field-Effect Transistor}) é o dispositivo de chaveamento predominante em aplicações de baixa e média tensão devido à sua alta velocidade de comutação e facilidade de acionamento. Em um inversor para controle de motores, o MOSFET não atua na região linear (amplificação), mas alterna entre os estados de corte (chave aberta) e saturação (chave fechada).
 
- No controle de campo orientado, o controlador do motor calcula a corrente que deve ser fornecida às bobinas do estator usando a orientação do campo magnético do rotor. O controlador de motor usa um sensor para medir a orientação do campo magnético do rotor, sendo que o sensor envia um sinal para o controlador, o utiliza sinal para calcular a corrente necessária para manter o campo magnético do rotor na orientação desejada. O controle de campo orientado é um método preciso e eficiente que pode ser usado em aplicações de alta velocidade. 
+A eficiência do inversor é limitada por dois mecanismos principais de perda no MOSFET:
+\begin{itemize}
+    \item \textbf{Perdas por Condução ($P_{cond}$):} Quando o transistor está ligado, ele apresenta uma resistência interna residual entre dreno e fonte, denominada $R_{DS(on)}$. A potência dissipada é dada por $P_{cond} = I_{D}^2 \cdot R_{DS(on)}$. Componentes modernos buscam minimizar o $R_{DS(on)}$ para reduzir o aquecimento.
+    \item \textbf{Perdas por Comutação ($P_{sw}$):} Ocorrem durante a transição entre ligado e desligado. Como a tensão e a corrente não variam instantaneamente, há um breve período em que ambas são não-nulas, gerando um pico de potência dissipada. Esta perda é diretamente proporcional à frequência de chaveamento ($f_{sw}$) e à carga total de gate ($Q_g$) que o driver deve fornecer.
+\end{itemize}
+
+\subsection{Técnica de \textit{Bootstrap} para Acionamento \textit{High-Side}}
+Em uma ponte inversora trifásica, os transistores do "lado alto" (\textit{High-Side}) têm seus drenos conectados ao barramento positivo ($V_{CC}$) e suas fontes conectadas às fases do motor. Para ligar um MOSFET Canal-N nesta posição, a tensão no \textit{gate} deve ser superior à tensão da fonte ($V_{GS} > V_{th}$). Contudo, quando o transistor liga, a tensão da fonte sobe para aproximadamente $V_{CC}$, exigindo que a tensão do \textit{gate} seja elevada para $V_{CC} + V_{drv}$.
+
+A técnica de \textit{Bootstrap} é a solução mais comum e econômica para gerar essa tensão flutuante. Ela utiliza um capacitor ($C_{boot}$) e um diodo ($D_{boot}$). O princípio de operação é cíclico:
+\begin{enumerate}
+    \item Quando o transistor do "lado baixo" (\textit{Low-Side}) está ligado, o terminal da fase é aterrado. O capacitor $C_{boot}$ é então carregado através do diodo pela fonte de alimentação auxiliar ($V_{drv}$).
+    \item Quando o \textit{Low-Side} desliga e o \textit{High-Side} precisa ser acionado, a carga armazenada em $C_{boot}$ atua como uma "bateria flutuante", fornecendo a corrente necessária para carregar o \textit{gate} do transistor superior.
+\end{enumerate}
+
+\textbf{Limitação Importante:} O circuito de \textit{Bootstrap} não permite operação com ciclo de trabalho (\textit{duty cycle}) de 100\% indefinidamente. O transistor \textit{Low-Side} deve ser ligado periodicamente para recarregar o capacitor. Se o capacitor descarregar por falta de comutação, a tensão $V_{GS}$ cai, podendo levar o MOSFET superior a operar na região linear e falhar por superaquecimento.
+
+\subsubsection{Dimensionamento do Capacitor de Bootstrap}
+
+O capacitor de \textit{bootstrap} ($C_{boot}$), embora fisicamente conectado ao circuito do driver, tem como função primária atuar como um reservatório de energia flutuante para alimentar a porta (\textit{gate}) do MOSFET superior. O driver atua apenas como a chave de transferência, drenando carga de $C_{boot}$ e injetando-a na capacitância de entrada do MOSFET para promover sua saturação.
+
+Consequentemente, o dimensionamento deste capacitor depende intrinsecamente da quantidade de carga que o MOSFET exige para ligar, parâmetro conhecido como Carga Total de Gate ($Q_g$). A carga total ($Q_{tot}$) demandada do capacitor a cada ciclo de comutação é composta pela carga do MOSFET somada às perdas internas do driver:
+
+\begin{equation}
+    Q_{tot} = \underbrace{Q_g}_{\text{Carga do MOSFET}} + \underbrace{(I_{qbs} + I_{leak}) \cdot T_{on}}_{\text{Consumo do Driver e Fugas}}
+\end{equation}
+
+\noindent onde $I_{qbs}$ é a corrente quiescente do estágio de alta do driver e $I_{leak}$ representa as correntes de fuga. Como $Q_g$ é tipicamente muito maior que o consumo do driver em frequências usuais, ele é o fator determinante no dimensionamento.
+
+Para garantir que a tensão no capacitor não sofra uma queda brusca ($\Delta V_{boot}$) ao transferir essa carga para o MOSFET — o que poderia reduzir a tensão $V_{GS}$ abaixo do nível seguro de saturação —, a capacitância mínima é calculada como:
+
+\begin{equation}
+    C_{boot} \geq \frac{Q_{tot}}{\Delta V_{boot}}
+\end{equation}
+
+Na prática de engenharia, para assegurar robustez contra transitórios e variações de temperatura, adota-se um capacitor capaz de armazenar pelo menos 15 vezes a carga do gate do MOSFET ($Q_g$), garantindo uma fonte de tensão rígida para o driver.
+
+\section{Estado da Arte em Algoritmos de Controle e Estimação}
+\label{sec:estado_da_arte}
+
+Embora a técnica de comutação trapezoidal com detecção de cruzamento por zero (ZCD) seja robusta e amplamente utilizada, o desenvolvimento de microcontroladores de alto desempenho e FPGAs permitiu a implementação de estratégias de controle mais sofisticadas. Estas técnicas visam superar as limitações do ZCD, principalmente em baixas velocidades e no controle de torque.
+
+\subsection{Métodos Baseados em Força Contraeletromotriz (FCEM)}
+Esta categoria, na qual se insere a técnica utilizada neste trabalho, fundamenta-se na proporcionalidade entre a tensão induzida e a velocidade angular do rotor.
+\begin{itemize}
+    \item \textbf{Detecção de Cruzamento por Zero (ZCD):} Monitora a tensão na fase não energizada para determinar os instantes de comutação. É simples e eficaz para médias e altas rotações.
+    \item \textbf{Integração da FCEM:} Em vez de buscar apenas o zero, integra-se a área sob a curva da tensão induzida. Isso oferece maior imunidade a ruídos de PWM (ruído de comutação), pois a integração atua como um filtro natural.
+    \item \textbf{Limitação e Solução:} A principal dificuldade é a inexistência de sinal em velocidade zero ou muito baixa. A solução padrão da indústria é a "Comutação Forçada" (\textit{Sensorless Trapezoidal Control}), onde aplica-se uma sequência cega inicial para arrancar o motor até que a FCEM seja detectável.
+\end{itemize}
+
+\subsection{Controle Orientado de Campo (FOC) e Observadores}
+O Controle Orientado de Campo (\textit{Field-Oriented Control} - FOC) representa o padrão de alto desempenho. Diferente do controle trapezoidal que aciona o motor em passos discretos, o FOC controla as correntes do estator para manter o vetor de campo magnético sempre ortogonal ao rotor (90 graus), maximizando o torque por ampere e reduzindo a ondulação de torque. Para operação sem sensores (\textit{sensorless}), utilizam-se observadores matemáticos:
+
+\begin{itemize}
+    \item \textbf{Observadores de Estado (Luenberger):} Utilizam as equações diferenciais do motor para estimar a corrente e a FCEM. A diferença entre a corrente estimada e a medida (erro) é usada para corrigir a estimativa da posição do rotor em tempo real.
+    \item \textbf{Filtro de Kalman Estendido (EKF):} Uma abordagem estocástica que considera as incertezas do modelo e o ruído das medições. O EKF prediz o estado futuro do sistema e corrige a predição com base nas medições atuais, sendo extremamente robusto em ambientes ruidosos, embora exija alto poder computacional.
+    \item \textbf{Observadores Adaptativos:} Ajustam dinamicamente os parâmetros do modelo (como resistência ou fluxo) durante a operação, compensando variações térmicas que poderiam degradar a precisão da estimativa.
+\end{itemize}
+
+\subsection{Técnicas Baseadas em Análise de Sinais e Harmônicos}
+Existem métodos que exploram as não-linearidades e características construtivas do motor para inferir a posição, úteis especialmente em baixa velocidade onde a FCEM é nula.
+\begin{itemize}
+    \item \textbf{Detecção de Ondulação de Corrente (\textit{Current Ripple}):} A interação entre os polos do rotor e as ranhuras do estator gera pequenas ondulações na corrente. Algoritmos de processamento de sinal podem contar essas ondulações para estimar a velocidade e posição.
+    \item \textbf{Método de Injeção de Alta Frequência:} Aplica-se um sinal de tensão de alta frequência e baixa amplitude. Devido à saliência magnética do rotor ($L_d \neq L_q$), a resposta de corrente varia conforme a posição angular, permitindo detectar a posição mesmo com o motor parado.
+\end{itemize}
+
+\section{Parâmetros Críticos para Modelagem Dinâmica}
+\label{sec:parametros_modelagem}
+
+A implementação de algoritmos avançados, como o FOC e os Observadores de Estado, exige um conhecimento preciso dos parâmetros intrínsecos do motor. A precisão do modelo matemático — e consequentemente a qualidade do controle — depende diretamente da caracterização das seguintes grandezas:
+
+\begin{description}
+    \item[Resistência de Estator ($R_s$):] Determina a queda de tensão ôhmica nos enrolamentos. Erros na identificação de $R_s$ causam desvios na estimativa de fluxo em baixas velocidades.
+    
+    \item[Indutância de Estator ($L_s, L_d, L_q$):] Fundamental para determinar a resposta dinâmica da corrente. Em motores de ímãs interiores (IPM), a diferença entre a indutância de eixo direto ($L_d$) e em quadratura ($L_q$) é o que permite o torque de relutância e a detecção de posição por injeção de sinal.
+    
+    \item[Fluxo do Rotor ($\lambda_m$):] Representa o fluxo magnético gerado pelos ímãs permanentes. É crucial para o cálculo do torque eletromagnético ($T_e$) e da constante de FCEM ($K_e$). Variações de temperatura podem alterar $\lambda_m$ (desmagnetização temporária), afetando a constante $K_T$ do motor.
+    
+    \item[Momento de Inércia ($J$) e Atrito ($B$):] Parâmetros mecânicos que ditam a resposta de velocidade do sistema. O conhecimento de $J$ é vital para o projeto das malhas de controle de velocidade, influenciando os ganhos $K_p$ e $K_i$ do controlador PID.
+    
+    \item[Número de Polos ($P$):] Define a relação entre a frequência elétrica e a velocidade mecânica. Um erro neste parâmetro inviabiliza qualquer algoritmo de estimação de velocidade.
+\end{description}
+
+O levantamento desses parâmetros geralmente requer equipamentos de precisão ou rotinas de auto-comissionamento implementadas no próprio inversor, destacando a complexidade superior dessas técnicas em comparação ao método trapezoidal via ZCD adotado neste projeto.
 
  \pagebreak 
 
@@ -485,7 +569,12 @@ Atualmente, a tecnologia de bateria com a maior taxa de descarga disponível com
 
 Baterias LiPo tem três principais características:
 \begin{itemize}
-\item Tensão Nominal: Diferença de potencial fornecida pela bateria, normalmente é apresentado em em $S$, sendo esse o número de células que a bateira possui, sendo cada célula em média de $3,7V$, logo uma bateria de $7S$ tem uma tensão nominal de $25,9V$; 
+\item Configuração das Células (S): A nomenclatura "S" (do inglês \textit{Series}) indica o número de células de polímero de lítio conectadas eletricamente em série no interior do \textit{pack}. Nesta configuração, a tensão de cada célula se soma enquanto a capacidade de corrente se mantém.
+    Considerando a tensão nominal de uma célula LiPo como $3,7V$ e a tensão de carga máxima como $4,2V$, a tensão total do \textit{pack} ($V_{\text{pack}}$) é dada por:
+    \begin{equation}
+        V_{\text{pack}} = N_S \cdot V_{\text{célula}}
+    \end{equation}
+    Assim, a bateria $6S$ especificada para este projeto possui 6 células, resultando em uma tensão nominal de $22,2V$ e uma tensão máxima de $25,2V$ (plenamente carregada). Este parâmetro é crítico para o dimensionamento do $K_V$ do motor e da tensão máxima dos MOSFETs; 
 \item Capacidade: Indica a quantidade de carga que a bateria pode fornecer antes de ser descarregada completamente, Normalmente é medida em miliampere-horas ($mAh$) ou ampere-horas ($Ah$);
 \item Taxa de Descarga (ou \textit{C-rate}): Define a quantidade de corrente que a bateria pode fornecer sem danificar-se, é expressa em múltiplos de $C$.
 \end{itemize}
@@ -493,7 +582,7 @@ Baterias LiPo tem três principais características:
 Para calcular a corrente que tais baterias conseguem fornecer podemos aplicar a equação \ref{Corrente de uma bateria LiPo}, desconsiderando efeitos dissipativos ou a variação de tensão nominal que varia de acordo com o nível de carga da bateria, vale ressaltar que a capacidade da bateria deve estar em $Ah$.
 
 \begin{equation}
-I = C-rate * Capacidade
+I = C-rate \cdot Capacidade
 \label{Corrente de uma bateria LiPo}
 \end{equation}
 
@@ -652,6 +741,39 @@ O sinal de tensão proveniente das fases contém componentes de alta frequência
 \begin{equation}
     f_c = \frac{1}{2\pi \cdot (R_{high} || R_{low}) \cdot C_f} \approx \frac{1}{2\pi \cdot 3000 \cdot 10 \cdot 10^{-9}} \approx 5,3kHz
 \end{equation}
+
+\subsection{Análise e Compensação do Atraso de Fase do Filtro}
+
+A introdução do capacitor $C_f$ no circuito divisor de tensão, embora essencial para a integridade do sinal, insere um polo no sistema que causa um atraso de fase ($\phi$) dependente da frequência. Em um filtro RC de primeira ordem, o atraso de fase entre o sinal de entrada (BEMF real) e o sinal de saída (lido pelo comparador) é dado por:
+
+\begin{equation}
+    \phi = \arctan(2\pi f_{el} R_{eq} C_f) = \arctan\left(\frac{f_{el}}{f_c}\right)
+    \label{eq:phase_lag}
+\end{equation}
+
+\noindent onde $f_{el}$ é a frequência elétrica fundamental do motor e $f_c$ é a frequência de corte do filtro ($\approx 5,3kHz$).
+
+Este atraso angular é crítico para o sincronismo da comutação. Na estratégia \textit{sensorless} ideal, a comutação das fases deve ocorrer $30^{\circ}$ elétricos após o cruzamento por zero da BEMF. No entanto, devido ao filtro, o comparador detecta o evento de cruzamento com um atraso de $\phi$ graus. Se o microcontrolador aguardar os $30^{\circ}$ teóricos após essa detecção tardia, a comutação efetiva ocorrerá em $30^{\circ} + \phi$, resultando em uma aplicação de torque fora do ponto de máxima eficiência.
+
+Considerando as especificações do motor Turnigy XK3674 ($2200KV$, 4 polos) operando à tensão nominal de $22,2V$, a velocidade máxima teórica aproxima-se de $48.840$ RPM. A frequência elétrica máxima correspondente é:
+
+\begin{equation}
+    f_{el\_max} = \frac{RPM \cdot P}{120} = \frac{48840 \cdot 4}{120} \approx 1.628 Hz
+\end{equation}
+
+Substituindo na Equação \ref{eq:phase_lag}:
+
+\begin{equation}
+    \phi_{max} = \arctan\left(\frac{1628}{5300}\right) \approx 17,07^{\circ}
+\end{equation}
+
+Como o atraso máximo projetado ($17,07^{\circ}$) é inferior ao intervalo de comutação padrão ($30^{\circ}$), é possível realizar a compensação via software. A estratégia adotada consiste em calcular dinamicamente o ângulo de atraso $\phi$ a cada ciclo e ajustar o temporizador de espera para a comutação ($T_{wait}$):
+
+\begin{equation}
+    T_{wait} = T_{30^{\circ}} - T_{lag}
+\end{equation}
+
+\noindent Onde $T_{30^{\circ}}$ é o período correspondente a $30^{\circ}$ na velocidade atual e $T_{lag}$ é o tempo equivalente ao atraso de fase do filtro. Essa correção assegura que, mesmo em altas rotações, o alinhamento entre os campos do estator e rotor permaneça ortogonal.
 
 \subsection{Estágio Comparador com LM339}
 
