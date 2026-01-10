@@ -447,6 +447,19 @@ Em inversores de fonte de tensão (VSI) que operam com altas frequências de cha
 
 Se não mitigados, esses picos podem superar a tensão de ruptura dos semicondutores, causando falhas catastróficas. Para solucionar esse problema, utiliza-se um banco de capacitores no barramento DC (\textit{DC Link}), posicionado fisicamente próximo aos interruptores. Este banco atua como uma fonte de tensão de baixa impedância local, fornecendo a corrente pulsada exigida pelo inversor e absorvendo a energia regenerada, além de filtrar a componente alternada (ripple) da corrente \cite{rashid2014power}.
 
+Embora o cálculo analítico da capacitância mínima ($C_{min}$) seja classicamente derivado da máxima variação de tensão admissível ($\Delta V$) no barramento, conforme a Equação \ref{eq:cap_calc}:
+
+\begin{equation}
+    C_{min} = \frac{I_{peak} \cdot D \cdot (1-D)}{f_{sw} \cdot \Delta V}
+    \label{eq:cap_calc}
+\end{equation}
+
+\noindent onde $f_{sw}$ é a frequência de chaveamento e $D$ é o ciclo de trabalho (\textit{Duty Cycle}) do inversor. Observa-se que o esforço máximo sobre o capacitor ocorre quando $D=0,5$, ponto em que o produto $D(1-D)$ é máximo.
+
+Entretanto, em aplicações de baixa tensão e alta corrente (como em VANTs), o fator limitante do projeto não é apenas a armazenagem de carga ($C_{min}$), mas sim a capacidade de condução de corrente de ripple ($I_{Ripple,RMS}$) e a dissipação térmica. Capacitores eletrolíticos comerciais apresentam uma correlação inversa entre capacitância nominal e Resistência Série Equivalente (ESR).
+
+Consequentemente, adota-se na prática de engenharia o sobredimensionamento do valor de capacitância (regras empíricas da ordem de $10\mu F$ a $20\mu F$ por Ampere de corrente de fase). Esta abordagem visa, primariamente, reduzir a ESR total do banco de capacitores através da associação paralela e do uso de encapsulamentos maiores, garantindo que a corrente eficaz drenada pelo inversor não exceda o \textit{Ripple Current Rating} dos componentes, prevenindo a degradação dielétrica prematura por superaquecimento \cite{rashid2014power}.
+
 \subsection{Técnica de \textit{Bootstrap} para Acionamento \textit{High-Side}}
 Em uma ponte inversora trifásica, os transistores do "lado alto" (\textit{High-Side}) têm seus drenos conectados ao barramento positivo ($V_{CC}$) e suas fontes conectadas às fases do motor. Para ligar um MOSFET Canal-N nesta posição, a tensão no \textit{gate} deve ser superior à tensão da fonte ($V_{GS} > V_{th}$). Contudo, quando o transistor liga, a tensão da fonte sobe para aproximadamente $V_{CC}$, exigindo que a tensão do \textit{gate} seja elevada para $V_{CC} + V_{drv}$.
 
@@ -604,7 +617,7 @@ Uma bateria comercial que atende as especificações do projeto é o modelo Turn
 
 \subsection{Filtragem do Barramento DC (Link DC)}
 
-Considerando a bateria LiPo como fonte primária de energia, e sabendo que a indutância dos cabos de alimentação pode gerar transientes destrutivos (conforme fundamentado na Seção 2.X), projetou-se um estágio de filtragem para o barramento DC.
+Considerando a bateria LiPo como fonte primária de energia, e sabendo que a indutância dos cabos de alimentação pode gerar transientes destrutivos, projetou-se um estágio de filtragem para o barramento DC.
 
 O dimensionamento dos capacitores do \textit{Link DC} priorizou a minimização da Resistência Série Equivalente (ESR) para evitar o superaquecimento causado pela corrente de ripple. A capacitância mínima ($C_{bus}$) foi estipulada seguindo a regra prática de engenharia para ESCs de alta performance, que recomenda aproximadamente $220\mu F$ para cada $20A$ de corrente de fase:
 
@@ -617,6 +630,8 @@ Dessa forma, a topologia final do barramento de entrada é composta por:
     \item Conector de alta corrente XT90 (anti-centelha) para conexão com a bateria;
     \item Dois capacitores eletrolíticos \textit{Low-ESR} de \textbf{$470\mu F$ / $35V$} ligados em paralelo (Total: $940\mu F$), posicionados o mais próximo possível dos drenos dos MOSFETs de alta para minimizar o loop de indutância.
 \end{itemize}
+
+Esta escolha assegura que o banco de capacitores suporte a corrente $I_{RMS}$ estimada do inversor, mantendo a temperatura de operação dentro dos limites seguros especificados para a série \textit{Low-ESR}.
 
 \subsection{Dimensionamento do Inversor (MOSFETs)}
 Para o estágio de comutação da ponte inversora trifásica, a escolha do MOSFET foi governada por dois parâmetros críticos: a tensão de ruptura dreno-fonte ($V_{DSS}$), representa o limite máximo de tensão que o dispositivo suporta em seus terminais principais enquanto está em estado de não-condução e a capacidade de dissipação térmica. Considerando que a bateria 6S carregada atinge $25,2V$, e prevendo picos de tensão indutiva ($V_{spike}$) durante o chaveamento, selecionou-se o modelo \textbf{IRFS7530TRL7PP}. Este componente possui um $V_{DSS}$ de $60V$, oferecendo uma margem de segurança superior a 100\% em relação à tensão do barramento DC.
