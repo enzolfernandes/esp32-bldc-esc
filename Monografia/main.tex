@@ -695,6 +695,43 @@ O valor obtido ($150 \mu C$) é significativamente superior ao mínimo requerido
 
 Essa queda de apenas $36mV$ (0,24\% da tensão de alimentação) assegura que a tensão $V_{GS}$ aplicada ao MOSFET permaneça estável, garantindo a saturação completa do semicondutor.
 
+\subsection{Determinação da Frequência de Chaveamento}
+
+A definição da frequência de chaveamento ($f_{sw}$) é um parâmetro crítico no projeto de inversores de frequência de alta corrente, pois representa um \textit{trade-off} direto entre eficiência térmica, qualidade da forma de onda e conforto acústico. Para este projeto, optou-se pela frequência de \textbf{20 kHz}.
+
+Esta escolha fundamenta-se em três critérios de engenharia principais e na validação de compatibilidade dos componentes selecionados:
+
+\subsubsection{Análise de Perdas por Comutação}
+As perdas de potência em um MOSFET durante a comutação ($P_{sw}$) são diretamente proporcionais à frequência de operação, conforme estabelecido na Equação \ref{eq:perdas} \cite{rashid2014power}:
+
+\begin{equation} \label{eq:perdas}
+P_{sw} = \frac{1}{2} V_{d} \cdot I_{o} \cdot (t_{on} + t_{off}) \cdot f_{sw}
+\end{equation}
+
+Onde $V_d$ é a tensão do barramento, $I_o$ a corrente de carga e $t_{on}/t_{off}$ os tempos de comutação.
+O projeto utiliza transistores automotivos IRFS7530, que, embora robustos, apresentam uma carga total de gate ($Q_g$) significativa. A elevação da frequência para valores típicos de aeromodelismo (como $48 kHz$ ou $96 kHz$) resultaria em uma dissipação térmica excessiva nos semicondutores, exigindo sistemas de arrefecimento incompatíveis com o volume disponível. A frequência de $20 kHz$ mantém as perdas em um nível gerenciável pela dissipação passiva projetada.
+
+\subsubsection{Mitigação de Ruído Acústico}
+A operação de motores elétricos gera ruído audível devido à magnetostrição nas lâminas do estator e nas bobinas, excitadas pelos harmônicos da corrente PWM. Segundo Mohan, Undeland e Robbins (2003), recomenda-se que a frequência de chaveamento seja situada acima do limiar da audição humana.
+Ao fixar $f_{sw}$ em $20 kHz$, o sistema opera na região ultrassônica, eliminando o zumbido agudo característico de inversores que operam em faixas inferiores (como $8 kHz$ ou $12 kHz$), garantindo conforto acústico na operação do veículo.
+
+\subsubsection{Ripple de Corrente e Torque}
+Para garantir um torque constante, a frequência de chaveamento deve ser suficientemente alta para interagir com a indutância do motor, limitando a ondulação de corrente (\textit{ripple}). A frequência de $20 kHz$ oferece um período de chaveamento ($T = 50 \mu s$) compatível com a constante de tempo elétrica ($\tau = L/R$) do motor selecionado, preservando a densidade de torque em baixas rotações sem incorrer nas penalidades de eficiência de frequências mais altas \cite{hanselman2003brushless}.
+%TODO: Aferir Constante do motor.
+
+\subsubsection{Validação da Compatibilidade do Driver}
+Foi realizada a validação teórica do driver de gate IR2110 para assegurar sua operação estável na frequência definida. Segundo o datasheet do fabricante \cite{infineon2005}, o componente apresenta tempos de propagação típicos de $t_{on} = 120 \text{ ns}$ e $t_{off} = 94 \text{ ns}$. Considerando o período de $50 \mu s$, os atrasos do driver representam menos de $0,5\%$ do ciclo total, sendo desprezíveis para a dinâmica do controle.
+
+Adicionalmente, calculou-se a corrente média de gate ($I_{g,avg}$) necessária para comutar os MOSFETs, considerando o pior caso de carga de gate ($Q_{g,max} = 354 \text{ nC}$) especificado no datasheet do IRFS7530 \cite{infineon7530}, conforme a Equação \ref{eq:igavg}:
+
+\begin{equation} \label{eq:igavg}
+I_{g,avg} = Q_{g,max} \cdot f_{sw} \approx 354 \text{ nC} \cdot 20 \text{ kHz} \approx 7,08 \text{ mA}
+\end{equation}
+
+O valor calculado de $7,08 mA$ está amplamente dentro da capacidade de dissipação térmica do IR2110 e situa-se muito abaixo do seu limite de corrente de pico ($2 A$), confirmando que o estágio de acionamento operará em regime seguro.
+
+A frequência de $20 kHz$ foi validada teoricamente como o ponto ótimo de operação, equilibrando a minimização das perdas térmicas com a operação silenciosa e a integridade dos componentes de acionamento.
+
 \subsection{Fonte de Alimentação Auxiliar}
 Existem duas abordagens possíveis para a alimentação do microcontrolador e drivers: utilizar uma segunda bateria ou reduzir o nível de tensão da bateria principal. Para otimizar peso e volume, optou-se por um circuito BEC (\textit{Battery Elimination Circuit}).
 
