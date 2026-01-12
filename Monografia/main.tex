@@ -716,8 +716,9 @@ A operação de motores elétricos gera ruído audível devido à magnetostriç�
 Ao fixar $f_{sw}$ em $20 kHz$, o sistema opera na região ultrassônica, eliminando o zumbido agudo característico de inversores que operam em faixas inferiores (como $8 kHz$ ou $12 kHz$), garantindo conforto acústico na operação do veículo.
 
 \subsubsection{Ripple de Corrente e Torque}
-Para garantir um torque constante, a frequência de chaveamento deve ser suficientemente alta para interagir com a indutância do motor, limitando a ondulação de corrente (\textit{ripple}). A frequência de $20 kHz$ oferece um período de chaveamento ($T = 50 \mu s$) compatível com a constante de tempo elétrica ($\tau = L/R$) do motor selecionado, preservando a densidade de torque em baixas rotações sem incorrer nas penalidades de eficiência de frequências mais altas \cite{hanselman2003brushless}.
-%TODO: Aferir Constante do motor.
+Para garantir um torque constante, a frequência de chaveamento deve ser suficientemente alta para interagir com a indutância do motor, limitando a ondulação de corrente (\textit{ripple}). Devido à ausência de dados de indutância e resistência no datasheet do fabricante (Turnigy), consideraram-se os valores típicos para motores BLDC de 4 polos (classe 3674) encontrados na literatura \cite{hanselman2003brushless}: indutância de fase na ordem de $L \approx 20 \mu H$ e resistência de $R \approx 10 m\Omega$.
+
+Isso resulta em uma constante de tempo elétrica estimada de $\tau = L/R \approx 2 \text{ ms}$. Dado que o período de chaveamento a 20 kHz é de $T = 50 \mu s$, observa-se que $T \ll \tau$. Essa margem garante que a dinâmica elétrica do motor seja significativamente mais lenta que o chaveamento, assegurando a operação no modo de condução contínua com baixa ondulação de corrente \cite{hanselman2003brushless}.
 
 \subsubsection{Validação da Compatibilidade do Driver}
 Foi realizada a validação teórica do driver de gate IR2110 para assegurar sua operação estável na frequência definida. Segundo o datasheet do fabricante \cite{infineon2005}, o componente apresenta tempos de propagação típicos de $t_{on} = 120 \text{ ns}$ e $t_{off} = 94 \text{ ns}$. Considerando o período de $50 \mu s$, os atrasos do driver representam menos de $0,5\%$ do ciclo total, sendo desprezíveis para a dinâmica do controle.
