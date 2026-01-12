@@ -615,6 +615,20 @@ Uma bateria comercial que atende as especificações do projeto é o modelo Turn
  \label{Turnigy Graphene Panther 1300mAh 6S 75C}
 \end{figure}
 
+\subsection{Sistema de Proteção Contra Sobrecorrentes}
+
+Dada a baixa resistência interna das baterias de Lítio-Polímero (LiPo) e a alta capacidade de corrente do sistema ($>90 \text{ A}$), um eventual curto-circuito no estágio de potência resultaria em correntes de falha de magnitude catastrófica, com risco real de incêndio e explosão da fonte de energia.
+
+Para mitigar este risco, projetou-se um sistema de proteção passiva composto por um fusível do tipo \textbf{MIDI} de $100 A$, instalado em série com o cabo positivo da bateria, externo à placa de circuito impresso (PCB). Esta topologia foi escolhida baseada em dois critérios:
+
+\begin{itemize}
+    \item \textbf{Tipo de Fusível (MIDI):} Diferente dos fusíveis de lâmina automotivos comuns (ATO/ATC), o padrão MIDI possui terminais para fixação por parafusos (M5 ou M6). Isso garante uma pressão de contato elevada, minimizando a resistência de contato ($R_{contato}$) e, consequentemente, o aquecimento indesejado no ponto de conexão sob altas correntes.
+    
+    \item \textbf{Instalação Externa (Off-Board):} A alocação do fusível no cabo, ao invés da PCB, preserva a integridade das trilhas de cobre em caso de fusão violenta do elemento condutor. Além disso, facilita a manutenção em campo e remove uma fonte de calor concentrada de perto dos transistores de potência.
+\end{itemize}
+
+O dimensionamento de $100 A$ oferece uma margem de segurança de aproximadamente $10\%$ sobre a corrente de pico estimada do motor ($90 A$), garantindo que o dispositivo atue apenas em casos de falha real (curto-circuito ou travamento mecânico do rotor), sem interrupções espúrias durante a operação nominal.
+
 \subsection{Filtragem do Barramento DC (Link DC)}
 
 Considerando a bateria LiPo como fonte primária de energia, e sabendo que a indutância dos cabos de alimentação pode gerar transientes destrutivos, projetou-se um estágio de filtragem para o barramento DC.
