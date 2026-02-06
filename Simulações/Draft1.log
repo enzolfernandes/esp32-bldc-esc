@@ -1,0 +1,17 @@
+LTspice 26.0.1 for Windows
+Circuit: C:\Users\NT-0967\Desktop\Arquivos\TCC\Simulações\Draft1.net
+Start Time: Fri Feb  6 15:41:08 2026
+solver = Normal
+Maximum thread count: 8
+tnom = 27
+temp = 27
+method = trap
+Compress1stOrder = true
+Compress2ndOrder = true
+Direct Newton iteration succeeded in finding operating point.
+Total elapsed time: 0.305 seconds.
+
+Files loaded:
+C:\Users\NT-0967\Desktop\Arquivos\TCC\Simulações\Draft1.net
+C:\Users\NT-0967\AppData\Local\LTspice\lib\cmp\standard.mos
+
