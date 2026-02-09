@@ -1,1 +1,11 @@
-Monografia/.aux/
+# Ignorar arquivos pesados e de simulação (LTspice)
+*.raw
+*.op.raw
+*.net
+*.fft
+
+# Ignorar arquivos temporários de texto (LTspice e LaTeX)
+*.log
+*.aux
+*.out
+*.bak
