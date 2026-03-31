@@ -9,3 +9,29 @@
 *.aux
 *.out
 *.bak
+
+# Arquivos de backup e histórico local
+History/
+__Previews/
+
+# Arquivos de bloqueio (Lock files - criados quando o projeto está aberto)
+*.lck
+
+# Logs e relatórios de erro
+*.LOG
+*.log
+*.err
+
+# Arquivos estruturais e de usuário temporários
+*.PrjPcbStructure
+
+# Relatórios gerados automaticamente (DRC, ERC, BOM)
+*.REP
+*.DRC
+*.ERC
+*.htm
+*.html
+
+# Pastas de saídas geradas (Gerbers, PDFs, Drill files)
+# É melhor ignorar as pastas automáticas e criar uma pasta manual de "Release" para a versão final da placa
+Project Outputs*/
