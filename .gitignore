@@ -31,15 +31,5 @@ __Previews/
 *.ERC
 *.htm
 *.html
-~$PCB_Project.xlsx
 
-# Pastas de saídas geradas (Gerbers, PDFs, Drill files)
-# É melhor ignorar as pastas automáticas e criar uma pasta manual de "Release" para a versão final da placa
-Project Outputs*/
 Project Logs*/
-
-# Abre exceção para os arquivos de fabricação
-!/Project Outputs*/*.GTL
-!/Project Outputs*/*.GBL
-!/Project Outputs*/*.GM*
-!/Project Outputs*/*.TXT
