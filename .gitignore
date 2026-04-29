@@ -36,3 +36,12 @@ __Previews/
 # Pastas de saídas geradas (Gerbers, PDFs, Drill files)
 # É melhor ignorar as pastas automáticas e criar uma pasta manual de "Release" para a versão final da placa
 Project Outputs*/
+
+# Ignora toda a pasta de outputs para não subir lixo eletrônico
+Project\ Outputs\ for\ PCB_Project/
+
+# Abre exceções apenas para os arquivos da CNC (o "!" significa "não ignore")
+!Project\ Outputs\ for\ PCB_Project/*.GTL
+!Project\ Outputs\ for\ PCB_Project/*.GBL
+!Project\ Outputs\ for\ PCB_Project/*.GM*
+!Project\ Outputs\ for\ PCB_Project/*.TXT
