@@ -968,6 +968,25 @@ A etapa final consiste na integração física dos subsistemas. O controlador é
 
 Todas as etapas de validação e os resultados obtidos, tanto na simulação quanto nos ensaios práticos, são documentados no capítulo subsequente de Resultados.
 
+\chapter{Resultados e Discussão}
+\section{Validação Computacional (Simulação)}
+Para a validação conceitual do hardware de potência antes da montagem física, utilizou-se o software \textbf{LTSpice}. A simulação concentrou-se no estágio de potência do inversor, modelando as chaves semicondutoras e a carga indutiva. Foram elaborados dois cenários de simulação: uma topologia monofásica (meia-ponte) para análise isolada e uma topologia trifásica completa para validação do fluxo de corrente inter-fases (Figura \ref{fig:simulacao_trifasica}).
+
+\begin{figure}[H]
+    \centering
+    \caption{Esquemático da simulação trifásica do ESC em estado estático de comutação.}
+    % Lembre-se de salvar a imagem do LTSpice com o nome abaixo na pasta imagens
+    \includegraphics[width=15cm]{imagens/simulacao_trifasica.png}
+    \caption*{Fonte: Elaborado pelo autor.}
+    \label{fig:simulacao_trifasica}
+\end{figure}
+
+\textbf{Fato:} Na configuração da simulação, as fontes de sinal que representam os \textbf{drivers de gate} foram modeladas utilizando fontes de tensão do tipo pulso. O sinal de acionamento do lado alto (\textit{High-Side}) da Fase A foi definido com os parâmetros \texttt{PULSE(0 15 0 100n 100n 25u 50u)}. 
+
+\textbf{Causa Física:} Este perfil injeta um sinal com amplitude de **$15\text{V}$**, estabelecendo uma frequência de chaveamento de \textbf{$20\text{ kHz}$} (período de $50 \mu\text{s}$) e um ciclo de trabalho (\textit{Duty Cycle}) de \textbf{$50\%$}. Os tempos de transição de subida e descida foram definidos em $100\text{ ns}$ para simular o tempo de resposta do gate do \textbf{MOSFET}. 
+
+\textbf{Comparação:} O comportamento simulado está em estrita conformidade com os parâmetros estabelecidos na metodologia. Como o esquemático foca na validação da transferência de energia em um instante específico da \textbf{comutação de seis passos} (Fase A injetando corrente e Fase B drenando para o terra), o transistor do lado baixo da Fase A foi mantido em \textbf{corte} ($0\text{V}$ constante). Devido a esta modelagem estática de um único passo, a inserção de um \textbf{tempo morto ($t_{dead}$)} dinâmico não se fez necessária no gerador de pulsos, assumindo-se o isolamento ideal entre os estados de condução. O motor foi adequadamente modelado na condição de \textbf{rotor bloqueado}, respeitando os parâmetros intrínsecos de resistência ($R = 0,05 \Omega$) e indutância ($L = 20 \mu\text{H}$) por fase.
+
 % --- ELEMENTOS PÓS-TEXTUAIS ---
 \postextual
 \printbibliography
