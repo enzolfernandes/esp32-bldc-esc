@@ -32,6 +32,7 @@
 \usepackage{array}
 \usepackage[table]{xcolor}
 \usepackage{caption}
+\usepackage{subcaption}
 \usepackage{float}
 \captionsetup{
     format=plain,
@@ -986,11 +987,66 @@ Para a validação conceitual do hardware de potência antes da montagem física
     \label{fig:simulacao_trifasica}
 \end{figure}
 
-\textbf{Fato:} Na configuração da simulação, as fontes de sinal que representam os \textbf{drivers de gate} foram modeladas utilizando fontes de tensão do tipo pulso. O sinal de acionamento do lado alto (\textit{High-Side}) da Fase A foi definido com os parâmetros \texttt{PULSE(0 15 0 100n 100n 25u 50u)}. 
+O circuito é dividido em três blocos funcionais: alimentação, comutação e carga. A fonte de energia primária é modelada por uma fonte DC de $22,2 \: V$ com uma resistência série ($R_{ser}$) de $19 \: m\Omega$, emulando com precisão a dinâmica de descarga e as perdas ôhmicas internas da bateria LiPo 6S definida para o projeto. O estágio de comutação é composto por uma ponte inversora trifásica utilizando transistores MOSFET (modelo comportamental BSC028N06LS3). As portas (\textit{gates}) destes semicondutores são excitadas através de resistores de $10 \: \Omega$, valor projetado para limitar a corrente de pico do \textit{driver} e amortecer ressonâncias (\textit{ringing}) parasitas sem degradar o tempo de comutação. O acionamento através dos \textbf{drivers de gate} foram modeladas utilizando fontes de tensão do tipo pulso. O sinal de acionamento do lado alto (\textit{High-Side}) da Fase A foi definido com os parâmetros \texttt{PULSE(0 15 0 100n 100n 25u 50u)}, forçando a condução do Passo 1 da sequência trapezoidal. Este perfil injeta um sinal com amplitude de $15\text{V}$, estabelecendo uma frequência de chaveamento de \textbf{$20\text{ kHz}$} (período de $50 \mu\text{s}$) e um ciclo de trabalho (\textit{Duty Cycle}) de \textbf{$50\%$}. Os tempos de transição de subida e descida foram definidos em $100\text{ ns}$ para simular o tempo de resposta do gate do \textbf{MOSFET}.
 
-\textbf{Causa Física:} Este perfil injeta um sinal com amplitude de **$15\text{V}$**, estabelecendo uma frequência de chaveamento de \textbf{$20\text{ kHz}$} (período de $50 \mu\text{s}$) e um ciclo de trabalho (\textit{Duty Cycle}) de \textbf{$50\%$}. Os tempos de transição de subida e descida foram definidos em $100\text{ ns}$ para simular o tempo de resposta do gate do \textbf{MOSFET}. 
+Por fim, o motor BLDC é representado por seu modelo elétrico equivalente de estator, consistindo em três ramos conectados em estrela (neutro comum). Cada fase possui uma resistência de armadura corrigida de $10 \: m\Omega$ em série com uma indutância de $20 \: \mu H$. Esta modelagem a rotor bloqueado força o sistema a operar sob a condição mais severa de estresse elétrico, permitindo avaliar a capacidade máxima de condução de corrente dos transistores e a resposta transitória da rede indutiva sem a oposição da Força Contraeletromotriz (FCEM), garantindo que os resultados da simulação representem o limite operacional do \textit{hardware}. 
 
-\textbf{Comparação:} O comportamento simulado está em estrita conformidade com os parâmetros estabelecidos na metodologia. Como o esquemático foca na validação da transferência de energia em um instante específico da \textbf{comutação de seis passos} (Fase A injetando corrente e Fase B drenando para o terra), o transistor do lado baixo da Fase A foi mantido em \textbf{corte} ($0\text{V}$ constante). Devido a esta modelagem estática de um único passo, a inserção de um \textbf{tempo morto ($t_{dead}$)} dinâmico não se fez necessária no gerador de pulsos, assumindo-se o isolamento ideal entre os estados de condução. O motor foi adequadamente modelado na condição de \textbf{rotor bloqueado}, respeitando os parâmetros intrínsecos de resistência ($R = 0,05 \Omega$) e indutância ($L = 20 \mu\text{H}$) por fase.
+Como o esquemático foca na validação da transferência de energia em um instante específico da \textbf{comutação de seis passos} (Fase A injetando corrente e Fase B drenando para o terra), o transistor do lado baixo da Fase A foi mantido em \textbf{corte} ($0\text{V}$ constante). Devido a esta modelagem estática de um único passo, a inserção de um \textbf{tempo morto ($t_{dead}$)} dinâmico não se fez necessária no gerador de pulsos, assumindo-se o isolamento ideal entre os estados de condução. O motor foi adequadamente modelado na condição de \textbf{rotor bloqueado}, respeitando os parâmetros intrínsecos de resistência ($R = 10m \Omega$) e indutância ($L = 20 \mu\text{H}$) por fase.
+
+A Figura \ref{fig:sim_correntes_motor} apresenta os resultados transitórios das correntes de fase ($I_A$, $I_B$ e $I_C$) durante os dois primeiros ciclos de chaveamento do inversor, totalizando $100 \: \mu s$. Observa-se que, durante o primeiro tempo de condução ($T_{on}$) do sinal PWM entre $0$ e $25 \: \mu s$, a corrente $I_A$ ascende de forma linear até atingir o patamar de aproximadamente $13,5 \: A$. Simultaneamente, a corrente $I_B$ apresenta a mesma magnitude, porém com polaridade invertida ($-13,5 \: A$), enquanto a corrente $I_C$ permanece nula, oscilando apenas com os ruídos numéricos do simulador próximos a zero. Durante o tempo de bloqueio do PWM ($T_{off}$) entre $25 \: \mu s$ e $50 \: \mu s$, as correntes $I_A$ e $I_B$ não caem abruptamente para zero, mas sim sofrem um decaimento suave. O ciclo se repete aos $50 \: \mu s$, elevando as correntes ao patamar de $26 \: A$.
+
+\begin{figure}[H]
+    \centering
+    \caption{Dinâmica das correntes de fase do motor durante os primeiros $100 \: \mu s$ de simulação (Passo 1).}
+    \includegraphics[width=0.8\textwidth]{Simulation/plot_simulacao/1_correntes_motor.png}
+    \caption*{Fonte: Elaborado pelo autor.}
+    \label{fig:sim_correntes_motor}
+\end{figure}
+
+Este comportamento é a resposta direta da excitação do circuito indutivo do estator sob a topologia de modulação \textit{High-Side PWM / Low-Side ON}. Ao disparar o transistor superior da fase A e manter o transistor inferior da fase B em condução plena, estabelece-se um fluxo de elétrons que obrigatoriamente passa por duas bobinas em série ($V = L_{eq} \frac{di}{dt} + R_{eq}i$). A inclinação constante ($di/dt$) da rampa de corrente é ditada pela reatância indutiva nominal do motor. Durante o ciclo $T_{off}$ da chave superior, a energia magnética armazenada na indutância do estator força a manutenção do fluxo de corrente, que encontra caminho através do diodo de roda livre (\textit{freewheeling diodo}) intrínseco ao MOSFET inferior da fase A, justificando a lenta taxa de decaimento observada.
+
+Ao compararmos com o arcabouço teórico, o resultado valida a comutação de seis passos apresentada na Tabela \ref{tab:mcpwm_map}. A frequência estabelecida pelo projeto de $20 \: kHz$ é ratificada pelo período exato de $50 \: \mu s$ entre os picos de chaveamento. Mais importante ainda, a completa inércia da fase C ($I_C \approx 0 \: A$) confirma a eficácia do estado de alta impedância (Hi-Z) no braço inversor não excitado, condição \textit{sine qua non} para a medição livre de distorções da Força Contraeletromotriz (FCEM) na posterior transição para a malha fechada.
+
+A Figura \ref{fig:sim_tensoes_neutro} ilustra o comportamento dinâmico das tensões de fase referenciadas ao ponto neutro da carga ($V_{AN}$, $V_{BN}$ e $V_{CN}$). Durante o período de condução do PWM ($T_{on}$), nota-se que o eixo de oscilação das tensões se estabelece em médias de $+11,1 \: V$ para a fase A, $-11,1 \: V$ para a fase B, e $0 \: V$ para a fase C. A severa oscilação de alta frequência (\textit{ringing}) sobreposta aos sinais é um artefato numérico característico do ambiente de simulação. Como a fase C está em estado de alta impedância (flutuante) e o modelo utiliza indutores puros, forma-se um tanque LC não amortecido com as capacitâncias parasitas do transistor, fenômeno que no circuito físico real seria drasticamente atenuado pelas perdas no núcleo ferromagnético do motor e pelo filtro RC do circuito de leitura.
+
+\begin{figure}[H]
+    \centering
+    \caption{Tensões de fase em relação ao ponto neutro do motor durante o Passo 1.}
+    \includegraphics[width=0.8\textwidth]{Simulation/plot_simulacao/3_tensoes_fase_neutro.png}
+    \caption*{Fonte: Elaborado pelo autor.}
+    \label{fig:sim_tensoes_neutro}
+\end{figure}
+
+
+Do ponto de vista físico, o estabelecimento das tensões em $\pm 11,1 \: V$ é o resultado direto da divisão de potencial no fechamento em estrela (Y) do estator. Com a fase A submetida à tensão plena do barramento ($V_{DC} = 22,2 \: V$) e a fase B conectada ao referencial zero ($0 \: V$), o nó central (neutro) assume naturalmente o potencial médio exato de $11,1 \: V$. Ensaios paralelos nas Fases B e C confirmaram a manutenção do transístor inferior em condução plena ($15 \: V$) e os transistores da fase flutuante em corte ($0 \: V$), atestando a robustez da topologia contra disparos espúrios.
+
+Comparando este resultado com os fundamentos da comutação trapezoidal detalhados na metodologia, a simulação valida a correta formação e estabilidade do potencial de neutro. Esta validação teórica prévia é de suma importância, pois ratifica a viabilidade da técnica de reconstrução de neutro virtual adotada no \textit{hardware}, assegurando que o microcontrolador possuirá uma referência de tensão simétrica e confiável para a detecção da Força Contraeletromotriz (FCEM) durante a operação em malha fechada.
+
+A Figura \ref{fig:sim_bateria_esforco} demonstra o severo esforço transitório imposto à fonte de alimentação primária (bateria LiPo) quando conectada diretamente à ponte inversora, sem o auxílio de capacitores de barramento (\textit{Link DC}), o qual será inserido no projeto final. Observa-se como fato primário que, durante o \textbf{tempo de condução ($T_{on}$)}, a tensão da bateria decai gradualmente de $22,2 \: V$ para aproximadamente $21,9 \: V$, conforme ilustrado na Figura \ref{fig:bateria_tensao}. Esse comportamento acompanha a rampa de subida da corrente, que atinge o patamar de $13 \: A$. O fator mais crítico, no entanto, ocorre nos instantes exatos de comutação ($50 \: \mu s$ e $100 \: \mu s$), nos quais a corrente drena picos agudos que ultrapassam os $130 \: A$ e $200 \: A$, respectivamente, como detalhado na Figura \ref{fig:bateria_corrente}. Esses picos provocam quedas instantâneas (\textit{voltage sags}) severas na tensão da bateria, reduzindo-a para níveis próximos de $19,5 \: V$. Durante o \textbf{tempo de bloqueio ($T_{off}$)}, a corrente da bateria cessa completamente, pois a corrente do motor passa a circular em roda livre pelos diodos da ponte.
+
+\begin{figure}[H]
+    \centering
+    \caption{Análise dinâmica dos parâmetros de entrada da bateria LiPo no Passo 1 sem filtragem capacitiva: (a) Transiente de tensão; (b) Transiente de corrente.}
+    \label{fig:sim_bateria_esforco}
+    \begin{subfigure}[b]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Simulation/plot_simulacao/7a_bateria_tensao.png}
+        \caption{Tensão de barramento.}
+        \label{fig:bateria_tensao}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Simulation/plot_simulacao/7b_bateria_corrente.png}
+        \caption{Corrente drenada.}
+        \label{fig:bateria_corrente}
+    \end{subfigure}
+    \caption*{Fonte: Elaborado pelo autor.}
+\end{figure}
+
+A causa física para o decaimento gradual da tensão é a queda de potencial ôhmica intrínseca ($V_{drop} = I_a \cdot R_{ser}$) sobre a \textbf{resistência série equivalente} da bateria, que no modelo foi parametrizada como $19 \: m\Omega$. Por outro lado, os transientes agudos (\textit{spikes}) de corrente são consequência da elevadíssima taxa de variação ($di/dt$) exigida para carregar as capacitâncias parasitas dos MOSFETs e suprir a corrente de recuperação reversa (\textit{reverse recovery}) dos diodos corporais nos instantes de ativação (\textit{turn-on}). Como o circuito simulado neste ensaio possui apenas a bateria como fonte de energia, ela é forçada a fornecer instantaneamente toda a carga transitória.
+
+A comparação deste comportamento simulado com a teoria de eletrônica de potência com o dimensionamento estabelecido na Metodologia. A simulação prova que submeter uma bateria LiPo a este nível de corrente de ondulação (\textit{ripple}) e picos transientes resultaria em superaquecimento severo e degradação química prematura das células. Fica, portanto, validada a necessidade imperativa da instalação do banco de \textbf{capacitores de filtro Low-ESR} ($940 \: \mu F$) projetado fisicamente na placa de circuito impresso (PCB), cuja função será atuar como um reservatório local de energia de baixíssima impedância para absorver estes transientes de alta frequência, isolando e protegendo a fonte primária.
 
 % --- ELEMENTOS PÓS-TEXTUAIS ---
 \postextual
