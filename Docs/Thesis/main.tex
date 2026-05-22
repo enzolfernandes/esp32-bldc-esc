@@ -973,7 +973,6 @@ Todas as etapas de validação e os resultados obtidos, tanto na simulação qua
 
 \chapter{Resultados e Discussão}
 %TODO: Inserir Introdução ao capítulo.
-%TODO: Revisar texto.
 
 \section{Validação Computacional (Simulação)}
 Para a validação conceitual do hardware de potência antes da montagem física, utilizou-se o software \textbf{LTSpice}. A simulação concentrou-se no estágio de potência do inversor, modelando as chaves semicondutoras e a carga indutiva. Foram elaborados dois cenários de simulação: uma topologia monofásica (meia-ponte) para análise isolada e uma topologia trifásica completa para validação do fluxo de corrente inter-fases (Figura \ref{fig:simulacao_trifasica}).
@@ -1047,6 +1046,58 @@ A Figura \ref{fig:sim_bateria_esforco} demonstra o severo esforço transitório 
 A causa física para o decaimento gradual da tensão é a queda de potencial ôhmica intrínseca ($V_{drop} = I_a \cdot R_{ser}$) sobre a \textbf{resistência série equivalente} da bateria, que no modelo foi parametrizada como $19 \: m\Omega$. Por outro lado, os transientes agudos (\textit{spikes}) de corrente são consequência da elevadíssima taxa de variação ($di/dt$) exigida para carregar as capacitâncias parasitas dos MOSFETs e suprir a corrente de recuperação reversa (\textit{reverse recovery}) dos diodos corporais nos instantes de ativação (\textit{turn-on}). Como o circuito simulado neste ensaio possui apenas a bateria como fonte de energia, ela é forçada a fornecer instantaneamente toda a carga transitória.
 
 A comparação deste comportamento simulado com a teoria de eletrônica de potência com o dimensionamento estabelecido na Metodologia. A simulação prova que submeter uma bateria LiPo a este nível de corrente de ondulação (\textit{ripple}) e picos transientes resultaria em superaquecimento severo e degradação química prematura das células. Fica, portanto, validada a necessidade imperativa da instalação do banco de \textbf{capacitores de filtro Low-ESR} ($940 \: \mu F$) projetado fisicamente na placa de circuito impresso (PCB), cuja função será atuar como um reservatório local de energia de baixíssima impedância para absorver estes transientes de alta frequência, isolando e protegendo a fonte primária.
+
+\section{Projeto Eletrônico e Análise dos Esquemáticos}
+%TODO: Inserir Introdução.
+
+\subsection{Circuito de Alimentação Auxiliar e Regulação}
+
+A Figura \ref{fig:esquematico_supply} detalha a arquitetura de entrada e distribuição de energia do ESC. A conexão primária é realizada através de um conector de alta capacidade XT90, protegida imediatamente em série por um \textbf{fusível MIDI} de $80 \: A$ (modelo 0498080.M). O barramento DC (\textit{Link DC}) é suportado por um banco de capacitores híbrido em topologia paralela, composto por seis capacitores polarizados de $220 \: \mu F$ e três capacitores cerâmicos não polarizados de $1 \: \mu F$. A partir deste barramento filtrado, a tensão nominal da bateria alimenta dois módulos conversores \textit{buck} LM2596 dispostos em paralelo, responsáveis por gerar as malhas de tensão independentes de $15 \: V$ (\textit{Vcc 1}) e $5 \: V$ (\textit{Vcc 2}). Adicionalmente, o esquemático implementa uma separação explícita entre o \textbf{terra de potência (PGND)} e o \textbf{terra de sinal (SGND)}, interligados fisicamente por um único componente passivo limitador de laço (RJ1).
+
+\begin{figure}[H]
+    \centering
+    \caption{Esquemático do estágio de entrada, filtragem do barramento DC e regulação de tensão auxiliar (Folha \textit{Supply}).}
+    \includegraphics[width=1\textwidth]{imagens/esquematico_supply.png}
+    \caption*{Fonte: Elaborado pelo autor.}
+    \label{fig:esquematico_supply}
+\end{figure}
+
+Fisicamente, a divisão do banco capacitivo em múltiplas unidades de $220 \: \mu F$ reduz drasticamente a \textbf{Resistência Série Equivalente (ESR)} total do barramento, otimizando a absorção da elevada corrente de ondulação (\textit{ripple}) gerada pela ponte inversora sem causar aquecimento excessivo nos componentes. Os capacitores cerâmicos de $1 \: \mu F$ atuam no desacoplamento de alta frequência, suprimindo transientes que os capacitores eletrolíticos não conseguem filtrar devido à sua \textbf{Indutância Série Equivalente (ESL)}. A separação galvânica e o controle de retorno por meio da junção estrita entre \textbf{PGND} e \textbf{SGND} (\textit{Star Grounding}) impedem que as severas correntes de comutação do motor provoquem flutuações de tensão (\textit{ground bounce}) no referencial sensível do microcontrolador. 
+
+A comparação com a metodologia teórica comprova a evolução e a robustez do projeto prático. Enquanto o texto preliminar previa genericamente a filtragem do \textit{Link DC} e reguladores em cascata, o arranjo físico adota conversores LM2596 dispostos em paralelo. Esta decisão elimina o gargalo térmico de fazer o regulador de menor tensão drenar corrente através do regulador primário, garantindo maior eficiência e isolamento entre o circuito de acionamento de \textit{gate} ($15 \: V$) e a lógica de processamento digital ($5 \: V$).
+
+\subsection{Unidade de Processamento Lógico e Interface de Acionamento}
+
+A Figura \ref{fig:esquematico_control} ilustra o núcleo de inteligência do ESC e sua interface direta com o estágio de potência. A Unidade de Processamento, baseada no módulo ESP32 (Figura \ref{fig:control_esp32}), é alimentada pela malha de $5 \: V$ (\textit{Vcc 2}). O regulador linear interno do microcontrolador reduz essa tensão para $3,3 \: V$, sinal que é exportado pelo pino 1 sob a nomenclatura \textit{Vmicro Ref}. Esta estratégia de projeto é fundamental: o \textit{Vmicro Ref} é roteado diretamente para os pinos de alimentação lógica (\textit{VDD}) dos três \textit{drivers} IR2110 (Figura \ref{fig:control_drivers}). Isso garante que o limiar de transição lógica (\textit{logic high threshold}) dos \textit{drivers} seja idêntico à tensão de saída dos pinos GPIO do ESP32, eliminando falhas de interpretação de sinal por incompatibilidade de níveis de tensão.
+
+\begin{figure}[H]
+    \centering
+    \caption{Esquemáticos do núcleo de controle e interface de potência: (a) Microcontrolador ESP32-WROOM-32; (b) Estágio de translação de nível com \textit{drivers} IR2110.}
+    \label{fig:esquematico_control}
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{imagens/esp32_schematic.png}
+        \caption{Unidade de Processamento (ESP32).}
+        \label{fig:control_esp32}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{imagens/ir2110_schematic.png}
+        \caption{\textit{Drivers} de \textit{Gate} (IR2110).}
+        \label{fig:control_drivers}
+    \end{subfigure}
+    \caption*{Fonte: Elaborado pelo autor.}
+\end{figure}
+
+O isolamento contra ruídos é efetivado pela segregação dos planos de terra nos \textit{drivers} IR2110. O referencial lógico (\textit{VSS}) é conectado exclusivamente ao terra de sinal (\textbf{SGND}), enquanto o retorno de potência (\textit{COM}), que lida com os pulsos de alta corrente de carga e descarga dos MOSFETs, é roteado para o terra de potência (\textbf{PGND}). A comunicação de segurança entre o microcontrolador e os \textit{drivers} ocorre de forma redundante: o ESP32 gera os seis sinais do MCPWM ($AH, AL$, etc.) e possui controle direto sobre os pinos de \textit{Shutdown} ($SD$) de cada IR2110. Adicionalmente, o pino \textit{OC Trip} (\textit{Overcurrent Trip}) permite que um evento de falta detectado pelos sensores interrompa a geração de PWM no \textit{hardware} do ESP32 em microssegundos.
+
+Na saída dos \textit{drivers}, o esquemático valida o projeto do circuito de \textit{bootstrap} e o condicionamento de \textit{gate}. A malha de \textit{bootstrap} utiliza um diodo de recuperação ultra-rápida (UF4004) alimentando uma associação capacitiva paralela ($4,7 \: \mu F$ e $0,1 \: \mu F$), combinando grande capacidade de reserva de carga com resposta instantânea a transientes. O acionamento dos MOSFETs foi projetado com uma topologia de \textbf{resistência de \textit{gate} assimétrica}: a ativação (\textit{turn-on}) é limitada pelos resistores de $10 \: \Omega$, amortecendo ressonâncias (\textit{ringing}) e picos de emissão eletromagnética (EMI). Em contrapartida, o bloqueio (\textit{turn-off}) ocorre através de diodos Schottky (1N5819) polarizados reversamente em paralelo com os resistores. Esta configuração fornece um caminho de baixíssima impedância para o escoamento imediato da carga do \textit{gate} ($Q_g$), garantindo que o transistor desligue mais rápido do que liga, prevenindo a ocorrência de condução cruzada (\textit{shoot-through}) no braço do inversor.
+
+\subsection{Condicionamento de Sinais e Sensoriamento}
+
+
+\subsection{Estágio de Potência e Drivers de Gate (Power)}
 
 % --- ELEMENTOS PÓS-TEXTUAIS ---
 \postextual
