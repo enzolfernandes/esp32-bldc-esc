@@ -1094,7 +1094,40 @@ O isolamento contra ruídos é efetivado pela segregação dos planos de terra n
 
 Na saída dos \textit{drivers}, o esquemático valida o projeto do circuito de \textit{bootstrap} e o condicionamento de \textit{gate}. A malha de \textit{bootstrap} utiliza um diodo de recuperação ultra-rápida (UF4004) alimentando uma associação capacitiva paralela ($4,7 \: \mu F$ e $0,1 \: \mu F$), combinando grande capacidade de reserva de carga com resposta instantânea a transientes. O acionamento dos MOSFETs foi projetado com uma topologia de \textbf{resistência de \textit{gate} assimétrica}: a ativação (\textit{turn-on}) é limitada pelos resistores de $10 \: \Omega$, amortecendo ressonâncias (\textit{ringing}) e picos de emissão eletromagnética (EMI). Em contrapartida, o bloqueio (\textit{turn-off}) ocorre através de diodos Schottky (1N5819) polarizados reversamente em paralelo com os resistores. Esta configuração fornece um caminho de baixíssima impedância para o escoamento imediato da carga do \textit{gate} ($Q_g$), garantindo que o transistor desligue mais rápido do que liga, prevenindo a ocorrência de condução cruzada (\textit{shoot-through}) no braço do inversor.
 
-\subsection{Condicionamento de Sinais e Sensoriamento}
+\subsection{Condicionamento de Sinais e Sensoriamento (Sensors)}
+%TODO: Revisar texto.
+\begin{figure}[H]
+    \centering
+    \caption{Esquemáticos do estágio de sensoriamento e proteção: (a) Monitoramento da bateria; (b) Amplificadores de corrente das fases (INA240); (c) Comparadores de sobrecorrente (LM339).}
+    \label{fig:esquematico_sensors}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{imagens/voltage_sense.png}
+        \caption{Leitura de Tensão.}
+        \label{fig:sensor_voltage}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{imagens/current_sense.png}
+        \caption{Condicionamento de Corrente.}
+        \label{fig:sensor_current}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{imagens/ocp_comparator.png}
+        \caption{Proteção via \textit{Hardware} (OCP).}
+        \label{fig:sensor_ocp}
+    \end{subfigure}
+    \caption*{Fonte: Elaborado pelo autor.}
+\end{figure}
+
+A Figura \ref{fig:esquematico_sensors} detalha a topologia de aquisição de dados do inversor. Na Figura \ref{fig:sensor_voltage}, a tensão total do barramento (\textit{Vcc Supply}) é monitorada por um divisor resistivo de $39 \: k\Omega$ e $4,7 \: k\Omega$, resultando em um fator de atenuação de $0,1075$. Isso mapeia a tensão máxima da bateria 6S ($25,2 \: V$) para seguros $2,71 \: V$ no ADC do microcontrolador. Em contrapartida, na condição de alimentação com a tensão mínima projetada para o sistema (uma bateria 3S em seu limite de descarga operacional, com aproximadamente $9,0 \: V$), a tensão resultante no divisor será de $0,97 \: V$. Isso garante que toda a janela de operação mecânica e de alimentação do projeto permaneça estritamente dentro da faixa linear de leitura do ESP32, cujo limite lógico é $3,3 \: V$. O capacitor de $0,1 \: \mu F$ atua como um filtro passa-baixa ($f_c \approx 379 \: Hz$) mitigando ruídos de chaveamento do barramento.
+
+O avanço mais significativo do projeto reside na medição de corrente (Figura \ref{fig:sensor_current}). O esquemático adota o circuito integrado \textbf{INA240A1DR} em cada fase. Este componente é um amplificador de detecção de corrente de alta precisão, projetado especificamente com tecnologia de rejeição avançada de PWM (\textit{Enhanced PWM Rejection}) para suprimir grandes variações de tensão ($dv/dt$) inerentes à comutação de motores. A versão A1DR possui um ganho fixo de $20 \: V/V$. Como as correntes nas bobinas de um motor BLDC são fisicamente alternadas (circulando nos dois sentidos), o microcontrolador seria incapaz de ler o semiciclo negativo, pois seu ADC suporta apenas tensões positivas ($0 \: V$ a $3,3 \: V$). Para viabilizar esta leitura, aplicou-se uma técnica de polarização diferencial: o pino \textit{REF1} foi ligado a $3,3 \: V$ (\textit{Vmicro Ref}) e o pino \textit{REF2} ao \textit{SGND} ($0 \: V$). O circuito do INA240 realiza a média aritmética dessas referências, estabelecendo um \textit{offset} interno exato de $1,65 \: V$ na saída. Consequentemente, uma corrente nula ($0 \: A$) repousa em $1,65 \: V$; correntes positivas elevam a saída em direção a $3,3 \: V$, enquanto correntes negativas a reduzem em direção a $0 \: V$. Este condicionamento garante a bidirecionalidade absoluta da medição, pré-requisito fundamental para a futura implementação de algoritmos avançados de Controle Orientado ao Campo (FOC).
+
+A Figura \ref{fig:sensor_ocp} exibe o circuito de Proteção contra Sobrecorrente (OCP). O \textbf{LM339N} é um circuito integrado que encapsula quatro comparadores de tensão independentes, notável pela sua alta velocidade de reposta (na escala de nanossegundos) e pela sua arquitetura de saída em coletor aberto (\textit{open-collector}). Esta característica de coletor aberto é o que viabiliza a interligação das três proteções de fase em um único nó lógico (\textit{Wired-OR}), utilizando o resistor de \textit{pull-up} R10. Durante a revisão do projeto, realizou-se um ajuste topológico essencial nesta malha: a tensão limitadora (\textit{Vdac Ref}) foi conectada à porta não-inversora (+), enquanto o sinal dos sensores de corrente (\textit{Isense}) foi roteado para a porta inversora (-). Desta forma, em operação nominal ($Isense < Vdac$), os transistores de saída internos do LM339 permanecem em estado de corte (alta impedância), e o R10 mantém o pino \textit{OC Trip} em $3,3 \: V$. No instante em que qualquer fase individual superar o limite de segurança ($Isense > Vdac$), o seu respectivo comparador saturará, conduzindo a linha imediatamente ao terra ($0 \: V$). Esta ação puramente em \textit{hardware} contorna a latência intrínseca de qualquer \textit{software}, gerando uma interrupção prioritária no ESP32 para o bloqueio instantâneo do sinal PWM e salvaguardando a ponte inversora contra catástrofes térmicas ou elétricas.
 
 
 \subsection{Estágio de Potência e Drivers de Gate (Power)}
