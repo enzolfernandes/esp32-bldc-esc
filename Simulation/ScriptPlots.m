@@ -124,36 +124,33 @@ grid on; grid minor; set(gca, 'Color', 'white', 'FontSize', 11, 'LineWidth', 1.2
 exportgraphics(fig6, fullfile(pasta_saida, '6_vgs_fase_C.png'), 'Resolution', 300, 'BackgroundColor', 'white');
 
 %% ========================================================================
-% Figura 7: Bateria (Tensão e Corrente) - Eixos Duplos (yyaxis)
+% Figura 7a: Bateria - Tensão
 % =========================================================================
-fig7 = figure('Name', 'Bateria DC', 'Color', 'white', 'Position', [220, 220, 800, 400]);
-
-% Extrai a corrente invertendo o sinal para consumo positivo
-I_bat_pos = data{:, 'I(Battery)'} * -1; 
-
-% ---- Eixo Esquerdo: Tensão (Verde) ----
-yyaxis left;
+fig7a = figure('Name', 'Bateria DC - Tensao', 'Color', 'white', 'Position', [220, 220, 700, 350]);
 plot(t_us, data{:, 'V(n001)'}, 'Color', [0 0.5 0], 'LineWidth', 1.5);
-ylabel('Tensão (V)', 'FontWeight', 'bold');
-
-% ---- Eixo Direito: Corrente (Azul) ----
-yyaxis right;
-plot(t_us, I_bat_pos, 'Color', [0 0.2 0.8], 'LineWidth', 1.2);
-ylabel('Corrente (A)', 'FontWeight', 'bold');
-
-% Eixo X e Formatação Geral
 xlabel('Tempo (\mu s)', 'FontSize', 11, 'FontWeight', 'bold');
+ylabel('Tensão (V)', 'FontWeight', 'bold');
 xlim([0 max(t_us)]);
-
-% Pinta os números dos eixos para combinar com as respectivas linhas
-ax = gca;
-ax.YAxis(1).Color = [0 0.5 0]; 
-ax.YAxis(2).Color = [0 0.2 0.8]; 
-
-grid on; grid minor; 
+grid on; grid minor;
 set(gca, 'Color', 'white', 'FontSize', 11, 'LineWidth', 1.2);
 
-exportgraphics(fig7, fullfile(pasta_saida, '7_bateria_dc.png'), 'Resolution', 300, 'BackgroundColor', 'white');
+exportgraphics(fig7a, fullfile(pasta_saida, '7a_bateria_tensao.png'), 'Resolution', 300, 'BackgroundColor', 'white');
+
+%% ========================================================================
+% Figura 7b: Bateria - Corrente
+% =========================================================================
+% Extrai a corrente invertendo o sinal para consumo positivo
+I_bat_pos = data{:, 'I(Battery)'} * -1;
+
+fig7b = figure('Name', 'Bateria DC - Corrente', 'Color', 'white', 'Position', [300, 300, 700, 350]);
+plot(t_us, I_bat_pos, 'Color', [0 0.2 0.8], 'LineWidth', 1.5);
+xlabel('Tempo (\mu s)', 'FontSize', 11, 'FontWeight', 'bold');
+ylabel('Corrente (A)', 'FontWeight', 'bold');
+xlim([0 max(t_us)]);
+grid on; grid minor;
+set(gca, 'Color', 'white', 'FontSize', 11, 'LineWidth', 1.2);
+
+exportgraphics(fig7b, fullfile(pasta_saida, '7b_bateria_corrente.png'), 'Resolution', 300, 'BackgroundColor', 'white');
 
 disp('====================================================');
 disp('Todos os gráficos foram gerados e salvos com sucesso.');
