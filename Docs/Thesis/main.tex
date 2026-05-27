@@ -975,12 +975,13 @@ Todas as etapas de validação e os resultados obtidos, tanto na simulação qua
 %TODO: Inserir Introdução ao capítulo.
 
 \section{Validação Computacional (Simulação)}
+%TODO? Falar sobre a modelagem dos capacitores da simulação?
+
 Para a validação conceitual do hardware de potência antes da montagem física, utilizou-se o software \textbf{LTSpice}. A simulação concentrou-se no estágio de potência do inversor, modelando as chaves semicondutoras e a carga indutiva. Foram elaborados dois cenários de simulação: uma topologia monofásica (meia-ponte) para análise isolada e uma topologia trifásica completa para validação do fluxo de corrente inter-fases (Figura \ref{fig:simulacao_trifasica}).
 
 \begin{figure}[H]
     \centering
     \caption{Esquemático da simulação trifásica do ESC em estado estático de comutação.}
-    % Lembre-se de salvar a imagem do LTSpice com o nome abaixo na pasta imagens
     \includegraphics[width=17cm]{Simulation/trifasico.png}
     \caption*{Fonte: Elaborado pelo autor.}
     \label{fig:simulacao_trifasica}
@@ -1048,7 +1049,7 @@ A causa física para o decaimento gradual da tensão é a queda de potencial ôh
 A comparação deste comportamento simulado com a teoria de eletrônica de potência com o dimensionamento estabelecido na Metodologia. A simulação prova que submeter uma bateria LiPo a este nível de corrente de ondulação (\textit{ripple}) e picos transientes resultaria em superaquecimento severo e degradação química prematura das células. Fica, portanto, validada a necessidade imperativa da instalação do banco de \textbf{capacitores de filtro Low-ESR} ($940 \: \mu F$) projetado fisicamente na placa de circuito impresso (PCB), cuja função será atuar como um reservatório local de energia de baixíssima impedância para absorver estes transientes de alta frequência, isolando e protegendo a fonte primária.
 
 \section{Projeto Eletrônico e Análise dos Esquemáticos}
-%TODO: Inserir Introdução.
+%TODO: Inserir Introdução do capítulo.
 
 \subsection{Circuito de Alimentação Auxiliar e Regulação}
 
@@ -1131,8 +1132,25 @@ Foi adotado o circuito integrado \textbf{INA240A1DR} em cada fase (Figura \ref{f
 
 A Figura \ref{fig:sensor_ocp} exibe o circuito de Proteção contra Sobrecorrente (OCP). O \textbf{LM339N} é um circuito integrado que encapsula quatro comparadores de tensão independentes, notável pela sua alta velocidade de reposta (na escala de nanossegundos) e pela sua arquitetura de saída em coletor aberto (\textit{open-collector}). Esta característica de coletor aberto é o que viabiliza a interligação das três proteções de fase em um único nó lógico (\textit{Wired-OR}), utilizando o resistor de \textit{pull-up} R10. Durante a revisão do projeto, realizou-se um ajuste topológico essencial nesta malha: a tensão limitadora (\textit{Vdac Ref}) foi conectada à porta não-inversora (+), enquanto o sinal dos sensores de corrente (\textit{Isense}) foi roteado para a porta inversora (-). Desta forma, em operação nominal ($Isense < Vdac$), os transistores de saída internos do LM339 permanecem em estado de corte (alta impedância), e o R10 mantém o pino \textit{OC Trip} em $3,3 \: V$. No instante em que qualquer fase individual superar o limite de segurança ($Isense > Vdac$), o seu respectivo comparador saturará, conduzindo a linha imediatamente ao terra ($0 \: V$). Esta ação puramente em \textit{hardware} contorna a latência intrínseca de qualquer \textit{software}, gerando uma interrupção prioritária no ESP32 para o bloqueio instantâneo do sinal PWM e salvaguardando a ponte inversora contra catástrofes térmicas ou elétricas.
 
+\pagebreak
 
-\subsection{Estágio de Potência e Drivers de Gate (Power)}
+\subsection{Estágio de Potência e Ponte Inversora}
+
+A Figura \ref{fig:esquematico_power} expõe a topologia final da ponte inversora trifásica, o núcleo de comutação de força do ESC. O arranjo utiliza seis transistores MOSFET IRFS7530-7PPBF de altíssima capacidade de corrente, estruturados em três braços independentes (Fases A, B e C). Para aumentar a confiabilidade dois detalhes de projeto merecem destaque: a inclusão de resistores de \textit{pull-down} de $10 \: k\Omega$ (R13 a R18) conectados aos terminais \textit{Gate-Source} de cada chave, e a alocação de três resistores \textit{shunt} de liga metálica (encapsulamento de potência 3920, modelo CSS2H-3920R-1L00F de $1 \: m\Omega$) inseridos especificamente nos ramos inferiores da ponte (\textit{Low-Side Sensing}).
+
+\begin{figure}[H]
+    \centering
+    \caption{Esquemático do estágio de potência contendo a ponte inversora trifásica e resistores \textit{shunt} individuais para medição de corrente.}
+    \includegraphics[width=0.9\textwidth]{imagens/esquematico_power.png}
+    \caption*{Fonte: Elaborado pelo autor.}
+    \label{fig:esquematico_power}
+\end{figure}
+
+A função física dos resistores de \textit{pull-down} é garantir um estado seguro de falha (\textit{fail-safe}). Durante a energização inicial do sistema (\textit{power-up}), reinicializações do microcontrolador ou em caso de rompimento físico das trilhas de acionamento, os \textit{gates} dos MOSFETs poderiam assumir um estado flutuante (alta impedância). Nesta condição, ruídos eletromagnéticos acoplados capacitivamente poderiam induzir o acionamento espúrio das chaves, resultando em um curto-circuito catastrófico direto no barramento DC (\textit{shoot-through}). Os resistores de $10 \: k\Omega$ asseguram que a tensão $V_{gs}$ permaneça rigidamente cravada em $0 \: V$ até que os \textit{drivers} IR2110 imponham ativamente o sinal de comando em $15 \: V$. 
+
+Adicionalmente, em relação a escolha do invólucro de 7 pinos para os MOSFETs (D2PAK-7), este encapsulamento possui terminais múltiplos de \textit{Source}, o que minimiza a indutância parasita da pastilha de silício e atenua os anéis de oscilação (\textit{ringing}) durante os transientes de comutação de, no máximo, $90 \: A$. Já a topologia de sensoriamento de corrente no lado baixo (\textit{Low-Side}) atua como uma barreira de proteção para o estágio de condicionamento: em vez de expor os amplificadores INA240 às violentas oscilações de tensão de modo comum (\textit{Common-Mode Voltage}) que variam de $0 \: V$ a $25,2 \: V$ nos nós flutuantes das fases, a medição ocorre de forma referenciada ao terra da placa (\textit{PGND}). A queda de tensão medida sobre o \textit{shunt} de $1 \: m\Omega$ é da ordem de milivolts ($V = R \cdot I$), fornecendo um sinal extremamente limpo, seguro e proporcional à corrente exata que flui para o estator do motor.
+
+\subsection{Estratégias de Layout e Fabricação da PCB no Altium Designer}
 
 % --- ELEMENTOS PÓS-TEXTUAIS ---
 \postextual
