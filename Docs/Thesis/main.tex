@@ -1150,7 +1150,36 @@ A função física dos resistores de \textit{pull-down} é garantir um estado se
 
 Adicionalmente, em relação a escolha do invólucro de 7 pinos para os MOSFETs (D2PAK-7), este encapsulamento possui terminais múltiplos de \textit{Source}, o que minimiza a indutância parasita da pastilha de silício e atenua os anéis de oscilação (\textit{ringing}) durante os transientes de comutação de, no máximo, $90 \: A$. Já a topologia de sensoriamento de corrente no lado baixo (\textit{Low-Side}) atua como uma barreira de proteção para o estágio de condicionamento: em vez de expor os amplificadores INA240 às violentas oscilações de tensão de modo comum (\textit{Common-Mode Voltage}) que variam de $0 \: V$ a $25,2 \: V$ nos nós flutuantes das fases, a medição ocorre de forma referenciada ao terra da placa (\textit{PGND}). A queda de tensão medida sobre o \textit{shunt} de $1 \: m\Omega$ é da ordem de milivolts ($V = R \cdot I$), fornecendo um sinal extremamente limpo, seguro e proporcional à corrente exata que flui para o estator do motor.
 
-\subsection{Estratégias de Layout e Fabricação da PCB no Altium Designer}
+\pagebreak
+
+\subsection{Estratégias de Layout, Roteamento e Fabricação da PCB}
+%TODO: Revisar texto.
+
+O projeto físico do inversor, ilustrado na Figura \ref{fig:pcb_layout}, foi materializado a partir de um laminado virgem de fibra de vidro (FR4) com dupla face de cobre nu, sem a aplicação de máscara de solda comercial (\textit{solder mask}). A placa possui dimensões de $150 \times 200 \: mm$ e espessura de $1,5 \: mm$. Durante a fase de engenharia de manufatura, o método de fabricação sofreu uma alteração estratégica: a confecção por corrosão química manual foi substituída pela usinagem em fresadora CNC (\textit{Computer Numerical Control}). A causa física para esta mudança baseia-se na precisão geométrica e na integridade do material condutor. Na corrosão de placas com imensas áreas de cobre, o processo tende a gerar \textit{undercutting} (corrosão lateral) e variações na espessura final da malha. A usinagem CNC atua de forma oposta, removendo mecanicamente apenas o material estritamente necessário para criar os isolamentos (\textit{clearances}), preservando a massa total e a espessura original do cobre contínuo. Para garantir a viabilidade da usinagem, as regras de \textit{design} (DRC) foram ajustadas para manter uma largura mínima de $0,6 \: mm$ nas trilhas de sinais lógicos e um \textit{clearance} mínimo de $0,6 \: mm$ entre elementos, prevenindo curtos-circuitos mecânicos e rompimentos de trilha durante a fresagem.
+
+\begin{figure}[H]
+    \centering
+    \caption{Projeto de roteamento da Placa de Circuito Impresso no Altium Designer: (a) \textit{Top Layer} evidenciando os polígonos de potência; (b) \textit{Bottom Layer} evidenciando os planos de terra.}
+    \label{fig:pcb_layout}
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{imagens/pcb_top.png}
+        \caption{Camada Superior (\textit{Top Layer}).}
+        \label{fig:pcb_top}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{imagens/pcb_bottom.png}
+        \caption{Camada Inferior (\textit{Bottom Layer}).}
+        \label{fig:pcb_bottom}
+    \end{subfigure}
+    \caption*{Fonte: Elaborado pelo autor.}
+\end{figure}
+
+Embora as análises computacionais prévias tenham apontado transientes teóricos de comutação com picos próximos a $90 \: A$, ressalta-se que este protótipo inicial de bancada foi projetado para maximizar a capacidade de condução de corrente dentro das limitações físicas de fabricação local, não sendo esperado o regime de operação contínua sob esta magnitude extrema. Com o propósito de mitigar as perdas ôhmicas, o roteamento físico descartou o uso de trilhas convencionais em favor de grandes polígonos de preenchimento (\textit{copper pours}) sólidos. A camada superior (Figura \ref{fig:pcb_top}) acomoda as ilhas de comutação das fases e o barramento positivo, com gargalos projetados em um mínimo de $5 \: mm$ de largura. Contudo, como a espessura padrão do cobre de um laminado comum (tipicamente $1 \: oz/ft^2$ ou $35 \: \mu m$) possui uma secção transversal insuficiente para conduzir altas correntes, o sistema estaria sujeito à falha por superaquecimento térmico via Efeito Joule ($P = I^2 \cdot R_{trilha}$). Para contornar essa limitação e elevar o limite térmico do circuito, tirou-se proveito da própria natureza do material de prototipagem utilizado: o laminado de cobre nu. A ausência intrínseca da máscara de solda isolante deixou todos os polígonos de potência naturalmente expostos. Esta característica facilitou a deposição manual de espessas camadas de liga de estanho e o assentamento de condutores de cobre sólido diretamente sobre as malhas críticas, aumentando substancialmente a área da secção transversal ($A$) das trilhas e reduzindo a sua resistência ôhmica equivalente ($\rho \cdot \frac{L}{A}$).
+
+Do ponto de vista de compatibilidade eletromagnética (EMC), duas estratégias de isolamento foram rigorosamente aplicadas no layout. Primeiro, os espaços não roteados da placa foram preenchidos por dois imensos planos de terra funcionalmente segregados: o Terra de Potência (\textit{PGND}), concentrado na camada inferior (Figura \ref{fig:pcb_bottom}) sob o estágio do inversor, e o Terra de Sinal (\textit{SGND}), restrito à periferia dos circuitos lógicos e sensores. A conexão elétrica entre esses dois referenciais foi consolidada estritamente através da técnica de ponto único de aterramento (\textit{Star Ground}). Essa configuração impede o surgimento de laços de terra (\textit{ground loops}) e garante que as severas correntes de retorno induzidas pelo chaveamento do motor permaneçam confinadas na malha de potência, mitigando o fenômeno de flutuação de referencial (\textit{ground bounce}) sobre a eletrônica sensível. Segundo, a Unidade de Controle (ESP32) foi posicionada no extremo oposto da placa em relação aos MOSFETs. Como a comutação rápida de corrente gera campos magnéticos irradiados devido às altas taxas de $di/dt$, o distanciamento físico atua atenuando a intensidade do acoplamento indesejado de forma inversamente proporcional ao quadrado da distância, blindando o microcontrolador contra perturbações eletromagnéticas e travamentos espúrios.
 
 % --- ELEMENTOS PÓS-TEXTUAIS ---
 \postextual
