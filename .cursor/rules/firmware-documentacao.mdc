@@ -1,0 +1,17 @@
+---
+description: Manter DOCUMENTACAO_PROGRAMACAO.md sincronizado com mudanças no firmware
+globs: Firmware/**/*
+alwaysApply: false
+---
+
+# Documentação obrigatória do firmware
+
+Ao **criar, alterar ou revisar** qualquer código ou configuração em `Firmware/` (`src/`, `include/`, `lib/`, `platformio.ini`, `test/`):
+
+1. Atualize **`Firmware/DOCUMENTACAO_PROGRAMACAO.md`** na mesma sessão de trabalho.
+2. Registre a mudança na seção **10. Histórico de revisões** (data, arquivos, resumo).
+3. Se o módulo já tiver seção dedicada (ex.: `pid_regulator`), atualize essa seção com API, fluxo, parâmetros e limitações.
+4. Se houver divergência em relação a `Docs/especificacao_esc.md`, documente o motivo (ex.: pinos inválidos no ESP32-WROOM-32).
+5. Atualize a tabela **Estado atual vs. planejado** quando um componente passar de pendente para implementado.
+
+Não encerre a tarefa de firmware sem revisar se a documentação reflete o código entregue.
