@@ -16,7 +16,9 @@
 7. [Máquina de estados (planejada)](#7-máquina-de-estados-planejada)
 8. [Mapa de hardware (`board_config.h`)](#8-mapa-de-hardware-board_configh)
 9. [Módulo `lib/control/pid_regulator` (documentação de código)](#9-módulo-libcontrolpid_regulator-documentação-de-código)
-10. [Histórico de revisões](#10-histórico-de-revisões)
+10. [Módulos `lib/hal/*` (documentação de código)](#10-módulos-libhal-documentação-de-código)
+11. [Módulos `lib/drivers/*` (documentação de código)](#11-módulos-libdrivers-documentação-de-código)
+12. [Histórico de revisões](#12-histórico-de-revisões)
 
 ---
 
@@ -26,7 +28,7 @@
 |-------|-----------|
 | **Quando atualizar** | Ao adicionar, remover ou modificar arquivos em `src/`, `include/`, `lib/` ou `platformio.ini`. |
 | **O que registrar** | Data, autor, arquivos afetados, resumo da mudança e impacto em API/comportamento. |
-| **Onde registrar** | Seção [10. Histórico de revisões](#10-histórico-de-revisões) + seção do módulo correspondente. |
+| **Onde registrar** | Seção [12. Histórico de revisões](#12-histórico-de-revisões) + seção do módulo correspondente. |
 | **Divergência da spec** | Se o código diferir de `Docs/especificacao_esc.md`, explicar **por quê** (ex.: pinos inválidos no ESP32-WROOM-32). |
 | **Padrão de escrita** | Preferir explicação em prosa + tabelas + passo a passo; não apenas listas de arquivos. |
 
@@ -64,6 +66,7 @@ Configuração em `platformio.ini`:
 | `board` | `esp32doit-devkit-v1` | Placa de desenvolvimento de referência |
 | `framework` | `arduino` | API Arduino (`setup`/`loop`) |
 | `monitor_speed` | `115200` | Baud rate do monitor serial |
+| `build_flags` | `-I include` | Expõe `board_config.h` às bibliotecas em `lib/` |
 
 **Compilar:** `pio run` ou `platformio run`.
 
@@ -83,15 +86,23 @@ Não é necessário editar `platformio.ini` só por causa de `lib/control/`.
 Firmware/
 ├── DOCUMENTACAO_PROGRAMACAO.md   ← este arquivo (documentação viva)
 ├── platformio.ini
-├── include/                      ← cabeçalhos globais (ex.: board_config.h — pendente)
+├── include/
+│   └── board_config.h            ← mapa de pinos e limites operacionais
 ├── src/
-│   └── main.cpp                  ← ponto de entrada atual (Arduino)
+│   ├── main.cpp
+│   ├── fsm_system.h / fsm_system.c   ← máquina de estados do ESC
 ├── lib/
 │   ├── control/
 │   │   ├── pid_regulator.h       ← interface pública do PI
 │   │   └── pid_regulator.c       ← implementação
-│   ├── hal/                      ← (planejado) MCPWM, ADC, GPIO
-│   └── drivers/                  ← (planejado) INA240, VBAT, LM339
+│   ├── hal/
+│   │   ├── hal_pwm.h / hal_pwm.c     ← MCPWM 6 canais, dead-time
+│   │   ├── hal_adc.h / hal_adc.c     ← ADC1, leitura em mV
+│   │   └── hal_gpio.h / hal_gpio.c   ← GPIO digital, EXTI OC trip
+│   └── drivers/
+│       ├── ina240_current_sensors.h / .c  ← corrente de fase (A)
+│       ├── battery_monitor.h / .c         ← tensão barramento (V)
+│       └── lm339_protection.h / .c        ← trip OC + desarme PWM
 └── test/                         ← testes (futuro)
 ```
 
@@ -101,15 +112,15 @@ Firmware/
 
 | Componente | Status | O que faz / fará |
 |------------|--------|------------------|
-| `src/main.cpp` | **Provisório** | Apenas scan WiFi; **não** controla motor ainda |
+| `src/main.cpp` | **Provisório** | Loop com FSM + telemetria; comandos serial `a/d/c/s` |
+| `fsm_system` | **Implementado** | INIT → IDLE → RUNNING / FAULT; arming e clear fault |
 | `lib/control/pid_regulator` | **Implementado** | Malha PI com anti-windup; pronto para integração |
-| `include/board_config.h` | **Pendente** | Mapa de pinos e limites (usar proposta da seção 8) |
-| `fsm_system` | **Pendente** | Máquina de estados INIT / IDLE / RUNNING / FAULT |
+| `include/board_config.h` | **Implementado** | Mapa de pinos revisado (ESP32-WROOM-32) e limites operacionais |
+| `lib/hal/*` | **Implementado** | MCPWM (20 kHz, dead-time 500 ns), ADC1 (mV), GPIO/EXTI (OC trip) |
+| `lib/drivers/*` | **Implementado** | INA240 → A, divisor VBAT → V, LM339 → ISR + desarme PWM |
 | `motor_control` | **Pendente** | Liga telemetria → PI → duty das 3 fases |
-| `lib/hal/*` | **Pendente** | PWM, ADC bruto (mV), EXTI |
-| `lib/drivers/*` | **Pendente** | Corrente (INA240), tensão barramento, trip LM339 |
 
-**Resumo:** o núcleo matemático do PI já existe; ainda falta conectar sensores, PWM, FSM e `main` real do ESC.
+**Resumo:** HAL, drivers, PI e FSM prontos; falta `motor_control` e comutação BLDC.
 
 ---
 
@@ -143,27 +154,34 @@ flowchart TB
 
 ---
 
-## 7. Máquina de estados (planejada)
+## 7. Máquina de estados (`fsm_system`)
 
-O ESC não deve “ligar o motor” direto no `setup()`. A operação seguirá uma **FSM** (`fsm_system`), ainda não implementada:
+Implementação em `src/fsm_system.h` e `src/fsm_system.c`.
 
 | Estado | Nome | O que acontece |
 |--------|------|----------------|
-| `ESC_STATE_INIT` | Inicialização | Calibra ADC; mede offset do INA240 (~1,65 V); configura PWM e interrupção de falha |
-| `ESC_STATE_IDLE` | Espera | Aguarda *arming* (comando de aceleração nulo estável); PWM em 0 %; telemetria pode rodar |
-| `ESC_STATE_RUNNING` | Ativo | Motor comutando; `pi_compute()` atualiza o comando (ex.: duty %) em loop periódico |
-| `ESC_STATE_FAULT` | Falha | Trip de sobrecorrente (LM339); PWM desarmado; só sai com reset controlado |
+| `ESC_STATE_INIT` | Inicialização | Calibra ADC/INA240; configura PWM e EXTI LM339 (transitório no boot) |
+| `ESC_STATE_IDLE` | Espera | PWM desarmado; aguarda `fsm_system_request_arm()` |
+| `ESC_STATE_RUNNING` | Ativo | PWM armado; `motor_control` entrará aqui no próximo passo |
+| `ESC_STATE_FAULT` | Falha | Trip LM339; PWM desarmado; `fsm_system_clear_fault()` → IDLE |
 
-```c
-typedef enum {
-    ESC_STATE_INIT = 0,
-    ESC_STATE_IDLE,
-    ESC_STATE_RUNNING,
-    ESC_STATE_FAULT
-} esc_state_t;
+**Transições:**
+
+```text
+INIT ──(ok)──► IDLE ──(arm)──► RUNNING ──(disarm)──► IDLE
+                  │                │
+                  └──── LM339 ─────┴────► FAULT ──(clear)──► IDLE
 ```
 
-**Transição típica segura:** `INIT` → `IDLE` → (arming OK) → `RUNNING`. Qualquer trip hardware → `FAULT`.
+| API | Descrição |
+|-----|-----------|
+| `fsm_system_init()` | Sequência de boot; sucesso → `IDLE` |
+| `fsm_system_tick()` | Processa `s_fault_pending` e monitora pino OC |
+| `fsm_system_request_arm()` | `IDLE` → `RUNNING` |
+| `fsm_system_request_disarm()` | `RUNNING` → `IDLE` |
+| `fsm_system_clear_fault()` | `FAULT` → `IDLE` se hardware liberou |
+
+**Bancada (serial 115200):** `a` arm, `d` disarm, `c` clear fault, `s` status.
 
 ---
 
@@ -180,7 +198,7 @@ O arquivo `Docs/especificacao_esc.md` descreve a intenção do projeto, mas o ma
 | GPIO 19, 20 como ADC | GPIO **20 não existe**; GPIO 19 não é entrada ADC padrão no ESP32 clássico |
 | GPIO 24 em `PIN_OC_TRIP` | GPIO **24 não existe** no ESP32 clássico |
 
-### 8.2 Proposta revisada (a criar em `include/board_config.h`)
+### 8.2 Mapa revisado (`include/board_config.h`)
 
 ```c
 #ifndef BOARD_CONFIG_H
@@ -600,14 +618,101 @@ void control_task(void)
 
 ---
 
-## 10. Histórico de revisões
+## 10. Módulos `lib/hal/*` (documentação de código)
+
+Camada de abstração do silício ESP32. Usa `board_config.h` para pinos e limites; **não** converte grandezas de engenharia (isso fica nos drivers).
+
+### 10.1 `hal_adc` — leitura analógica bruta
+
+| Função | Descrição |
+|--------|-----------|
+| `hal_adc_init()` | Configura ADC1 em 12 bits, atenuação até ~3,3 V (canais 4–7) |
+| `hal_adc_read_mv(channel)` | Retorna milivolts no pino (escala linear 0–3300 mV / 4095 counts) |
+
+Canais: `HAL_ADC_PHASE_IA/IB/IC`, `HAL_ADC_VBAT` → GPIO 32–35.
+
+### 10.2 `hal_pwm` — comutação MCPWM
+
+| Função | Descrição |
+|--------|-----------|
+| `hal_pwm_init()` | 3 timers MCPWM, 6 GPIO, dead-time 500 ns (modo complementar AH/AL) |
+| `hal_pwm_set_armed(bool)` | Só aplica duty > 0 se armado; ao desarmar zera todas as fases |
+| `hal_pwm_set_phase_duty(phase, %)` | Duty 0…`MAX_DUTY_CYCLE_PERCENT` na fase A/B/C |
+| `hal_pwm_disable_all()` | Força 0 % em todas as fases |
+
+Frequência e dead-time vêm de `PWM_FREQUENCY_HZ` e `DEAD_TIME_NS`.
+
+### 10.3 `hal_gpio` — segurança digital
+
+| Função | Descrição |
+|--------|-----------|
+| `hal_gpio_init()` | `PIN_OC_TRIP` como entrada com pull-up |
+| `hal_gpio_attach_oc_trip_isr(cb, arg)` | EXTI em borda de descida (trip ativo baixo) |
+| `hal_gpio_oc_trip_asserted()` | `true` se LM339 puxou o pino para baixo |
+
+O callback de ISR deve ser **rápido e ISR-safe** (sem `Serial`, sem malloc).
+
+### 10.4 Delimitação da HAL
+
+- Não aplica ganho INA240 nem escala de VBAT (drivers).
+- Não implementa FSM nem comutação BLDC (`motor_control`, `fsm_system`).
+- Framework atual: **Arduino**, com APIs ESP-IDF (`driver/mcpwm.h`, `driver/adc.h`, `driver/gpio.h`).
+
+---
+
+## 11. Módulos `lib/drivers/*` (documentação de código)
+
+Convertem leituras da HAL em grandezas físicas e tratam proteção de hardware. Dependem de `lib/hal/`; **não** conhecem FSM nem PI.
+
+### 11.1 `ina240_current_sensors`
+
+| Parâmetro | Valor (hardware) |
+|-----------|------------------|
+| Ganho | 20 V/V (INA240A1DR) |
+| Shunt | 1 mΩ |
+| Offset nominal | 1,65 V (1650 mV) |
+
+| Função | Descrição |
+|--------|-----------|
+| `ina240_init()` | Marca driver pronto (HAL ADC já deve estar init) |
+| `ina240_calibrate_offset(n)` | Média de `n` amostras por fase com corrente zero |
+| `ina240_read_amps(phase)` | Corrente em A: `(mV - offset) / 20` |
+| `ina240_get_offset_mv(phase)` | Offset calibrado ou nominal |
+
+### 11.2 `battery_monitor`
+
+Divisor 39 kΩ / 4,7 kΩ → `V_bat = V_adc / (4,7 / 43,7)`.
+
+| Função | Descrição |
+|--------|-----------|
+| `battery_monitor_init()` | Marca driver pronto |
+| `battery_monitor_read_volts()` | Tensão do barramento DC em V |
+
+### 11.3 `lm339_protection`
+
+| Função | Descrição |
+|--------|-----------|
+| `lm339_protection_init()` | Marca driver pronto |
+| `lm339_protection_arm(cb, arg)` | EXTI via HAL; ISR desarma PWM e chama callback |
+| `lm339_protection_fault_active()` | Trip latched ou pino OC ainda ativo |
+| `lm339_protection_clear_fault()` | Limpa latch só se hardware liberou o pino |
+
+O callback de falha deve ser **ISR-safe** (sem `Serial`).
+
+---
+
+## 12. Histórico de revisões
 
 | Data | Autor | Arquivos | Resumo |
 |------|-------|----------|--------|
 | 2026-05-28 | Agente Cursor | `lib/control/pid_regulator.h`, `lib/control/pid_regulator.c` | Criação do controlador PI com anti-windup por clamping |
 | 2026-05-28 | Agente Cursor | `DOCUMENTACAO_PROGRAMACAO.md` | Criação inicial do documento |
 | 2026-05-28 | Agente Cursor | `DOCUMENTACAO_PROGRAMACAO.md` | Reescrita pedagógica: passo a passo do PI, explicação de pinos, prosa e referências ao código |
+| 2026-05-31 | Agente Cursor | `include/board_config.h`, `DOCUMENTACAO_PROGRAMACAO.md` | Criação do mapa de hardware revisado (pinos PWM/ADC/OC_TRIP, limites PWM e malha de controle) |
+| 2026-05-31 | Agente Cursor | `lib/hal/*`, `src/main.cpp`, `platformio.ini`, `DOCUMENTACAO_PROGRAMACAO.md` | HAL MCPWM/ADC/GPIO; main de bancada; `build_flags = -I include` |
+| 2026-05-31 | Agente Cursor | `lib/drivers/*`, `src/main.cpp`, `DOCUMENTACAO_PROGRAMACAO.md` | Drivers INA240, VBAT, LM339; telemetria em A/V no main |
+| 2026-05-31 | Agente Cursor | `src/fsm_system.*`, `src/main.cpp`, `DOCUMENTACAO_PROGRAMACAO.md` | FSM INIT/IDLE/RUNNING/FAULT; comandos serial de bancada |
 
 ---
 
-*Última atualização: 2026-05-28*
+*Última atualização: 2026-05-31*

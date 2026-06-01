@@ -1,50 +1,74 @@
 #include <Arduino.h>
-#include <WiFi.h>
 
-void setup() {
-  // Inicializa a comunicação serial. 
-  // Lembre-se de configurar o mesmo baud rate no platformio.ini (monitor_speed = 115200)
-  Serial.begin(115200);
+#include "battery_monitor.h"
+#include "fsm_system.h"
+#include "ina240_current_sensors.h"
+#include "lm339_protection.h"
 
-  // Configura o ESP32 para operar no modo Estação (Client)
-  WiFi.mode(WIFI_STA);
-  
-  // Desconecta de qualquer rede para focar apenas na varredura
-  WiFi.disconnect();
-  delay(100);
-
-  Serial.println("\n--- Setup concluído. Iniciando varredura WiFi ---");
+static void print_telemetry(void)
+{
+    Serial.printf("[%s] I: A=%+.2f  B=%+.2f  C=%+.2f A  VBAT=%.1f V\n",
+                  fsm_system_state_name(fsm_system_get_state()),
+                  ina240_read_amps(INA240_PHASE_A),
+                  ina240_read_amps(INA240_PHASE_B),
+                  ina240_read_amps(INA240_PHASE_C),
+                  battery_monitor_read_volts());
 }
 
-void loop() {
-  Serial.println("Escaneando redes nas proximidades...");
-  
-  // A função scanNetworks retorna o número de redes encontradas
-  int n = WiFi.scanNetworks();
-  
-  if (n == 0) {
-    Serial.println("Nenhuma rede WiFi encontrada.");
-  } else {
-    Serial.print(n);
-    Serial.println(" redes encontradas:");
-    
-    for (int i = 0; i < n; ++i) {
-      // Imprime o índice, o SSID (nome da rede) e o RSSI (intensidade do sinal em dBm)
-      Serial.print("  ");
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-      Serial.print(" (");
-      Serial.print(WiFi.RSSI(i));
-      Serial.print(" dBm)");
-      
-      // Indica com um asterisco se a rede possui senha (não é aberta)
-      Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " [Aberta]" : " *");
-      delay(10);
+static void handle_serial_command(void)
+{
+    if (!Serial.available()) {
+        return;
     }
-  }
-  
-  Serial.println("\n------------------------------------------------");
-  // Aguarda 5 segundos antes de realizar uma nova varredura
-  delay(5000);
+
+    const char cmd = static_cast<char>(Serial.read());
+
+    switch (cmd) {
+    case 'a':
+    case 'A':
+        Serial.println(fsm_system_request_arm() ? "ARM OK" : "ARM recusado");
+        break;
+    case 'd':
+    case 'D':
+        Serial.println(fsm_system_request_disarm() ? "DISARM OK" : "DISARM recusado");
+        break;
+    case 'c':
+    case 'C':
+        Serial.println(fsm_system_clear_fault() ? "FAULT limpo -> IDLE" : "CLEAR recusado");
+        break;
+    case 's':
+    case 'S':
+        Serial.printf("Estado: %s\n", fsm_system_state_name(fsm_system_get_state()));
+        break;
+    default:
+        break;
+    }
+}
+
+void setup()
+{
+    Serial.begin(115200);
+    delay(100);
+
+    Serial.println("\n--- ESC BLDC: FSM ---");
+    Serial.println("Comandos: a=arm  d=disarm  c=clear fault  s=status");
+
+    if (!fsm_system_init()) {
+        Serial.println("fsm_system_init: FAULT");
+    } else {
+        Serial.printf("fsm_system_init: %s\n",
+                      fsm_system_state_name(fsm_system_get_state()));
+        Serial.printf("INA240 offset: A=%.0f  B=%.0f  C=%.0f mV\n",
+                      ina240_get_offset_mv(INA240_PHASE_A),
+                      ina240_get_offset_mv(INA240_PHASE_B),
+                      ina240_get_offset_mv(INA240_PHASE_C));
+    }
+}
+
+void loop()
+{
+    fsm_system_tick();
+    handle_serial_command();
+    print_telemetry();
+    delay(1000);
 }
