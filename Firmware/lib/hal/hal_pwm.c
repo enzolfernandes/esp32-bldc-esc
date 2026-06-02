@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 static bool s_armed = false;
+static hal_pwm_conduction_t s_phase_mode[HAL_PWM_PHASE_COUNT];
 
 static const mcpwm_io_signals_t s_phase_signals[HAL_PWM_PHASE_COUNT][2] = {
     {MCPWM0A, MCPWM0B},
@@ -82,6 +83,11 @@ bool hal_pwm_init(void)
     }
 
     s_armed = false;
+
+    for (int phase = 0; phase < HAL_PWM_PHASE_COUNT; phase++) {
+        s_phase_mode[phase] = HAL_PWM_COND_OFF;
+    }
+
     return true;
 }
 
@@ -99,23 +105,67 @@ bool hal_pwm_is_armed(void)
     return s_armed;
 }
 
+static void set_phase_off(hal_pwm_phase_t phase)
+{
+    const mcpwm_timer_t timer = s_phase_timers[phase];
+
+    mcpwm_set_signal_low(MCPWM_UNIT_0, timer, MCPWM_OPR_A);
+    mcpwm_set_signal_low(MCPWM_UNIT_0, timer, MCPWM_OPR_B);
+    s_phase_mode[phase] = HAL_PWM_COND_OFF;
+}
+
+static void set_phase_source(hal_pwm_phase_t phase, float duty_percent)
+{
+    const mcpwm_timer_t timer = s_phase_timers[phase];
+
+    mcpwm_set_duty_type(MCPWM_UNIT_0, timer, MCPWM_OPR_A, MCPWM_DUTY_MODE_0);
+    mcpwm_set_duty(MCPWM_UNIT_0, timer, MCPWM_OPR_A, clamp_duty(duty_percent));
+    s_phase_mode[phase] = HAL_PWM_COND_SOURCE;
+}
+
+static void set_phase_sink(hal_pwm_phase_t phase)
+{
+    const mcpwm_timer_t timer = s_phase_timers[phase];
+
+    mcpwm_set_duty_type(MCPWM_UNIT_0, timer, MCPWM_OPR_A, MCPWM_DUTY_MODE_0);
+    mcpwm_set_duty(MCPWM_UNIT_0, timer, MCPWM_OPR_A, 0.0f);
+    s_phase_mode[phase] = HAL_PWM_COND_SINK;
+}
+
 void hal_pwm_set_phase_duty(hal_pwm_phase_t phase, float duty_percent)
+{
+    hal_pwm_set_phase_conduction(phase, HAL_PWM_COND_SOURCE, duty_percent);
+}
+
+void hal_pwm_set_phase_conduction(hal_pwm_phase_t phase, hal_pwm_conduction_t mode,
+                                  float duty_percent)
 {
     if (phase >= HAL_PWM_PHASE_COUNT) {
         return;
     }
 
     if (!s_armed) {
+        mode = HAL_PWM_COND_OFF;
         duty_percent = 0.0f;
     }
 
-    mcpwm_set_duty(MCPWM_UNIT_0, s_phase_timers[phase], MCPWM_OPR_A,
-                   clamp_duty(duty_percent));
+    switch (mode) {
+    case HAL_PWM_COND_SOURCE:
+        set_phase_source(phase, duty_percent);
+        break;
+    case HAL_PWM_COND_SINK:
+        set_phase_sink(phase);
+        break;
+    case HAL_PWM_COND_OFF:
+    default:
+        set_phase_off(phase);
+        break;
+    }
 }
 
 void hal_pwm_disable_all(void)
 {
     for (int phase = 0; phase < HAL_PWM_PHASE_COUNT; phase++) {
-        mcpwm_set_duty(MCPWM_UNIT_0, s_phase_timers[phase], MCPWM_OPR_A, 0.0f);
+        set_phase_off((hal_pwm_phase_t)phase);
     }
 }

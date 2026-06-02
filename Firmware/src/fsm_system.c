@@ -1,11 +1,13 @@
 #include "fsm_system.h"
 
 #include "battery_monitor.h"
+#include "bemf_zcd.h"
 #include "hal_adc.h"
 #include "hal_gpio.h"
 #include "hal_pwm.h"
 #include "ina240_current_sensors.h"
 #include "lm339_protection.h"
+#include "motor_control.h"
 
 #include <stddef.h>
 
@@ -22,6 +24,7 @@ static void on_overcurrent_isr(void *arg)
 
 static void enter_fault_state(void)
 {
+    motor_control_on_disarm();
     hal_pwm_set_armed(false);
     hal_pwm_disable_all();
     s_state = ESC_STATE_FAULT;
@@ -53,6 +56,10 @@ static bool run_init_sequence(void)
     battery_monitor_init();
     lm339_protection_init();
 
+#if BOARD_ENABLE_BEMF_ZCD
+    (void)bemf_zcd_init();
+#endif
+
     return true;
 }
 
@@ -67,6 +74,11 @@ bool fsm_system_init(void)
     }
 
     if (!lm339_protection_arm(on_overcurrent_isr, NULL)) {
+        enter_fault_state();
+        return false;
+    }
+
+    if (!motor_control_init()) {
         enter_fault_state();
         return false;
     }
@@ -124,6 +136,7 @@ bool fsm_system_request_arm(void)
     }
 
     hal_pwm_set_armed(true);
+    motor_control_on_arm();
     s_state = ESC_STATE_RUNNING;
     return true;
 }
@@ -134,6 +147,7 @@ bool fsm_system_request_disarm(void)
         return false;
     }
 
+    motor_control_on_disarm();
     hal_pwm_set_armed(false);
     hal_pwm_disable_all();
     s_state = ESC_STATE_IDLE;
@@ -153,6 +167,7 @@ bool fsm_system_clear_fault(void)
     }
 
     s_fault_pending = false;
+    motor_control_on_disarm();
     hal_pwm_set_armed(false);
     hal_pwm_disable_all();
     s_state = ESC_STATE_IDLE;

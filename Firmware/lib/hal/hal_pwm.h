@@ -14,10 +14,19 @@ typedef enum {
     HAL_PWM_PHASE_COUNT
 } hal_pwm_phase_t;
 
+/** Condução de uma perna da ponte para comutação BLDC 6-step. */
+typedef enum {
+    HAL_PWM_COND_OFF = 0,     /**< Ambos os drivers em nível baixo (repouso). */
+    HAL_PWM_COND_SOURCE,      /**< High-side em PWM (duty em %). */
+    HAL_PWM_COND_SINK         /**< Low-side condutando (complementar, duty efetivo 0 %). */
+} hal_pwm_conduction_t;
+
 bool hal_pwm_init(void);
 void hal_pwm_set_armed(bool armed);
 bool hal_pwm_is_armed(void);
 void hal_pwm_set_phase_duty(hal_pwm_phase_t phase, float duty_percent);
+void hal_pwm_set_phase_conduction(hal_pwm_phase_t phase, hal_pwm_conduction_t mode,
+                                  float duty_percent);
 void hal_pwm_disable_all(void);
 
 #ifdef __cplusplus

@@ -1,3 +1,5 @@
+//TODO: Revisar pinos no PCB, confirmar ZCD no esquemático da PCB, ajustar constantes de operação conforme necessário.
+
 #ifndef BOARD_CONFIG_H
 #define BOARD_CONFIG_H
 
@@ -19,7 +21,19 @@
 #define PIN_ADC_VBAT  35   // ADC1_CH7 (input-only)
 
 // --- Pino de segurança de hardware ---
-#define PIN_OC_TRIP   4    // LM339, ativo baixo + pull-up
+#define PIN_OC_TRIP   4    // LM339 OCP, ativo baixo + pull-up
+
+// --- ZCD BEMF (LM339, saída open-collector) — confirmar no esquemático da PCB ---
+#define BOARD_ENABLE_BEMF_ZCD  1
+#define PIN_ZCD_A     16
+#define PIN_ZCD_B     17
+#define PIN_ZCD_C     5
+
+/** Atraso elétrico após ZCD até comutar (graus). Spec/tese: 30°. */
+#define BEMF_COMM_DELAY_DEG_ELEC  30.0f
+
+/** Eventos ZCD válidos consecutivos para handover malha aberta → fechada. */
+#define BEMF_ZCD_HANDOVER_COUNT   6U
 
 // --- Constantes de operação ---
 #define MAX_DUTY_CYCLE_PERCENT 95.0f

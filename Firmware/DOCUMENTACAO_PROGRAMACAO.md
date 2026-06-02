@@ -18,7 +18,10 @@
 9. [Módulo `lib/control/pid_regulator` (documentação de código)](#9-módulo-libcontrolpid_regulator-documentação-de-código)
 10. [Módulos `lib/hal/*` (documentação de código)](#10-módulos-libhal-documentação-de-código)
 11. [Módulos `lib/drivers/*` (documentação de código)](#11-módulos-libdrivers-documentação-de-código)
-12. [Histórico de revisões](#12-histórico-de-revisões)
+12. [Módulo `lib/control/motor_control`](#12-módulo-libcontrolmotor_control)
+13. [Módulo `lib/drivers/bemf_zcd`](#13-módulo-libdriversbemf_zcd)
+14. [Histórico de revisões](#14-histórico-de-revisões)
+15. [Registro de dúvidas (modo Ask)](#15-registro-de-dúvidas-modo-ask)
 
 ---
 
@@ -28,7 +31,8 @@
 |-------|-----------|
 | **Quando atualizar** | Ao adicionar, remover ou modificar arquivos em `src/`, `include/`, `lib/` ou `platformio.ini`. |
 | **O que registrar** | Data, autor, arquivos afetados, resumo da mudança e impacto em API/comportamento. |
-| **Onde registrar** | Seção [12. Histórico de revisões](#12-histórico-de-revisões) + seção do módulo correspondente. |
+| **Onde registrar** | Seção [14. Histórico de revisões](#14-histórico-de-revisões) + seção do módulo correspondente. |
+| **Dúvidas no modo Ask** | Sempre que o autor fizer uma pergunta em modo **Ask** cuja resposta seja útil para o projeto, acrescentar (ou atualizar) a entrada correspondente na seção [15. Registro de dúvidas](#15-registro-de-dúvidas-modo-ask). |
 | **Divergência da spec** | Se o código diferir de `Docs/especificacao_esc.md`, explicar **por quê** (ex.: pinos inválidos no ESP32-WROOM-32). |
 | **Padrão de escrita** | Preferir explicação em prosa + tabelas + passo a passo; não apenas listas de arquivos. |
 
@@ -93,8 +97,8 @@ Firmware/
 │   ├── fsm_system.h / fsm_system.c   ← máquina de estados do ESC
 ├── lib/
 │   ├── control/
-│   │   ├── pid_regulator.h       ← interface pública do PI
-│   │   └── pid_regulator.c       ← implementação
+│   │   ├── pid_regulator.h / .c  ← PI com anti-windup
+│   │   └── motor_control.h / .c  ← corrente + comutação 6-step
 │   ├── hal/
 │   │   ├── hal_pwm.h / hal_pwm.c     ← MCPWM 6 canais, dead-time
 │   │   ├── hal_adc.h / hal_adc.c     ← ADC1, leitura em mV
@@ -102,7 +106,8 @@ Firmware/
 │   └── drivers/
 │       ├── ina240_current_sensors.h / .c  ← corrente de fase (A)
 │       ├── battery_monitor.h / .c         ← tensão barramento (V)
-│       └── lm339_protection.h / .c        ← trip OC + desarme PWM
+│       ├── lm339_protection.h / .c        ← trip OC + desarme PWM
+│       └── bemf_zcd.h / .c                ← cruzamento zero BEMF (LM339)
 └── test/                         ← testes (futuro)
 ```
 
@@ -118,9 +123,11 @@ Firmware/
 | `include/board_config.h` | **Implementado** | Mapa de pinos revisado (ESP32-WROOM-32) e limites operacionais |
 | `lib/hal/*` | **Implementado** | MCPWM (20 kHz, dead-time 500 ns), ADC1 (mV), GPIO/EXTI (OC trip) |
 | `lib/drivers/*` | **Implementado** | INA240 → A, divisor VBAT → V, LM339 → ISR + desarme PWM |
-| `motor_control` | **Pendente** | Liga telemetria → PI → duty das 3 fases |
+| `motor_control` | **Implementado (v1 bancada)** | Malha de corrente (PI) + comutação 6-step em malha aberta |
+| `bemf_zcd` | **Implementado (v1)** | EXTI nos comparadores BEMF; handover OPEN → ZCD |
+| Comutação com feedback de posição | **Parcial** | ZCD sensorless; FOC / halls dedicados ainda pendentes |
 
-**Resumo:** HAL, drivers, PI e FSM prontos; falta `motor_control` e comutação BLDC.
+**Resumo:** Malha de corrente + 6-step com partida em malha aberta e comutação sincronizada por ZCD (BEMF) após handover; FOC e ESP-IDF permanecem no roadmap.
 
 ---
 
@@ -181,7 +188,7 @@ INIT ──(ok)──► IDLE ──(arm)──► RUNNING ──(disarm)──�
 | `fsm_system_request_disarm()` | `RUNNING` → `IDLE` |
 | `fsm_system_clear_fault()` | `FAULT` → `IDLE` se hardware liberou |
 
-**Bancada (serial 115200):** `a` arm, `d` disarm, `c` clear fault, `s` status.
+**Bancada (serial 115200):** `a` arm, `d` disarm, `c` clear fault, `s` status, `t<amps>` corrente alvo em RUNNING, `o` força malha aberta.
 
 ---
 
@@ -637,8 +644,9 @@ Canais: `HAL_ADC_PHASE_IA/IB/IC`, `HAL_ADC_VBAT` → GPIO 32–35.
 |--------|-----------|
 | `hal_pwm_init()` | 3 timers MCPWM, 6 GPIO, dead-time 500 ns (modo complementar AH/AL) |
 | `hal_pwm_set_armed(bool)` | Só aplica duty > 0 se armado; ao desarmar zera todas as fases |
-| `hal_pwm_set_phase_duty(phase, %)` | Duty 0…`MAX_DUTY_CYCLE_PERCENT` na fase A/B/C |
-| `hal_pwm_disable_all()` | Força 0 % em todas as fases |
+| `hal_pwm_set_phase_duty(phase, %)` | Duty 0…`MAX_DUTY_CYCLE_PERCENT` (modo SOURCE) |
+| `hal_pwm_set_phase_conduction(phase, mode, %)` | OFF / SOURCE (PWM high-side) / SINK (low-side on) |
+| `hal_pwm_disable_all()` | Todas as pernas em OFF |
 
 Frequência e dead-time vêm de `PWM_FREQUENCY_HZ` e `DEAD_TIME_NS`.
 
@@ -701,7 +709,249 @@ O callback de falha deve ser **ISR-safe** (sem `Serial`).
 
 ---
 
-## 12. Histórico de revisões
+## 12. Módulo `lib/control/motor_control`
+
+Núcleo que liga **telemetria → PI de corrente → PWM trifásico** com **comutação trapezoidal 6-step** em malha aberta (frequência elétrica fixa na bancada).
+
+### 12.1 Fluxo
+
+```text
+INA240 (A,B,C) ──► |I| máximo ──► pi_compute(I_alvo, I_med) ──► duty %
+                                        │
+                    tabela 6-step ◄─────┴──► hal_pwm_set_phase_conduction (A,B,C)
+                    (passo avança a 30 Hz elétrico, timer 1 kHz)
+```
+
+### 12.2 API
+
+| Função | Descrição |
+|--------|-----------|
+| `motor_control_init()` | Inicializa PI e timer periódico (`MOTOR_CONTROL_LOOP_HZ` = 1 kHz) |
+| `motor_control_on_arm()` / `on_disarm()` | Zera integrador; ativa/desativa malha (chamado pela FSM) |
+| `motor_control_tick()` | Uma iteração (também chamada pelo `esp_timer`) |
+| `motor_control_set_target_amps(amps)` | Corrente desejada 0…`MOTOR_CONTROL_MAX_TARGET_AMPS` (5 A bancada) |
+
+### 12.3 Bancada (serial)
+
+1. `a` — arm → `RUNNING`
+2. `t1.5` — corrente alvo 1,5 A (enviar `t` seguido do valor)
+3. `d` — disarm
+4. Telemetria a cada 500 ms inclui `I*`, duty % e passo de comutação
+
+### 12.4 Modos de comutação
+
+| Modo | Nome serial | Comportamento |
+|------|-------------|---------------|
+| `MOTOR_COMM_OPEN_LOOP` | `OPEN` | Passos avançam em `DEFAULT_COMMUTATION_HZ`; tenta handover ZCD |
+| `MOTOR_COMM_ZCD_CLOSED` | `ZCD` | Próximo passo após ZCD na fase flutuante + atraso `BEMF_COMM_DELAY_DEG_ELEC` (30°) |
+
+Handover: `BEMF_ZCD_HANDOVER_COUNT` flancos válidos na fase flutuante esperada, com duty ≥ `MOTOR_CONTROL_MIN_DUTY_ZCD_HANDOVER`. Sem ZCD por 4× o período de passo → volta a `OPEN`. Comando `o` força malha aberta.
+
+### 12.5 Limitações (v1)
+
+| Item | Detalhe |
+|------|---------|
+| Pinos ZCD | GPIO 16/17/5 em `board_config.h` — **confirmar no esquemático da PCB** |
+| Partida | Ainda depende de rampa em malha aberta (sem alinhamento por ímã) |
+| `HAL_PWM_COND_OFF` | MCPWM força saídas baixas; não é alta impedância real |
+| Ganhos do PI / filtro RC | Ajuste na bancada; atraso de fase do filtro BEMF não compensado no firmware |
+| FOC / Hall | Não implementados |
+
+---
+
+## 13. Módulo `lib/drivers/bemf_zcd`
+
+Driver dos comparadores LM339 de **cruzamento por zero** da BEMF (fase flutuante vs. neutro virtual), conforme a tese do projeto.
+
+| Função | Descrição |
+|--------|-----------|
+| `bemf_zcd_init()` | Entradas GPIO com pull-up + EXTI `ANYEDGE` em `PIN_ZCD_A/B/C` |
+| `bemf_zcd_floating_phase_for_step(n)` | Fase em alta impedância lógica para o passo 6-step |
+| `bemf_zcd_consume_edge(phase)` | Consome um flanco pendente se for da fase esperada |
+| `bemf_zcd_phase_asserted(phase)` | Nível do comparador (ativo baixo) |
+
+Desabilitar no firmware: `#define BOARD_ENABLE_BEMF_ZCD 0` em `board_config.h`.
+
+---
+
+## 15. Registro de dúvidas (modo Ask)
+
+Esta seção consolida perguntas feitas em modo **Ask** (revisão/consulta, sem alterar código na hora) e as respostas acordadas, para servir de referência ao time e à IA em sessões futuras.
+
+| Tópico | Subseção |
+|--------|----------|
+| Máquina de estados do ESC | **15.0** |
+| ZCD / BEMF / FOC | **15.1** – **15.5** |
+
+Referência na tese (ZCD): [`../Docs/Thesis/main.tex`](../Docs/Thesis/main.tex). Detalhes de implementação da FSM: [seção 7](#7-máquina-de-estados-fsm_system) e `src/fsm_system.h` / `src/fsm_system.c`.
+
+---
+
+### 15.0 O que é FSM?
+
+**FSM** = *Finite State Machine* — **máquina de estados finita**.
+
+É um modelo em que o firmware está **sempre em um entre um conjunto fixo de estados**, e só muda quando ocorrem **eventos** ou **condições** definidas (não há estados “livres” fora da lista).
+
+#### No projeto ESC
+
+A FSM do controlador está no módulo **`fsm_system`** (`src/fsm_system.h`, `src/fsm_system.c`). Ela responde à pergunta: *“Em que modo de operação o ESC está agora?”* — separado de *como* comutar o motor (`motor_control`) ou *como* ler sensores (`lib/drivers/`).
+
+| Estado (`esc_state_t`) | Nome serial | O que significa |
+|------------------------|-------------|-----------------|
+| `ESC_STATE_INIT` | `INIT` | Boot transitório: ADC, PWM, calibração INA240, proteção |
+| `ESC_STATE_IDLE` | `IDLE` | Pronto; PWM desarmado; aguarda arm |
+| `ESC_STATE_RUNNING` | `RUNNING` | PWM armado; `motor_control` ativo |
+| `ESC_STATE_FAULT` | `FAULT` | Falha (ex.: LM339 OC); PWM desarmado até clear |
+
+#### Transições principais
+
+```text
+INIT ──(init OK)──► IDLE ──(arm)──► RUNNING ──(disarm)──► IDLE
+                      │                │
+                      └──── OC trip ───┴────► FAULT ──(clear)──► IDLE
+```
+
+| API | Efeito típico |
+|-----|----------------|
+| `fsm_system_init()` | Sequência de boot; sucesso → `IDLE` |
+| `fsm_system_request_arm()` | `IDLE` → `RUNNING` (habilita PWM + `motor_control_on_arm`) |
+| `fsm_system_request_disarm()` | `RUNNING` → `IDLE` |
+| `fsm_system_clear_fault()` | `FAULT` → `IDLE` se hardware liberou OC |
+| `fsm_system_tick()` | Trata falha pendente e monitora `PIN_OC_TRIP` |
+
+Comandos serial de bancada (115200): `a` arm, `d` disarm, `c` clear fault, `s` status. A telemetria periódica mostra o estado entre colchetes, ex.: `[IDLE]`, `[RUNNING]`.
+
+#### Por que usar FSM aqui?
+
+| Benefício | Exemplo no ESC |
+|-----------|----------------|
+| **Segurança** | Só arma em `IDLE`; em `FAULT` o PWM permanece desligado até `clear` |
+| **Organização** | `main.cpp` não espalha `if (motor_on && !fault && …)` |
+| **Depuração** | Um nome de estado na serial em vez de vários flags soltos |
+
+A FSM **não** calcula PI, **não** faz comutação 6-step e **não** lê BEMF — apenas **autoriza** ou **bloqueia** a operação do motor e reage a falhas de hardware.
+
+---
+
+### 15.1 O que é ZCD?
+
+**ZCD** = *Zero-Crossing Detection* (detecção de cruzamento por zero).
+
+No ESC trifásico **sensorless**, monitora-se a tensão da **fase flutuante** (não alimentada no passo atual da comutação 6-step). Quando a **BEMF** (força contraeletromotriz / FCEM) cruza o **neutro virtual** do motor, o rotor está em uma posição angular conhecida; essa informação substitui sensores Hall para sincronizar a comutação.
+
+No firmware, o modo de comutação associado aparece na telemetria serial como `comm=ZCD` (`MOTOR_COMM_ZCD_CLOSED`). A partida sem BEMF suficiente usa `comm=OPEN` (malha aberta por timer).
+
+---
+
+### 15.2 Como o sistema detecta o ZCD?
+
+A detecção ocorre em **duas camadas**: hardware analógico + firmware digital.
+
+#### Hardware (placa — conforme tese)
+
+1. **Neutro virtual** — resistores (ex.: 33 kΩ) nas três fases do motor unidos num nó de referência \(V_{ref}\).
+2. **Divisor + filtro RC** por fase (ex.: 33 kΩ / 3,3 kΩ + 10 nF) — atenua até ~3,3 V e filtra ruído do PWM (~20 kHz).
+3. **LM339** — compara tensão da fase filtrada (+) com o neutro atenuado (−). Saída **open-collector** + pull-up (~10 kΩ) para 3,3 V → sinal digital.
+
+O ESP32 **não** mede BEMF em volts no ADC para ZCD; lê **nível lógico** nos pinos `PIN_ZCD_A/B/C`.
+
+#### Firmware (`lib/drivers/bemf_zcd` + `motor_control`)
+
+| Etapa | O que faz |
+|-------|-----------|
+| EXTI | Flanco em qualquer borda nos GPIO ZCD; ISR marca qual fase (A/B/C) disparou. |
+| Validação | `bemf_zcd_consume_edge()` só aceita evento se for a **fase flutuante** do passo 6-step atual. |
+| Malha aberta | Timer avança passos (~30 Hz elétricos); após 6 flancos válidos com duty suficiente → **handover** para ZCD. |
+| Malha ZCD | Após flanco válido, agenda comutação em **30° elétricos** (`BEMF_COMM_DELAY_DEG_ELEC`), usando metade do período entre passos estimado. |
+| Watchdog | Sem ZCD coerente por muito tempo → volta a `OPEN`. |
+
+```text
+BEMF cruza neutro → LM339 muda saída → GPIO ZCD → EXTI → fase flutuante OK?
+    → sim → espera 30° elétricos → próximo passo 6-step
+```
+
+**Limitações:** em baixa velocidade a BEMF é pequena; filtro RC atrasa o instante do zero (tese descreve compensação — firmware v1 usa 30° fixos).
+
+---
+
+### 15.3 Pinos ZCD não estavam no projeto inicial — dá para não usar?
+
+**Sim.** O firmware já suporta operação **sem** circuito ZCD na placa.
+
+Em `include/board_config.h`:
+
+```c
+#define BOARD_ENABLE_BEMF_ZCD  0
+```
+
+| Efeito | Detalhe |
+|--------|---------|
+| `bemf_zcd_init()` | Não configura GPIO nem EXTI. |
+| `bemf_zcd_is_ready()` | Sempre `false`. |
+| `motor_control` | Permanece só em **malha aberta** (`comm=OPEN`); PI de corrente e 6-step por timer continuam. |
+| Handover `OPEN` → `ZCD` | Não ocorre. |
+
+**Recomendação:** se não houver hardware ZCD, use `BOARD_ENABLE_BEMF_ZCD 0`. Com `1` e pinos flutuantes, interrupções espúrias podem causar comutação errática.
+
+Comando serial `o` força malha aberta mesmo com ZCD habilitado no config.
+
+**Projeto inicial sem comparadores BEMF:** esta é a configuração alinhada ao hardware mínimo (PWM + corrente + OC Trip + VBAT).
+
+---
+
+### 15.4 Onde ligar os pinos ZCD no circuito?
+
+Os GPIO **não** ligam nas fases do motor nem no barramento em alta tensão. Ligam na **saída digital** do estágio BEMF (após pull-up para 3,3 V), com **SGND** comum ao ESP32.
+
+```text
+Fase motor A/B/C → neutro virtual + divisor/filtro → LM339 (por fase)
+    → saída OC + pull-up 10 kΩ → 3,3 V → GPIO ESP32
+```
+
+| Pino no firmware (provisório) | Sinal |
+|------------------------------|--------|
+| `PIN_ZCD_A` (GPIO 16) | Comparador BEMF fase A |
+| `PIN_ZCD_B` (GPIO 17) | Comparador BEMF fase B |
+| `PIN_ZCD_C` (GPIO 5)  | Comparador BEMF fase C |
+
+**Não confundir** com `PIN_OC_TRIP` (GPIO 4) — sobrecorrente (3 comparadores em wired-OR), função diferente.
+
+**LM339 no projeto:** um CI com 4 comparadores pode usar 3 saídas em OR para **OCP** (1 GPIO). ZCD exige **3 saídas independentes** → em geral é necessário **outro LM339** (ou comparadores dedicados) e a rede completa de neutro virtual + divisores descrita na tese. **Confirmar nets no esquemático da PCB** antes de soldar; ajustar `PIN_ZCD_*` em `board_config.h` se o layout for outro.
+
+Se a placa atual **não tiver** esse bloco, não há ponto correto para esses fios até uma revisão de hardware.
+
+---
+
+### 15.5 Sem ZCD, é possível FOC só com sensores de corrente?
+
+**Resumo:** FOC **não depende** dos pinos ZCD (ZCD é para comutação **trapezoidal** 6-step). Porém FOC **sempre precisa do ângulo do rotor** (sensor ou estimativa). **Três shunts de corrente sozinhos não definem ângulo** em todo o regime — especialmente parado e em baixa rotação.
+
+| Necessidade do FOC | No hardware atual |
+|--------------------|-------------------|
+| Correntes de fase \(i_a, i_b\) (ou três) | Sim — INA240 |
+| Ângulo \(\theta\) para Clarke/Park | Não direto — exige Hall/encoder **ou** observador sensorless |
+| Tensão aplicada nas fases | Não medida — pode **reconstruir** com \(V_{bat}\) + duty PWM |
+| ZCD / comparadores GPIO | **Não obrigatório** para FOC |
+
+**FOC sensorless por software** (sem ZCD): observador de fluxo/BEMF no modelo do motor, usando corrente + tensão reconstruída + parâmetros (\(R_s\), \(L_s\), \(\psi_f\), pares de polos). A BEMF entra na **equação**, não nos comparadores.
+
+| Regime | Só corrente? |
+|--------|----------------|
+| Velocidade média/alta | Possível com observador + \(V_{bat}\) + PWM (complexo) |
+| Parado / muito lento | **Não** confiável só com shunt — precisa align, injeção HF, ou sensor de posição |
+
+Desabilitar ZCD (`BOARD_ENABLE_BEMF_ZCD 0`) **não bloqueia** um FOC futuro; remove apenas sincronismo 6-step por comparadores. Implementar FOC no ESP32 atual exigiria malha muito mais rápida que 1 kHz, SVPWM, observador e partida — escopo além do `motor_control` v1.
+
+**Caminhos práticos sem ZCD na placa:**
+
+1. **6-step malha aberta** + PI de corrente (estado atual com `BOARD_ENABLE_BEMF_ZCD 0`).
+2. **FOC sensorless** (firmware pesado; corrente + VBAT + modelo do motor).
+3. **Halls/encoder** (GPIO extras; não é “só corrente”).
+
+---
+
+## 14. Histórico de revisões
 
 | Data | Autor | Arquivos | Resumo |
 |------|-------|----------|--------|
@@ -712,7 +962,11 @@ O callback de falha deve ser **ISR-safe** (sem `Serial`).
 | 2026-05-31 | Agente Cursor | `lib/hal/*`, `src/main.cpp`, `platformio.ini`, `DOCUMENTACAO_PROGRAMACAO.md` | HAL MCPWM/ADC/GPIO; main de bancada; `build_flags = -I include` |
 | 2026-05-31 | Agente Cursor | `lib/drivers/*`, `src/main.cpp`, `DOCUMENTACAO_PROGRAMACAO.md` | Drivers INA240, VBAT, LM339; telemetria em A/V no main |
 | 2026-05-31 | Agente Cursor | `src/fsm_system.*`, `src/main.cpp`, `DOCUMENTACAO_PROGRAMACAO.md` | FSM INIT/IDLE/RUNNING/FAULT; comandos serial de bancada |
+| 2026-06-01 | Agente Cursor | `lib/control/motor_control.*`, `lib/hal/hal_pwm.*`, `src/fsm_system.c`, `src/main.cpp`, `DOCUMENTACAO_PROGRAMACAO.md` | `motor_control`: PI de corrente, 6-step, timer 1 kHz; HAL OFF/SOURCE/SINK; comando `t<amps>` |
+| 2026-06-01 | Agente Cursor | `lib/drivers/bemf_zcd.*`, `motor_control.*`, `board_config.h`, `fsm_system.c`, `main.cpp`, `DOCUMENTACAO_PROGRAMACAO.md` | ZCD BEMF: handover OPEN→ZCD, comutação a 30° após flanco; pinos 16/17/5; comando `o` |
+| 2026-06-01 | Enzo Fernandes / Agente Cursor | `DOCUMENTACAO_PROGRAMACAO.md` | Seção 15: registro de dúvidas (Ask) — ZCD, hardware, `BOARD_ENABLE_BEMF_ZCD`, FOC vs corrente |
+| 2026-06-01 | Enzo Fernandes / Agente Cursor | `DOCUMENTACAO_PROGRAMACAO.md` | Seção 15.0: dúvida Ask — o que é FSM (`fsm_system`) |
 
 ---
 
-*Última atualização: 2026-05-31*
+*Última atualização: 2026-06-01*
