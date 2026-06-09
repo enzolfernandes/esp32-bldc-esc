@@ -99,6 +99,20 @@ void fsm_system_tick(void)
         return;
     }
 
+    if (s_state == ESC_STATE_RUNNING && motor_control_consume_software_fault()) {
+        enter_fault_state();
+        return;
+    }
+
+    if (battery_monitor_uvlo_active()) {
+        if (s_state == ESC_STATE_RUNNING) {
+            motor_control_trip_uvlo_fault();
+            enter_fault_state();
+        }
+
+        return;
+    }
+
     if (lm339_protection_fault_active()) {
         enter_fault_state();
     }
@@ -135,6 +149,10 @@ bool fsm_system_request_arm(void)
         return false;
     }
 
+    if (battery_monitor_uvlo_active()) {
+        return false;
+    }
+
     hal_pwm_set_armed(true);
     motor_control_on_arm();
     s_state = ESC_STATE_RUNNING;
@@ -163,6 +181,10 @@ bool fsm_system_clear_fault(void)
     lm339_protection_clear_fault();
 
     if (lm339_protection_fault_active()) {
+        return false;
+    }
+
+    if (battery_monitor_uvlo_active()) {
         return false;
     }
 

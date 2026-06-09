@@ -1,0 +1,2 @@
+# Bluepad32 interactive console conflicts with Arduino Serial.
+CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE=n
