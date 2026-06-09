@@ -5,9 +5,26 @@
 #include "driver/gpio.h"
 #include "esp_err.h"
 
+#include <stddef.h>
+
 static hal_gpio_isr_cb_t s_oc_trip_cb = NULL;
 static void *s_oc_trip_arg = NULL;
 static bool s_isr_attached = false;
+
+static const int s_shutdown_pins[] = {
+    PIN_SD_A,
+    PIN_SD_B,
+    PIN_SD_C,
+};
+
+static void apply_shutdown_level(bool enabled)
+{
+    const int level = enabled ? 1 : 0;
+
+    for (size_t i = 0; i < (sizeof(s_shutdown_pins) / sizeof(s_shutdown_pins[0])); i++) {
+        gpio_set_level(s_shutdown_pins[i], level);
+    }
+}
 
 static void IRAM_ATTR oc_trip_isr_handler(void *arg)
 {
@@ -20,7 +37,27 @@ static void IRAM_ATTR oc_trip_isr_handler(void *arg)
 
 bool hal_gpio_init(void)
 {
-    gpio_config_t io_conf = {
+    uint64_t output_mask = 0U;
+
+    for (size_t i = 0; i < (sizeof(s_shutdown_pins) / sizeof(s_shutdown_pins[0])); i++) {
+        output_mask |= (1ULL << s_shutdown_pins[i]);
+    }
+
+    gpio_config_t output_conf = {
+        .pin_bit_mask = output_mask,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+
+    if (gpio_config(&output_conf) != ESP_OK) {
+        return false;
+    }
+
+    apply_shutdown_level(false);
+
+    gpio_config_t input_conf = {
         .pin_bit_mask = (1ULL << PIN_OC_TRIP),
         .mode = GPIO_MODE_INPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
@@ -28,7 +65,12 @@ bool hal_gpio_init(void)
         .intr_type = GPIO_INTR_DISABLE,
     };
 
-    return gpio_config(&io_conf) == ESP_OK;
+    return gpio_config(&input_conf) == ESP_OK;
+}
+
+void hal_shutdown_set_enabled(bool enabled)
+{
+    apply_shutdown_level(enabled);
 }
 
 bool hal_gpio_attach_oc_trip_isr(hal_gpio_isr_cb_t cb, void *arg)

@@ -2,7 +2,7 @@
 # Arquitetura de Firmware: ESC Trifásico para Motor BLDC (ESP32)
 
 ## 1. Visão Geral
-Sistema de controle de velocidade eletrônico (ESC) para motor BLDC trifásico, operando sob o microcontrolador ESP32 (framework ESP-IDF com FreeRTOS). A arquitetura é estritamente modular, baseada em eventos, dividida em camadas (Aplicação, Controle, Drivers de Sensores e HAL), garantindo o isolamento da lógica matemática do hardware físico. O mapeamento de pinos preserva as portas de JTAG (GPIO 12, 13, 14, 15) nativas do ESP32 para permitir *In-Circuit Emulation* (ICE).
+Sistema de controle de velocidade eletrônico (ESC) para motor BLDC trifásico, operando sob o microcontrolador ESP32 (framework ESP-IDF com FreeRTOS). A arquitetura é estritamente modular, baseada em eventos, dividida em camadas (Aplicação, Controle, Drivers de Sensores e HAL), garantindo o isolamento da lógica matemática do hardware físico. O mapeamento de pinos segue o DevKitC v4; GPIO **12–15** reservados para JTAG (ESP-Prog); ZCD BEMF em GPIO **16, 17, 5** (U3 RX2/TX2/D5).
 
 ## 2. Estrutura de Diretórios e Arquivos (PlatformIO)
 A base de código segue o padrão do PlatformIO, isolando as lógicas agnósticas e abstrações de hardware em subdiretórios como bibliotecas isoladas, enquanto o ponto de entrada e configurações globais residem nas pastas de origem e cabeçalho.
@@ -64,36 +64,47 @@ typedef struct {
 
 ## 5. Configurações Globais de Hardware
 
-O mapa de hardware realocado em `board_config.h` protege o JTAG (GPIO 14 realocado) e define os limites absolutos:
+Mapa otimizado DevKitC v4. Ver [`Firmware/include/board_config.h`](../Firmware/include/board_config.h), [`Hardware/PCB_Project/ESP32_PINMAP.md`](../Hardware/PCB_Project/ESP32_PINMAP.md) e [`Firmware/DOCUMENTACAO_PROGRAMACAO.md`](../Firmware/DOCUMENTACAO_PROGRAMACAO.md) §8.
 
 ```c
 #ifndef BOARD_CONFIG_H
 #define BOARD_CONFIG_H
 
 // --- Pinos de Controle de Gate (MCPWM) ---
-#define PIN_PWM_AH    11  
-#define PIN_PWM_AL    14  
-#define PIN_PWM_BH    25  
-#define PIN_PWM_BL    4   // Relocado para liberar GPIO14 (TMS/JTAG)
-#define PIN_PWM_CH    9   
-#define PIN_PWM_CL    10  
+#define PIN_PWM_AH    21
+#define PIN_PWM_AL    22
+#define PIN_PWM_BH    27
+#define PIN_PWM_BL    23
+#define PIN_PWM_CH    18
+#define PIN_PWM_CL    19
 
-// --- Pinos Analógicos (ADC) ---
-#define PIN_ADC_IA    19  
-#define PIN_ADC_IB    20  
-#define PIN_ADC_IC    17  
-#define PIN_ADC_VBAT  18  
+// --- Shutdown IR2110 (SD, ativo baixo) ---
+#define PIN_SD_A      32
+#define PIN_SD_B      33
+#define PIN_SD_C      4
 
-// --- Pino de Segurança de Hardware ---
-#define PIN_OC_TRIP   24  // Sinal do comparador LM339 (Ativo Baixo para interrupção)
+// --- Pinos Analógicos (ADC1) ---
+#define PIN_ADC_IA    34
+#define PIN_ADC_IB    35
+#define PIN_ADC_IC    36
+#define PIN_ADC_VBAT  39
+
+// --- OCP LM339 ---
+#define PIN_VDAC_REF  25   // DAC1
+#define PIN_OC_TRIP   26
+
+// --- ZCD BEMF (U3 RX2/TX2/D5; coexistem com JTAG 12–15) ---
+#define BOARD_ENABLE_BEMF_ZCD  0
+#define PIN_ZCD_A     16
+#define PIN_ZCD_B     17
+#define PIN_ZCD_C     5
 
 // --- Constantes de Operação ---
-#define MAX_DUTY_CYCLE_PERCENT 95.0f // Teto para recarga do circuito de bootstrap (IR2110)
-#define PWM_FREQUENCY_HZ       20000 // Frequência de comutação: 20 kHz
-#define DEAD_TIME_NS           500   // Margem de segurança: 500 ns
+#define MAX_DUTY_CYCLE_PERCENT 95.0f
+#define PWM_FREQUENCY_HZ       20000
+#define DEAD_TIME_NS           500
 
 #endif // BOARD_CONFIG_H
-
 ```
 
 ```

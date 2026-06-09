@@ -11,10 +11,10 @@
 #define ADC_MAX_RAW       4095U
 
 static const adc1_channel_t s_channels[HAL_ADC_CHANNEL_COUNT] = {
-    ADC1_CHANNEL_4, // PIN_ADC_IA 32
-    ADC1_CHANNEL_5, // PIN_ADC_IB 33
-    ADC1_CHANNEL_6, // PIN_ADC_IC 34
-    ADC1_CHANNEL_7, // PIN_ADC_VBAT 35
+    ADC1_CHANNEL_6, // PIN_ADC_IA 34
+    ADC1_CHANNEL_7, // PIN_ADC_IB 35
+    ADC1_CHANNEL_0, // PIN_ADC_IC 36
+    ADC1_CHANNEL_3, // PIN_ADC_VBAT 39
 };
 
 static uint32_t raw_to_mv(int raw)

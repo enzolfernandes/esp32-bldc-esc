@@ -24,6 +24,7 @@ static void on_overcurrent_isr(void *arg)
 
 static void enter_fault_state(void)
 {
+    hal_shutdown_set_enabled(false);
     motor_control_on_disarm();
     hal_pwm_set_armed(false);
     hal_pwm_disable_all();
@@ -36,16 +37,21 @@ static bool run_init_sequence(void)
         return false;
     }
 
+    if (!hal_gpio_init()) {
+        return false;
+    }
+
+    if (!lm339_protection_init()) {
+        return false;
+    }
+
     if (!hal_pwm_init()) {
         return false;
     }
 
     hal_pwm_set_armed(false);
     hal_pwm_disable_all();
-
-    if (!hal_gpio_init()) {
-        return false;
-    }
+    hal_shutdown_set_enabled(false);
 
     ina240_init();
 
@@ -54,7 +60,6 @@ static bool run_init_sequence(void)
     }
 
     battery_monitor_init();
-    lm339_protection_init();
 
 #if BOARD_ENABLE_BEMF_ZCD
     (void)bemf_zcd_init();
@@ -153,6 +158,7 @@ bool fsm_system_request_arm(void)
         return false;
     }
 
+    hal_shutdown_set_enabled(true);
     hal_pwm_set_armed(true);
     motor_control_on_arm();
     s_state = ESC_STATE_RUNNING;
@@ -168,6 +174,7 @@ bool fsm_system_request_disarm(void)
     motor_control_on_disarm();
     hal_pwm_set_armed(false);
     hal_pwm_disable_all();
+    hal_shutdown_set_enabled(false);
     s_state = ESC_STATE_IDLE;
     return true;
 }
@@ -192,6 +199,7 @@ bool fsm_system_clear_fault(void)
     motor_control_on_disarm();
     hal_pwm_set_armed(false);
     hal_pwm_disable_all();
+    hal_shutdown_set_enabled(false);
     s_state = ESC_STATE_IDLE;
     return true;
 }

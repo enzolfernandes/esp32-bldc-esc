@@ -1,34 +1,40 @@
-//TODO: Revisar pinos no PCB, confirmar ZCD no esquemático da PCB, ajustar constantes de operação conforme necessário.
+// Mapa otimizado DevKitC v4 (esp32_devkitC_v4_pinlayout.png). Ref: Hardware/PCB_Project/ESP32_PINMAP.md
 
 #ifndef BOARD_CONFIG_H
 #define BOARD_CONFIG_H
 
-// JTAG reservado: GPIO12, 13, 14, 15
+// JTAG livre (sem nets ESC): GPIO12 MTDI, 13 MTCK, 14 TMS, 15 MTDO — header ESP-Prog
 // Flash SPI interna reservada: GPIO6, 7, 8, 9, 10, 11
 
 // --- Pinos de controle de gate (MCPWM) ---
-#define PIN_PWM_AH    25
-#define PIN_PWM_AL    26
+#define PIN_PWM_AH    21
+#define PIN_PWM_AL    22
 #define PIN_PWM_BH    27
-#define PIN_PWM_BL    18
-#define PIN_PWM_CH    19
-#define PIN_PWM_CL    21
+#define PIN_PWM_BL    23   // evita GPIO14 (TMS/JTAG)
+#define PIN_PWM_CH    18
+#define PIN_PWM_CL    19
+
+// --- Shutdown IR2110 (SD, ativo baixo: HIGH = operação, LOW = shutdown) ---
+#define PIN_SD_A      32
+#define PIN_SD_B      33
+#define PIN_SD_C      4
 
 // --- Pinos analógicos (ADC1 — compatível com Wi-Fi ativo) ---
-#define PIN_ADC_IA    32   // ADC1_CH4
-#define PIN_ADC_IB    33   // ADC1_CH5
-#define PIN_ADC_IC    34   // ADC1_CH6 (input-only)
-#define PIN_ADC_VBAT  35   // ADC1_CH7 (input-only)
+#define PIN_ADC_IA    34   // ADC1_CH6 (input-only)
+#define PIN_ADC_IB    35   // ADC1_CH7 (input-only)
+#define PIN_ADC_IC    36   // ADC1_CH0 / SENSOR_VP (input-only)
+#define PIN_ADC_VBAT  39   // ADC1_CH3 / SENSOR_VN (input-only)
 
-// --- Pino de segurança de hardware ---
-#define PIN_OC_TRIP   4    // LM339 OCP, ativo baixo + pull-up
+// --- OCP LM339 (wired-OR → OC Trip; Vdac Ref = DAC1) ---
+#define PIN_VDAC_REF  25   // DAC1, referência comparadores OCP (+)
+#define PIN_OC_TRIP   26   // Entrada digital, ativo baixo + pull-up
 
-// --- ZCD BEMF (LM339, saída open-collector) — confirmar no esquemático da PCB ---
-// 0 = projeto inicial sem comparadores BEMF (só malha aberta). 1 = handover OPEN→ZCD.
+// --- ZCD BEMF (LM339) — U3 RX2/TX2/D5; coexistem com JTAG em 12–15 ---
+// 0 = sem comparadores BEMF (malha aberta). 1 = handover OPEN→ZCD.
 #define BOARD_ENABLE_BEMF_ZCD  0
-#define PIN_ZCD_A     16
-#define PIN_ZCD_B     17
-#define PIN_ZCD_C     5
+#define PIN_ZCD_A     16   // U3 RX2 (pino símb. 6)
+#define PIN_ZCD_B     17   // U3 TX2 (pino símb. 7)
+#define PIN_ZCD_C     5    // U3 D5  (pino símb. 8); pull-up 10k no comparador
 
 /** Atraso elétrico após ZCD até comutar (graus). Spec/tese: 30°. */
 #define BEMF_COMM_DELAY_DEG_ELEC  30.0f
@@ -79,6 +85,9 @@
 
 /** Trip de sobrecorrente em software (A); complementa LM339 na bancada. */
 #define MOTOR_SOFTWARE_OC_AMPS     8.0f
+
+/** Limiar OCP hardware (A) via Vdac (DAC1 → LM339 +); default = trip SW. */
+#define LM339_HW_OC_AMPS           MOTOR_SOFTWARE_OC_AMPS
 
 /** Stall: corrente elevada sustentada em RUN (malha aberta dessincronizada). */
 #define MOTOR_STALL_CURRENT_AMPS   6.0f

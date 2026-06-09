@@ -225,94 +225,93 @@ INIT ──(ok)──► IDLE ──(R2>limiar)──► RUNNING ──(R2=0)─
 
 ## 8. Mapa de hardware (`board_config.h`)
 
-### 8.1 Por que revisar a especificação original?
+### 8.1 Fonte de verdade: DevKitC v4 + PCB (pré-fabricação)
 
-O arquivo `Docs/especificacao_esc.md` descreve a intenção do projeto, mas o mapa de pinos original tem **erros para o ESP32-WROOM-32**:
+O mapa em [`include/board_config.h`](include/board_config.h) segue o pinout **ESP32-DevKitC v4** ([`esp32_devkitC_v4_pinlayout.png`](../Docs/Thesis/imagens/esp32_devkitC_v4_pinlayout.png)). Roteamento Altium: [`Hardware/PCB_Project/ESP32_PINMAP.md`](../Hardware/PCB_Project/ESP32_PINMAP.md). Re-exportar `esp32_schematic.png` após atualizar `Control.SchDoc`.
 
-| Pino na spec | Problema técnico |
-|--------------|------------------|
-| GPIO 9, 10, 11 | Ligados à **flash SPI interna** do módulo — não usar em aplicação |
-| GPIO 14 em `PIN_PWM_AL` | É **TMS do JTAG**; a spec dizia preservar JTAG, mas usava esse pino |
-| GPIO 19, 20 como ADC | GPIO **20 não existe**; GPIO 19 não é entrada ADC padrão no ESP32 clássico |
-| GPIO 24 em `PIN_OC_TRIP` | GPIO **24 não existe** no ESP32 clássico |
+### 8.2 Tabela PCB ↔ DevKit ↔ firmware
 
-### 8.2 Mapa revisado (`include/board_config.h`)
+| Sinal PCB | GPIO | Label DevKit | `#define` | Função |
+|-----------|------|--------------|-----------|--------|
+| AH | 21 | 21 | `PIN_PWM_AH` | MCPWM high-side fase A |
+| AL | 22 | 22 | `PIN_PWM_AL` | MCPWM low-side fase A |
+| BH | 27 | 27 | `PIN_PWM_BH` | MCPWM high-side fase B |
+| BL | **23** | 23 | `PIN_PWM_BL` | MCPWM low-side fase B |
+| CH | 18 | 18 | `PIN_PWM_CH` | MCPWM high-side fase C |
+| CL | 19 | 19 | `PIN_PWM_CL` | MCPWM low-side fase C |
+| Shutdown A | 32 | 32 | `PIN_SD_A` | SD IR2110 fase A (ativo baixo) |
+| Shutdown B | 33 | 33 | `PIN_SD_B` | SD IR2110 fase B |
+| Shutdown C | **4** | 4 | `PIN_SD_C` | SD IR2110 fase C |
+| Isense A Out | 34 | 34 | `PIN_ADC_IA` | ADC1_CH6 |
+| Isense B Out | 35 | 35 | `PIN_ADC_IB` | ADC1_CH7 |
+| Isense C Out | 36 | VP | `PIN_ADC_IC` | ADC1_CH0 |
+| Vcc Supply Sense | 39 | VN | `PIN_ADC_VBAT` | ADC1_CH3 |
+| Vdac Ref | 25 | 25 | `PIN_VDAC_REF` | **DAC1** → LM339 (+) OCP |
+| OC Trip | 26 | 26 | `PIN_OC_TRIP` | Entrada LM339 wired-OR (ativo baixo) |
+| ZCD A (reserva) | **16** | RX2 | `PIN_ZCD_A` | BEMF fase A (U3 pino 6) |
+| ZCD B (reserva) | **17** | TX2 | `PIN_ZCD_B` | BEMF fase B (U3 pino 7) |
+| ZCD C (reserva) | **5** | D5 | `PIN_ZCD_C` | BEMF fase C (U3 pino 8; pull-up 10k) |
+| JTAG (ESP-Prog) | **12–15** | D12–D15 | — | MTDI/MTCK/TMS/MTDO — **sem nets ESC** |
 
-```c
-#ifndef BOARD_CONFIG_H
-#define BOARD_CONFIG_H
+**Sequência de segurança em fault:** `OC Trip` ISR ou FSM → `hal_shutdown_set_enabled(false)` (SD LOW) → `hal_pwm_disable_all()`.
 
-// JTAG reservado: GPIO12, 13, 14, 15
-// Flash reservado: GPIO6, 7, 8, 9, 10, 11
+**Vdac (OCP hardware):** `lm339_protection_init()` programa DAC1 antes de armar drivers:
 
-#define PIN_PWM_AH    25
-#define PIN_PWM_AL    26
-#define PIN_PWM_BH    27
-#define PIN_PWM_BL    18
-#define PIN_PWM_CH    19
-#define PIN_PWM_CL    21
-
-#define PIN_ADC_IA    32   // ADC1_CH4
-#define PIN_ADC_IB    33   // ADC1_CH5
-#define PIN_ADC_IC    34   // ADC1_CH6 (input-only)
-#define PIN_ADC_VBAT  35   // ADC1_CH7 (input-only)
-
-#define PIN_OC_TRIP   4    // LM339, ativo baixo + pull-up
-
-#define MAX_DUTY_CYCLE_PERCENT 95.0f
-#define PWM_FREQUENCY_HZ       20000
-#define DEAD_TIME_NS           500
-
-#define CONTROL_LOOP_HZ        10000.0f
-#define CONTROL_DT_S           (1.0f / CONTROL_LOOP_HZ)
-
-#endif
+```text
+Vdac = 1,65 V + (I_limit × 1 mΩ × 20 V/V)
 ```
 
-### 8.3 Finalidade de cada grupo de pinos
+Default `I_limit = LM339_HW_OC_AMPS` (= `MOTOR_SOFTWARE_OC_AMPS`, 8 A) → ~1,81 V em GPIO25.
 
-#### PWM — GPIO 25, 26, 27, 18, 19, 21
+### 8.3 Grupos de pinos
 
-Geram os **6 sinais de gate** da ponte trifásica:
+#### PWM — GPIO 21, 22, 27, 23, 18, 19
 
-| Sinal | Pino | Função |
-|-------|------|--------|
-| AH | 25 | High-side, fase A |
-| AL | 26 | Low-side, fase A |
-| BH | 27 | High-side, fase B |
-| BL | 18 | Low-side, fase B |
-| CH | 19 | High-side, fase C |
-| CL | 21 | Low-side, fase C |
+Seis sinais MCPWM com dead-time 500 ns.
 
-Serão gerados pelo **MCPWM** do ESP32, com **dead-time** de 500 ns no hardware para evitar *shoot-through* (curto entre high e low da mesma perna).
+#### Shutdown — GPIO 32, 33, 4
 
-#### ADC — GPIO 32, 33, 34, 35
+Saídas digitais para pino SD dos IR2110. **Ativo baixo no driver:** HIGH = operação, LOW = shutdown. Boot e IDLE/FAULT mantêm LOW; `fsm_system_request_arm()` sobe para HIGH.
 
-Leitura analógica de **correntes de fase** e **tensão do barramento DC**:
+#### ADC — GPIO 34, 35, 36, 39
 
-| Pino | Sinal | Canal | Observação |
-|------|-------|-------|------------|
-| 32 | Corrente fase A | ADC1_CH4 | Entrada/saída geral |
-| 33 | Corrente fase B | ADC1_CH5 | Entrada/saída geral |
-| 34 | Corrente fase C | ADC1_CH6 | **Somente entrada** (ideal para sensor) |
-| 35 | Tensão VBAT | ADC1_CH7 | **Somente entrada** |
+Todos **ADC1** (compatível com Wi-Fi/Bluepad32). Input-only.
 
-Usar **ADC1** evita conflitos comuns do ADC2 quando o Wi-Fi está ativo.
+#### OCP — GPIO 25 (DAC) + GPIO 26 (OC Trip)
 
-#### Segurança — GPIO 4 (`PIN_OC_TRIP`)
+- `hal_dac` (`lib/hal/hal_dac.c`): saída analógica Vdac Ref.
+- `hal_gpio`: EXTI em GPIO26, pull-up interno.
 
-Entrada digital do comparador **LM339** (sobrecorrente). Configuração esperada:
+#### ZCD — GPIO 16, 17, 5 (reserva)
 
-- Sinal **ativo em nível baixo** (open-collector + pull-up).
-- Interrupção externa (EXTI) para desarme rápido.
-- **Recomendação:** acoplar também ao **fault do MCPWM** para desligamento imediato por hardware, não só por software.
+Reserva para LM339 BEMF na PCB. Rotulados no Altium U3 como **RX2, TX2, D5** (pinos símbolo 6, 7, 8). Coexistem com **JTAG em GPIO 12–15** (header ESP-Prog, sem nets ESC). **GPIO5 (D5):** strapping VSPI CS — pull-up externo 10 kΩ no comparador obrigatório. Manter `BOARD_ENABLE_BEMF_ZCD 0` até hardware soldado.
 
-#### Reservados — não usar
+#### JTAG — GPIO 12, 13, 14, 15
+
+Reservados para depuração ICE via ESP-Prog (MTDI, MTCK, TMS, MTDO). Nenhuma net ESC nestes pinos.
+
+#### GPIO livres
+
+| GPIO | Uso sugerido |
+|------|----------------|
+| 0, 2 | Boot / LED DevKit |
+| 1, 3 | UART0 programação |
+
+#### Reservados — não usar em aplicação
 
 | GPIO | Motivo |
 |------|--------|
-| 12, 13, 14, 15 | **JTAG** — depuração ICE (`MTDI`, `MTCK`, `MTMS`, `MTDO`) |
-| 6, 7, 8, 9, 10, 11 | **Flash SPI** interna do módulo |
+| 6, 7, 8, 9, 10, 11 | Flash SPI interna |
+
+### 8.4 Mapa obsoleto (não usar)
+
+Versão intermediária do firmware (pré-alinhamento PCB) usava PWM em 25/26/…, ADC em 32–35, OC Trip em GPIO4 — **incompatível com a PCB fabricada**.
+
+```c
+// OBSOLETO — não corresponde ao esp32_schematic.png
+#define PIN_PWM_AH    25
+#define PIN_OC_TRIP   4
+```
 
 ---
 
@@ -681,21 +680,32 @@ Canais: `HAL_ADC_PHASE_IA/IB/IC`, `HAL_ADC_VBAT` → GPIO 32–35.
 
 Frequência e dead-time vêm de `PWM_FREQUENCY_HZ` e `DEAD_TIME_NS`.
 
-### 10.3 `hal_gpio` — segurança digital
+### 10.3 `hal_gpio` — segurança digital e Shutdown IR2110
 
 | Função | Descrição |
 |--------|-----------|
-| `hal_gpio_init()` | `PIN_OC_TRIP` como entrada com pull-up |
+| `hal_gpio_init()` | `PIN_SD_A/B/C` como saídas (LOW = shutdown); `PIN_OC_TRIP` entrada pull-up |
+| `hal_shutdown_set_enabled(bool)` | HIGH = drivers habilitados; LOW = SD ativo nos três IR2110 |
 | `hal_gpio_attach_oc_trip_isr(cb, arg)` | EXTI em borda de descida (trip ativo baixo) |
-| `hal_gpio_oc_trip_asserted()` | `true` se LM339 puxou o pino para baixo |
+| `hal_gpio_oc_trip_asserted()` | `true` se LM339 puxou GPIO26 para baixo |
 
 O callback de ISR deve ser **rápido e ISR-safe** (sem `Serial`, sem malloc).
 
-### 10.4 Delimitação da HAL
+### 10.4 `hal_dac` — Vdac Ref (OCP LM339)
+
+| Função | Descrição |
+|--------|-----------|
+| `hal_dac_init()` | Habilita DAC1 em GPIO25 (`PIN_VDAC_REF`) |
+| `hal_dac_set_voltage(float)` | Programa saída 0…3,3 V |
+| `hal_dac_get_voltage()` | Última tensão programada |
+
+Usado por `lm339_protection_init()` para definir limiar OCP antes de armar os drivers.
+
+### 10.5 Delimitação da HAL
 
 - Não aplica ganho INA240 nem escala de VBAT (drivers).
 - Não implementa FSM nem comutação BLDC (`motor_control`, `fsm_system`).
-- Framework atual: **Arduino**, com APIs ESP-IDF (`driver/mcpwm.h`, `driver/adc.h`, `driver/gpio.h`).
+- Framework atual: **Arduino**, com APIs ESP-IDF (`driver/mcpwm.h`, `driver/adc.h`, `driver/gpio.h`, `driver/dac.h`).
 
 ---
 
@@ -755,8 +765,9 @@ Comportamento: bloqueia `fsm_system_request_arm()`; em RUNNING → `motor_contro
 
 | Função | Descrição |
 |--------|-----------|
-| `lm339_protection_init()` | Marca driver pronto |
-| `lm339_protection_arm(cb, arg)` | EXTI via HAL; ISR desarma PWM e chama callback |
+| `lm339_protection_init()` | Inicializa DAC1 (Vdac Ref) e programa limiar `LM339_HW_OC_AMPS` |
+| `lm339_protection_set_oc_threshold_amps(float)` | Atualiza Vdac = 1,65 V + I×1 mΩ×20 |
+| `lm339_protection_arm(cb, arg)` | EXTI GPIO26; ISR aciona Shutdown + desarma PWM |
 | `lm339_protection_fault_active()` | Trip latched ou pino OC ainda ativo |
 | `lm339_protection_clear_fault()` | Limpa latch só se hardware liberou o pino |
 
@@ -902,7 +913,7 @@ Estimador: média móvel 7/8 do período entre passos → `RPM = 1e6 / (6 × T_s
 |------|---------|
 | Modo dual | Seleção só em compile-time (`MOTOR_CONTROL_USE_SPEED_MODE`); sem toggle runtime |
 | Estimador RPM | Válido só com passos avançando; ruidoso em baixa velocidade |
-| Pinos ZCD | GPIO 16/17/5 — **confirmar no esquemático da PCB** |
+| Pinos ZCD | GPIO **16/17/5** (U3 RX2/TX2/D5) — ver `ESP32_PINMAP.md` |
 | FOC / Hall | Não implementados |
 
 ---
@@ -1141,13 +1152,15 @@ Fase motor A/B/C → neutro virtual + divisor/filtro → LM339 (por fase)
     → saída OC + pull-up 10 kΩ → 3,3 V → GPIO ESP32
 ```
 
-| Pino no firmware (provisório) | Sinal |
-|------------------------------|--------|
-| `PIN_ZCD_A` (GPIO 16) | Comparador BEMF fase A |
-| `PIN_ZCD_B` (GPIO 17) | Comparador BEMF fase B |
-| `PIN_ZCD_C` (GPIO 5)  | Comparador BEMF fase C |
+| Pino no firmware (reserva PCB v2) | Sinal |
+|-----------------------------------|--------|
+| `PIN_ZCD_A` (GPIO **16**) | Comparador BEMF fase A — U3 **RX2** (pino símb. 6) |
+| `PIN_ZCD_B` (GPIO **17**) | Comparador BEMF fase B — U3 **TX2** (pino símb. 7) |
+| `PIN_ZCD_C` (GPIO **5**) | Comparador BEMF fase C — U3 **D5** (pino símb. 8) |
 
-**Não confundir** com `PIN_OC_TRIP` (GPIO 4) — sobrecorrente (3 comparadores em wired-OR), função diferente.
+Rotulados no DevKitC v4 / Altium U3 como **RX2, TX2, D5** (GPIO 16, 17, 5). **GPIO5:** pull-up externo 10 kΩ obrigatório (strapping VSPI CS). **JTAG GPIO 12–15** permanece livre para ESP-Prog.
+
+**Não confundir** com `PIN_OC_TRIP` (GPIO **26**) — sobrecorrente (3 comparadores em wired-OR), função diferente.
 
 **LM339 no projeto:** um CI com 4 comparadores pode usar 3 saídas em OR para **OCP** (1 GPIO). ZCD exige **3 saídas independentes** → em geral é necessário **outro LM339** (ou comparadores dedicados) e a rede completa de neutro virtual + divisores descrita na tese. **Confirmar nets no esquemático da PCB** antes de soldar; ajustar `PIN_ZCD_*` em `board_config.h` se o layout for outro.
 
@@ -1248,7 +1261,7 @@ Não é permitido trocar sentido com torque ativo (`t>0`) — envie `t0` antes. 
 
 #### Trip de corrente em software
 
-Além do **LM339** (hardware, GPIO 4), o firmware monitora `max(|Ia|,|Ib|,|Ic|)` a cada tick. Se ultrapassar `MOTOR_SOFTWARE_OC_AMPS` (8 A padrão) com `I_alvo > 0`:
+Além do **LM339** (hardware, GPIO **26**), o firmware monitora `max(|Ia|,|Ib|,|Ic|)` a cada tick. Se ultrapassar `MOTOR_SOFTWARE_OC_AMPS` (8 A padrão) com `I_alvo > 0`:
 
 1. `motor_control` desarma e sinaliza falha SW  
 2. `fsm_system_tick()` entra em **`FAULT`**  
@@ -1324,6 +1337,29 @@ Limites de segurança nos setters (`motor_control_set_*`). Ajuste típico na ban
 
 ---
 
+### 15.12 Shutdown IR2110, Vdac Ref e validação em bancada
+
+#### Shutdown (GPIO 32, 33, 4)
+
+Pinos SD dos três IR2110. **Ativo baixo no CI:** firmware mantém LOW no boot/IDLE/FAULT; sobe para HIGH em `fsm_system_request_arm()`. Em trip OC ou fault, `hal_shutdown_set_enabled(false)` precede o desarme PWM.
+
+#### Vdac Ref (GPIO 25, DAC1)
+
+Tensão analógica para porta (+) dos comparadores LM339 de OCP. Programada em `lm339_protection_init()` a partir de `LM339_HW_OC_AMPS` (default 8 A → ~1,81 V).
+
+#### Checklist de bancada (pós-gravação)
+
+| Teste | Esperado |
+|-------|----------|
+| Boot, multímetro em D25 | Vdac ≈ 1,81 V (8 A) |
+| Boot, SD A/B/C (32/33/**4**) | LOW (~0 V) |
+| Arm via PS4 (R2) | SD HIGH; PWM 20 kHz em 21/22/27/**23**/18/19 |
+| Fault / OC Trip | SD volta LOW; GPIO26 LOW; FSM `FAULT` |
+| ZCD | `BOARD_ENABLE_BEMF_ZCD 0` — pinos RX2/TX2/D5 (16/17/5) quando BEMF na PCB |
+| JTAG | ESP-Prog em D12–D15 (GPIO 12–15); sem conflito com ZCD |
+
+---
+
 ## 14. Histórico de revisões
 
 | Data | Autor | Arquivos | Resumo |
@@ -1351,7 +1387,10 @@ Limites de segurança nos setters (`motor_control_set_*`). Ajuste típico na ban
 | 2026-06-08 | Agente Cursor | `board_config.h`, `battery_monitor.*`, `motor_control.*`, `fsm_system.c`, `main.cpp`, `DOCUMENTACAO_PROGRAMACAO.md` | UVLO 6S LiPo: cutoff 19,8 V, recover 21 V, FAULT UVLO, telemetria `uvlo=` |
 | 2026-06-08 | Agente Cursor | `board_config.h`, `motor_control.*`, `ps4_input.*`, `main.cpp`, `DOCUMENTACAO_PROGRAMACAO.md` | Malha velocidade: PI cascata, RUN_OPEN/RUN_SPEED, R2→RPM, telemetria `mode=`/`RPM=` |
 | 2026-06-08 | Agente Cursor | `board_config.h`, `battery_monitor.*`, `main.cpp`, `DOCUMENTACAO_PROGRAMACAO.md` | UVLO auto 4S–6S: limiares por célula, detecção de S no boot, telemetria `pack=` |
+| 2026-06-09 | Agente Cursor | `board_config.h`, `hal_dac.*`, `hal_gpio.*`, `hal_adc.c`, `lm339_protection.*`, `fsm_system.c`, `DOCUMENTACAO_PROGRAMACAO.md`, `Docs/especificacao_esc.md` | Mapa de pinos alinhado à PCB da tese: PWM 21/22/27/14/18/19, Shutdown 32/33/23, ADC 34/35/36/39, Vdac DAC1 GPIO25, OC Trip GPIO26; HAL DAC + SD integrados à FSM |
+| 2026-06-09 | Agente Cursor | `board_config.h`, `ESP32_PINMAP.md`, `DOCUMENTACAO_PROGRAMACAO.md`, `Docs/especificacao_esc.md` | Mapa otimizado DevKitC v4: BL→GPIO23, SD C→GPIO4, ZCD reserva 12/13/15; GPIO14 livre p/ JTAG |
+| 2026-06-09 | Agente Cursor | `board_config.h`, `ESP32_PINMAP.md`, `DOCUMENTACAO_PROGRAMACAO.md`, `Docs/especificacao_esc.md` | JTAG+ZCD simultâneos: ZCD→GPIO16/17/5 (U3 RX2/TX2/D5); JTAG 12–15 livre (ESP-Prog) |
 
 ---
 
-*Última atualização: 2026-06-08*
+*Última atualização: 2026-06-09*
