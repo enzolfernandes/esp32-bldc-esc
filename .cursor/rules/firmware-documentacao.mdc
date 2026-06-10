@@ -9,10 +9,12 @@ alwaysApply: false
 Ao **criar, alterar ou revisar** qualquer código ou configuração em `Firmware/` (`src/`, `include/`, `lib/`, `platformio.ini`, `test/`):
 
 1. Atualize **`Firmware/DOCUMENTACAO_PROGRAMACAO.md`** na mesma sessão de trabalho.
-2. Registre a mudança na seção **14. Histórico de revisões** (data, arquivos, resumo).
-3. Se o autor tiver feito perguntas em modo **Ask** cuja resposta deva persistir, acrescente ou atualize a seção **15. Registro de dúvidas (modo Ask)** em `DOCUMENTACAO_PROGRAMACAO.md`.
-4. Se o módulo já tiver seção dedicada (ex.: `pid_regulator`), atualize essa seção com API, fluxo, parâmetros e limitações.
-5. Se houver divergência em relação a `Docs/especificacao_esc.md`, documente o motivo (ex.: pinos inválidos no ESP32-WROOM-32).
-6. Atualize a tabela **Estado atual vs. planejado** quando um componente passar de pendente para implementado.
+2. Se o módulo já tiver seção dedicada, atualize a seção correspondente:
+   - **Seção 4** — estrutura de diretórios, API, dependências e comunicação do módulo.
+   - **Seção 5** — FSM, fluxo de execução, partida ou entrada PS4, se o comportamento temporal mudar.
+   - **Seção 6** — proteções, limiares ou sequência de falha, se a segurança for afetada.
+3. Se houver divergência em relação a `Docs/especificacao_esc.md`, documente o motivo na **Seção 1** ou **Seção 4** (ex.: pinos inválidos no ESP32-WROOM-32).
+4. Atualize o parágrafo **Estado de implementação** (Seção 1.5) quando um componente passar de pendente para implementado.
+5. Se periféricos, build ou dependências mudarem, atualize a **Seção 2**.
 
 Não encerre a tarefa de firmware sem revisar se a documentação reflete o código entregue.
