@@ -1,3 +1,11 @@
+/*
+ * hal_dac.c — DAC1 (GPIO 25): tensão de referência Vdac para comparadores OCP LM339.
+ *
+ * Camada: HAL. Chamado por lm339_protection_init para programar limiar de corrente hardware.
+ * Equação (shunt 1 mΩ, ganho INA240 20 V/V, offset 1,65 V):
+ *   Vdac = 1,65 + I_limit × 0,001 × 20  [V]
+ */
+
 #include "hal_dac.h"
 
 #include "board_config.h"
@@ -24,6 +32,7 @@ static uint8_t volts_to_dac_raw(float volts)
     return (uint8_t)((volts / DAC_FULL_SCALE_V) * (float)DAC_MAX_RAW);
 }
 
+/** Habilita DAC1 no GPIO 25 e zera saída. */
 bool hal_dac_init(void)
 {
 #if PIN_VDAC_REF == 25
@@ -40,6 +49,7 @@ bool hal_dac_init(void)
     return hal_dac_set_voltage(0.0f);
 }
 
+/** Programa tensão de referência dos comparadores LM339 (limiar OCP ajustável). */
 bool hal_dac_set_voltage(float volts)
 {
 #if PIN_VDAC_REF == 25

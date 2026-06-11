@@ -9,12 +9,15 @@ alwaysApply: false
 Ao **criar, alterar ou revisar** qualquer código ou configuração em `Firmware/` (`src/`, `include/`, `lib/`, `platformio.ini`, `test/`):
 
 1. Atualize **`Firmware/DOCUMENTACAO_PROGRAMACAO.md`** na mesma sessão de trabalho.
-2. Se o módulo já tiver seção dedicada, atualize a seção correspondente:
+2. Se introduzir **nova sigla ou abreviação** na documentação, adicione a entrada correspondente em **`Firmware/GLOSSARIO_TERMOS.md`**.
+3. Se alterar lógica em arquivos com comentários didáticos, **atualize os comentários inline** (etapas, limiares, chamadas) na mesma sessão.
+4. Se o módulo já tiver seção dedicada, atualize a seção correspondente:
    - **Seção 4** — estrutura de diretórios, API, dependências e comunicação do módulo.
    - **Seção 5** — FSM, fluxo de execução, partida ou entrada PS4, se o comportamento temporal mudar.
    - **Seção 6** — proteções, limiares ou sequência de falha, se a segurança for afetada.
-3. Se houver divergência em relação a `Docs/especificacao_esc.md`, documente o motivo na **Seção 1** ou **Seção 4** (ex.: pinos inválidos no ESP32-WROOM-32).
-4. Atualize o parágrafo **Estado de implementação** (Seção 1.5) quando um componente passar de pendente para implementado.
-5. Se periféricos, build ou dependências mudarem, atualize a **Seção 2**.
+5. Se houver divergência em relação a `Docs/especificacao_esc.md`, documente o motivo na **Seção 1** ou **Seção 4** (ex.: pinos inválidos no ESP32-WROOM-32).
+6. Atualize o parágrafo **Estado de implementação** (Seção 1.5) quando um componente passar de pendente para implementado.
+7. Se periféricos, build ou dependências mudarem, atualize a **Seção 2**.
+8. Se adicionar módulo ou função relevante para leitura didática, atualize a **Seção 7** e o cabeçalho/comentários do arquivo-fonte.
 
 Não encerre a tarefa de firmware sem revisar se a documentação reflete o código entregue.

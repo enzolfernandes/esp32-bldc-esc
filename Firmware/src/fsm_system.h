@@ -1,3 +1,8 @@
+/*
+ * fsm_system.h — API da FSM de alto nível do ESC.
+ * extern "C" permite chamadas a partir de main.cpp (C++).
+ */
+
 #ifndef FSM_SYSTEM_H
 #define FSM_SYSTEM_H
 
@@ -7,6 +12,7 @@
 extern "C" {
 #endif
 
+/** Estados operacionais do controlador (telemetria: [INIT], [IDLE], [RUNNING], [FAULT]). */
 typedef enum {
     ESC_STATE_INIT = 0,
     ESC_STATE_IDLE,

@@ -1,3 +1,10 @@
+/*
+ * hal_pwm.c — MCPWM: seis saídas complementares para inversor trifásico (IR2110).
+ *
+ * Camada: HAL. Chamado por motor_control (comutação 6-step) e fsm_system (arm/disarm).
+ * Frequência 20 kHz, dead-time 500 ns. Modos por fase: OFF, SOURCE (PWM high-side), SINK (low-side ON).
+ */
+
 #include "hal_pwm.h"
 
 #include "board_config.h"
@@ -27,14 +34,15 @@ static const int s_phase_pins[HAL_PWM_PHASE_COUNT][2] = {
     {PIN_PWM_CH, PIN_PWM_CL},
 };
 
+/** Converte DEAD_TIME_NS em ticks do MCPWM (passo de 100 ns no driver ESP-IDF). */
 static uint32_t dead_time_ticks(void)
 {
-    // MCPWM dead-time counter step = 100 ns (ESP-IDF driver).
     uint32_t ticks = DEAD_TIME_NS / 100U;
 
     return (ticks == 0U) ? 1U : ticks;
 }
 
+/** Limita duty ao teto de 95 % (margem para bootstrap do IR2110). */
 static float clamp_duty(float duty_percent)
 {
     if (duty_percent < 0.0f) {
@@ -62,6 +70,10 @@ static void configure_phase_timer(mcpwm_timer_t timer)
     mcpwm_set_duty(MCPWM_UNIT_0, timer, MCPWM_OPR_A, 0.0f);
 }
 
+/**
+ * @brief Inicializa três timers MCPWM (fases A/B/C) com dead-time complementar.
+ * PWM permanece desarmado até hal_pwm_set_armed(true).
+ */
 bool hal_pwm_init(void)
 {
     const uint32_t dead_ticks = dead_time_ticks();
@@ -91,6 +103,7 @@ bool hal_pwm_init(void)
     return true;
 }
 
+/** Autoriza saída PWM; false força todas as fases em OFF. */
 void hal_pwm_set_armed(bool armed)
 {
     s_armed = armed;
@@ -105,6 +118,7 @@ bool hal_pwm_is_armed(void)
     return s_armed;
 }
 
+/** Ambas pernas em nível baixo — fase flutuante (passo 6-step com C OFF, etc.). */
 static void set_phase_off(hal_pwm_phase_t phase)
 {
     const mcpwm_timer_t timer = s_phase_timers[phase];
@@ -114,6 +128,7 @@ static void set_phase_off(hal_pwm_phase_t phase)
     s_phase_mode[phase] = HAL_PWM_COND_OFF;
 }
 
+/** PWM na perna high-side (SOURCE); low-side complementar com dead-time. */
 static void set_phase_source(hal_pwm_phase_t phase, float duty_percent)
 {
     const mcpwm_timer_t timer = s_phase_timers[phase];
@@ -123,6 +138,7 @@ static void set_phase_source(hal_pwm_phase_t phase, float duty_percent)
     s_phase_mode[phase] = HAL_PWM_COND_SOURCE;
 }
 
+/** Low-side condutora contínua (SINK); high-side desligada. */
 static void set_phase_sink(hal_pwm_phase_t phase)
 {
     const mcpwm_timer_t timer = s_phase_timers[phase];
@@ -137,6 +153,10 @@ void hal_pwm_set_phase_duty(hal_pwm_phase_t phase, float duty_percent)
     hal_pwm_set_phase_conduction(phase, HAL_PWM_COND_SOURCE, duty_percent);
 }
 
+/**
+ * @brief Define modo de condução e duty de uma fase (mapeamento da tabela 6-step).
+ * Se não armado, força OFF independente do modo solicitado (segurança).
+ */
 void hal_pwm_set_phase_conduction(hal_pwm_phase_t phase, hal_pwm_conduction_t mode,
                                   float duty_percent)
 {
@@ -163,6 +183,7 @@ void hal_pwm_set_phase_conduction(hal_pwm_phase_t phase, hal_pwm_conduction_t mo
     }
 }
 
+/** Desliga todas as fases — usado em falha e disarm. */
 void hal_pwm_disable_all(void)
 {
     for (int phase = 0; phase < HAL_PWM_PHASE_COUNT; phase++) {

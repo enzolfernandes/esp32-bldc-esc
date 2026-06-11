@@ -1,3 +1,14 @@
+/*
+ * main.cpp — Ponto de entrada Arduino: setup(), loop() e orquestração do ESC.
+ *
+ * Camada: aplicação. Cadências no loop():
+ *   - Contínuo: battery_monitor_tick, fsm_system_tick
+ *   - 20 ms: polling PS4 e tradução para arm/disarm/setpoints
+ *   - 500 ms: telemetria serial (somente leitura, 115200 baud)
+ *
+ * A malha de controle (1 kHz) executa em esp_timer dentro de motor_control — não no loop().
+ */
+
 #include <Arduino.h>
 
 #include "battery_monitor.h"
@@ -16,6 +27,7 @@ static bool is_run_phase_for_telemetry(motor_start_phase_t phase)
            phase == MOTOR_START_RUN_SPEED;
 }
 
+/** Imprime diagnóstico na Serial: estado FSM, correntes, VBAT, RPM/duty em RUNNING. */
 static void print_telemetry(const ps4_input_state_t *ps4)
 {
     Serial.printf("[%s] BT=%s  R2=%u  bolinha=%u",
@@ -98,12 +110,17 @@ static ps4_led_status_t led_status_from_fsm(bool connected, esc_state_t state)
     }
 }
 
+/**
+ * @brief Traduz estado do PS4 em requisições para FSM e motor_control.
+ * Máquina de decisão do operador — ver etapas numeradas abaixo.
+ */
 static void apply_ps4_to_esc(const ps4_input_state_t *st)
 {
     if (st == nullptr) {
         return;
     }
 
+    // Etapa 1: perda de Bluetooth — desarme imediato se em RUNNING
     if (!st->connected) {
         if (fsm_system_get_state() == ESC_STATE_RUNNING) {
             fsm_system_request_disarm();
@@ -111,6 +128,7 @@ static void apply_ps4_to_esc(const ps4_input_state_t *st)
         return;
     }
 
+    // Etapa 2: Options (borda) em FAULT — clear fault; exige soltar R2 antes de re-armar
     if (st->options_pressed && fsm_system_get_state() == ESC_STATE_FAULT) {
         if (fsm_system_clear_fault()) {
             s_require_r2_release = true;
@@ -118,10 +136,12 @@ static void apply_ps4_to_esc(const ps4_input_state_t *st)
         return;
     }
 
+    // Etapa 3: em FAULT sem clear — ignora demais entradas
     if (fsm_system_get_state() == ESC_STATE_FAULT) {
         return;
     }
 
+    // Etapa 4: após clear fault, aguarda R2 em zero antes de aceitar novo arm
     if (s_require_r2_release) {
         if (st->r2_raw > 0U) {
             return;
@@ -130,6 +150,7 @@ static void apply_ps4_to_esc(const ps4_input_state_t *st)
         s_require_r2_release = false;
     }
 
+    // Etapa 5: R2 solto (≤ limiar) — desarm, zera setpoint, permite trocar sentido (Circle)
     if (st->r2_raw <= PS4_R2_ARM_THRESHOLD) {
         if (fsm_system_get_state() == ESC_STATE_RUNNING) {
             fsm_system_request_disarm();
@@ -141,12 +162,14 @@ static void apply_ps4_to_esc(const ps4_input_state_t *st)
         return;
     }
 
+    // Etapa 6: R2 pressionado em IDLE — tenta arm (recusado se UVLO ou OCP ativo)
     if (fsm_system_get_state() == ESC_STATE_IDLE) {
         if (!fsm_system_request_arm()) {
             return;
         }
     }
 
+    // Etapa 7: só aplica setpoint se efetivamente em RUNNING
     if (fsm_system_get_state() != ESC_STATE_RUNNING) {
         return;
     }
@@ -160,6 +183,7 @@ static void apply_ps4_to_esc(const ps4_input_state_t *st)
 #endif
 }
 
+/** Boot: Serial, PS4, init da FSM (HAL, drivers, timer 1 kHz). */
 void setup()
 {
     Serial.begin(115200);
@@ -206,6 +230,10 @@ void setup()
     }
 }
 
+/**
+ * @brief Loop principal Arduino (~20 ms efetivo para PS4; jitter tolerável).
+ * Supervisão e entrada aqui; malha 1 kHz no esp_timer (motor_control_tick).
+ */
 void loop()
 {
     battery_monitor_tick(millis());

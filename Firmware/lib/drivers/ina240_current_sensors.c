@@ -1,10 +1,18 @@
+/*
+ * ina240_current_sensors.c — Conversão mV (ADC) → ampères de fase.
+ *
+ * Camada: drivers. Amplificador INA240A1: ganho 20 V/V, shunt 1 mΩ, offset ~1,65 V.
+ * Chamado por motor_control (1 kHz) e fsm_system (calibração de offset no boot).
+ *
+ * I [A] = (V_adc_mV - V_offset_mV) / (20 × 0,001 × 1000)
+ */
+
 #include "ina240_current_sensors.h"
 
 #include "hal_adc.h"
 
 #include <stddef.h>
 
-// INA240A1DR: ganho 20 V/V, shunt 1 mOhm, offset nominal 1,65 V (REF1/REF2).
 #define INA240_NOMINAL_OFFSET_MV 1650.0f
 #define INA240_GAIN_V_PER_V      20.0f
 #define INA240_SHUNT_OHMS        0.001f
@@ -30,6 +38,10 @@ bool ina240_init(void)
     return true;
 }
 
+/**
+ * @brief Calibra offset de cada fase com corrente zero (motor parado, PWM off).
+ * Média de sample_count leituras ADC substitui o offset nominal de 1,65 V.
+ */
 bool ina240_calibrate_offset(uint16_t sample_count)
 {
     uint32_t sums[INA240_PHASE_COUNT] = {0U, 0U, 0U};
@@ -60,6 +72,7 @@ float ina240_get_offset_mv(ina240_phase_t phase)
     return s_offset_mv[phase];
 }
 
+/** Lê ADC, subtrai offset calibrado e divide pelo ganho×shunt para obter ampères. */
 float ina240_read_amps(ina240_phase_t phase)
 {
     uint32_t mv;

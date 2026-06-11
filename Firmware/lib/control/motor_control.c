@@ -1,3 +1,13 @@
+/*
+ * motor_control.c — Núcleo do controle de motor BLDC (comutação 6-step + malhas PI).
+ *
+ * Camada: controle. Cadência: esp_timer a 1 kHz (motor_control_tick).
+ * Chamadores: fsm_system (init, arm/disarm), main/ps4 (setpoints), timer interno (tick).
+ *
+ * Fluxo do tick (1 ms): medição → slew → proteções → partida (ALIGN→RUN) → PI → comutação.
+ * Ver comentários numerados em motor_control_tick() para o passo a passo completo.
+ */
+
 #include "motor_control.h"
 
 #include "bemf_zcd.h"
@@ -19,12 +29,18 @@
 /** Timeout sem ZCD antes de voltar à malha aberta (múltiplo do período de passo). */
 #define ZCD_WATCHDOG_STEP_MULTIPLIER 4U
 
+/** Padrão de condução das três fases em um passo da sequência trapezoidal. */
 typedef struct {
     hal_pwm_conduction_t phase_a;
     hal_pwm_conduction_t phase_b;
     hal_pwm_conduction_t phase_c;
 } commutation_pattern_t;
 
+/*
+ * Tabela 6-step: passos 0–5, sentido CW (avanço +1). CCW usa índice decrescente.
+ * Cada linha: (fase A, fase B, fase C) → SOURCE / SINK / OFF conforme energização do estator.
+ * Passo 0 CW: A+ B- C flutuante — padrão clássico de comutação BLDC trapezoidal.
+ */
 static const commutation_pattern_t s_commutation_table[COMMUTATION_STEP_COUNT] = {
     {HAL_PWM_COND_SOURCE, HAL_PWM_COND_SINK, HAL_PWM_COND_OFF},
     {HAL_PWM_COND_SOURCE, HAL_PWM_COND_OFF, HAL_PWM_COND_SINK},
@@ -34,6 +50,7 @@ static const commutation_pattern_t s_commutation_table[COMMUTATION_STEP_COUNT] =
     {HAL_PWM_COND_OFF, HAL_PWM_COND_SINK, HAL_PWM_COND_SOURCE},
 };
 
+/* --- Estado global do módulo (alocação estática, sem malloc) --- */
 static pi_controller_t s_current_pi;
 static pi_controller_t s_speed_pi;
 static float s_target_amps_cmd = 0.0f;
@@ -72,6 +89,7 @@ static esp_timer_handle_t s_control_timer = NULL;
 
 static const float s_control_dt_s = 1.0f / MOTOR_CONTROL_LOOP_HZ;
 
+/** Callback do esp_timer — despachado em task FreeRTOS (ESP_TIMER_TASK), não em ISR. */
 static void control_timer_cb(void *arg)
 {
     (void)arg;
@@ -190,6 +208,7 @@ static float clamp_pi_ki(float ki)
     return ki;
 }
 
+/** Lê INA240 nas três fases e retorna o valor absoluto máximo (proxy de corrente de barramento). */
 static float read_bus_current_amps(void)
 {
     const float ia = fabsf(ina240_read_amps(INA240_PHASE_A));
@@ -208,6 +227,7 @@ static float read_bus_current_amps(void)
     return max_phase;
 }
 
+/** Aplica o passo atual da tabela 6-step ao MCPWM com o duty cycle calculado pelo PI. */
 static void apply_commutation_step(float duty_percent)
 {
     const commutation_pattern_t pattern = s_commutation_table[s_comm_step];
@@ -265,6 +285,7 @@ static void update_target_slew(void)
     }
 }
 
+/** Inicia ALIGN: vetor fixo no estator por MOTOR_ALIGN_DURATION_MS para posicionar o rotor. */
 static void begin_align_sequence(void)
 {
     s_start_phase = MOTOR_START_ALIGN;
@@ -332,6 +353,7 @@ static void advance_commutation_step(void)
     }
 }
 
+/** Registra falha de software, sinaliza FSM e desarma PWM imediatamente. */
 static void trip_software_fault(motor_fault_reason_t reason)
 {
     s_last_fault_reason = reason;
@@ -633,10 +655,15 @@ static void run_zcd_closed_commutation(void)
     }
 }
 
+/**
+ * @brief Inicializa PIs, estado e temporizador periódico de 1 kHz.
+ * Chamado no fim de fsm_system_init(). O timer roda sempre; tick só atua se s_active.
+ */
 bool motor_control_init(void)
 {
     init_bench_params();
 
+    // PI de corrente: saída = duty cycle (%)
     s_current_pi = (pi_controller_t){
         .kp = MOTOR_PI_KP_DEFAULT,
         .ki = MOTOR_PI_KI_DEFAULT,
@@ -648,6 +675,7 @@ bool motor_control_init(void)
         .integ_max = MOTOR_PI_INTEG_MAX,
     };
 
+    // PI de velocidade (modo SPEED): saída = corrente de comando (A)
     s_speed_pi = (pi_controller_t){
         .kp = MOTOR_SPEED_PI_KP_DEFAULT,
         .ki = MOTOR_SPEED_PI_KI_DEFAULT,
@@ -693,6 +721,7 @@ bool motor_control_init(void)
         s_control_timer = NULL;
     }
 
+    // ESP_TIMER_TASK: callback em task FreeRTOS (permite ADC, PI e comutação)
     const esp_timer_create_args_t timer_args = {
         .callback = control_timer_cb,
         .arg = NULL,
@@ -715,6 +744,10 @@ bool motor_control_init(void)
     return true;
 }
 
+/**
+ * @brief Arma a malha de controle (transição IDLE→RUNNING na FSM).
+ * Zera integradores e inicia sub-FSM em MOTOR_START_IDLE (próximo tick → ALIGN).
+ */
 void motor_control_on_arm(void)
 {
     s_current_pi.integral_term = 0.0f;
@@ -740,6 +773,7 @@ void motor_control_on_arm(void)
     apply_commutation_step(0.0f);
 }
 
+/** Desarma: para referências, zera duty e desliga todas as pernas PWM via HAL. */
 void motor_control_on_disarm(void)
 {
     s_active = false;
@@ -829,28 +863,38 @@ const char *motor_control_fault_reason_name(motor_fault_reason_t reason)
     }
 }
 
+/**
+ * @brief Malha de controle periódica (1 kHz, esp_timer → control_timer_cb).
+ * Executa somente com s_active == true (após motor_control_on_arm).
+ */
 void motor_control_tick(void)
 {
+    // --- Etapa 1: guarda — timer ativo mas ESC desarmado não atua no PWM ---
     if (!s_active) {
         return;
     }
 
+    // --- Etapa 2: aquisição — corrente máxima entre fases A/B/C (INA240 → ADC) ---
     s_measured_amps = read_bus_current_amps();
 
+    // --- Etapa 3: slew — limita taxa de mudança do comando (RPM ou corrente) ---
     if (is_speed_control_mode()) {
         update_target_slew_rpm();
     } else {
         update_target_slew();
     }
 
+    // --- Etapa 4: proteção OC em software (até 1 ms; complementa LM339) ---
     if (motor_control_torque_command_active() && trip_software_overcurrent()) {
         return;
     }
 
+    // --- Etapa 5: detecção de stall (corrente alta, passo parado ou RPM baixo) ---
     if (motor_control_torque_command_active() && check_stall_conditions()) {
         return;
     }
 
+    // --- Etapa 6: sem torque (R2 solto) — reset completo e PWM zerado ---
     if (!motor_control_torque_command_active()) {
         s_stall_begin_us = 0U;
         s_handover_begin_us = 0U;
@@ -872,6 +916,7 @@ void motor_control_tick(void)
         return;
     }
 
+    // --- Etapa 7: partida — sub-FSM ALIGN → RUN_OPEN / RUN / RUN_SPEED ---
     if (s_start_phase == MOTOR_START_IDLE) {
         begin_align_sequence();
     }
@@ -882,6 +927,7 @@ void motor_control_tick(void)
         }
     }
 
+    // --- Etapa 8: referência de corrente (cascata SPEED ou direta CURRENT) ---
     if (is_speed_control_mode() && s_start_phase == MOTOR_START_RUN_OPEN) {
         s_target_amps_cmd = MOTOR_SPEED_OPEN_LOOP_I_AMPS;
         update_target_slew();
@@ -898,8 +944,10 @@ void motor_control_tick(void)
         update_target_slew();
     }
 
+    // --- Etapa 9: PI de corrente — referência s_target_amps → duty cycle (%) ---
     s_duty_percent = pi_compute(&s_current_pi, s_target_amps, s_measured_amps);
 
+    // --- Etapa 10: comutação — malha aberta (timer) ou fechada por ZCD/BEMF ---
     if (s_comm_mode == MOTOR_COMM_ZCD_CLOSED && bemf_zcd_is_ready()) {
         run_zcd_closed_commutation();
     } else {
@@ -912,9 +960,11 @@ void motor_control_tick(void)
         run_open_loop_commutation(ramp_step);
     }
 
+    // --- Etapa 11: aplica passo 6-step e duty ao MCPWM (três fases) ---
     apply_commutation_step(s_duty_percent);
 }
 
+/* --- API pública: setpoints (chamada por main/ps4 a cada poll de 20 ms) --- */
 void motor_control_set_target_amps(float amps)
 {
     s_target_amps_cmd = clamp_target_amps(amps);
@@ -957,6 +1007,7 @@ const char *motor_control_control_mode_name(motor_control_mode_t mode)
     }
 }
 
+/* --- Getters e setters de telemetria/ajuste (usados por main.cpp na serial) --- */
 float motor_control_get_target_amps(void)
 {
     return s_target_amps;

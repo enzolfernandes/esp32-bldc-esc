@@ -1,3 +1,7 @@
+/*
+ * motor_control.h — API do núcleo de controle BLDC (ver motor_control.c para passo a passo).
+ */
+
 #ifndef MOTOR_CONTROL_H
 #define MOTOR_CONTROL_H
 
@@ -35,7 +39,10 @@ typedef enum {
     MOTOR_COMM_ZCD_CLOSED
 } motor_comm_mode_t;
 
-/** Fase da sequência de partida. */
+/**
+ * Sub-FSM de partida (dentro de ESC_STATE_RUNNING):
+ * IDLE → ALIGN → RUN (CURRENT) ou RUN_OPEN → RUN_SPEED (SPEED).
+ */
 typedef enum {
     MOTOR_START_IDLE = 0,
     MOTOR_START_ALIGN,

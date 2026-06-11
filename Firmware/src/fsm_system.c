@@ -1,3 +1,11 @@
+/*
+ * fsm_system.c — Máquina de estados finita de alto nível do ESC.
+ *
+ * Camada: aplicação. Estados: INIT → IDLE → RUNNING ↔ FAULT.
+ * Orquestra init de HAL/drivers, arm/disarm e resposta a falhas (OC, UVLO, stall).
+ * Não executa comutação nem PI — delega a motor_control.
+ */
+
 #include "fsm_system.h"
 
 #include "battery_monitor.h"
@@ -16,21 +24,30 @@
 static esc_state_t s_state = ESC_STATE_INIT;
 static volatile bool s_fault_pending = false;
 
+/** Callback mínimo da ISR de OCP — apenas sinaliza flag para fsm_system_tick. */
 static void on_overcurrent_isr(void *arg)
 {
     (void)arg;
     s_fault_pending = true;
 }
 
+/**
+ * @brief Sequência unificada de entrada em falha (fail-safe).
+ * Ordem: shutdown LOW → desarm motor_control → PWM off → estado FAULT.
+ */
 static void enter_fault_state(void)
 {
-    hal_shutdown_set_enabled(false);
-    motor_control_on_disarm();
-    hal_pwm_set_armed(false);
-    hal_pwm_disable_all();
-    s_state = ESC_STATE_FAULT;
+    hal_shutdown_set_enabled(false);   // 1. Desliga drivers IR2110
+    motor_control_on_disarm();         // 2. Para malha e zera referências
+    hal_pwm_set_armed(false);          // 3. Bloqueia saída MCPWM
+    hal_pwm_disable_all();             // 4. Todas as pernas em OFF
+    s_state = ESC_STATE_FAULT;         // 5. Bloqueia re-arm até clear fault
 }
 
+/**
+ * @brief Sequência de boot: HAL → proteção → sensores → opcional BEMF.
+ * Qualquer falha retorna false e fsm_system_init chama enter_fault_state.
+ */
 static bool run_init_sequence(void)
 {
     if (!hal_adc_init()) {
@@ -68,6 +85,7 @@ static bool run_init_sequence(void)
     return true;
 }
 
+/** Boot completo: init periféricos, arma OCP, cria timer 1 kHz do motor_control. */
 bool fsm_system_init(void)
 {
     s_fault_pending = false;
@@ -92,8 +110,13 @@ bool fsm_system_init(void)
     return true;
 }
 
+/**
+ * @brief Supervisão periódica no loop() Arduino (~contínuo).
+ * Processa flags de ISR, falhas de software, UVLO e latch LM339.
+ */
 void fsm_system_tick(void)
 {
+    // Falha de hardware OCP (flag setada na ISR)
     if (s_fault_pending) {
         s_fault_pending = false;
         enter_fault_state();
@@ -104,11 +127,13 @@ void fsm_system_tick(void)
         return;
     }
 
+    // Falha de software (OC, stall) sinalizada por motor_control
     if (s_state == ESC_STATE_RUNNING && motor_control_consume_software_fault()) {
         enter_fault_state();
         return;
     }
 
+    // UVLO: bloqueia arm em IDLE; em RUNNING força FAULT
     if (battery_monitor_uvlo_active()) {
         if (s_state == ESC_STATE_RUNNING) {
             motor_control_trip_uvlo_fault();
@@ -144,6 +169,7 @@ const char *fsm_system_state_name(esc_state_t state)
     }
 }
 
+/** IDLE → RUNNING: exige sem UVLO e sem falha LM339 ativa. */
 bool fsm_system_request_arm(void)
 {
     if (s_state != ESC_STATE_IDLE) {
@@ -165,6 +191,7 @@ bool fsm_system_request_arm(void)
     return true;
 }
 
+/** RUNNING → IDLE: ordem inversa do arm — para motor antes de desligar drivers. */
 bool fsm_system_request_disarm(void)
 {
     if (s_state != ESC_STATE_RUNNING) {
@@ -179,6 +206,7 @@ bool fsm_system_request_disarm(void)
     return true;
 }
 
+/** FAULT → IDLE: requer hardware OC liberado e UVLO inativo. */
 bool fsm_system_clear_fault(void)
 {
     if (s_state != ESC_STATE_FAULT) {

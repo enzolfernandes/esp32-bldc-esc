@@ -1,3 +1,10 @@
+/*
+ * bemf_zcd.c — Detecção de cruzamento por zero da BEMF (comutação sensorless).
+ *
+ * Camada: drivers (opcional: BOARD_ENABLE_BEMF_ZCD). ISR em GPIO 16/17/5.
+ * motor_control consome bordas válidas na fase flutuante do passo 6-step atual.
+ */
+
 #include "bemf_zcd.h"
 
 #include "board_config.h"
@@ -22,6 +29,7 @@ static const int s_zcd_pins[INA240_PHASE_COUNT] = {
     PIN_ZCD_C,
 };
 
+/* Em cada passo 6-step, qual fase está flutuante (onde medir BEMF). */
 static const ina240_phase_t s_float_phase_for_step[6] = {
     INA240_PHASE_C,
     INA240_PHASE_B,
@@ -31,6 +39,7 @@ static const ina240_phase_t s_float_phase_for_step[6] = {
     INA240_PHASE_A,
 };
 
+/** ISR mínima: registra qual fase gerou borda; processamento na task do motor_control. */
 static void IRAM_ATTR zcd_isr_handler(void *arg)
 {
     const uintptr_t phase = (uintptr_t)arg;
@@ -114,6 +123,10 @@ ina240_phase_t bemf_zcd_floating_phase_for_step(uint8_t comm_step)
 #endif
 }
 
+/**
+ * @brief Consome borda ZCD se corresponder à fase flutuante esperada no passo atual.
+ * Seção crítica: sincroniza ISR (escrita) com motor_control_tick (leitura).
+ */
 bool bemf_zcd_consume_edge(ina240_phase_t expected_phase)
 {
 #if !BOARD_ENABLE_BEMF_ZCD

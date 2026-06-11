@@ -1,3 +1,10 @@
+/*
+ * hal_gpio.c — GPIO: shutdown dos IR2110 e interrupção OC Trip (LM339).
+ *
+ * Camada: HAL. Chamado por fsm_system (init, arm/disarm) e lm339_protection (ISR OCP).
+ * A ISR de sobrecorrente deve ser mínima: apenas sinaliza callback registrado pela FSM.
+ */
+
 #include "hal_gpio.h"
 
 #include "board_config.h"
@@ -17,6 +24,10 @@ static const int s_shutdown_pins[] = {
     PIN_SD_C,
 };
 
+/**
+ * @brief Aplica nível HIGH/LOW nos três pinos SD dos IR2110.
+ * @param enabled true = HIGH (drivers habilitados); false = LOW (shutdown, fail-safe).
+ */
 static void apply_shutdown_level(bool enabled)
 {
     const int level = enabled ? 1 : 0;
@@ -26,6 +37,11 @@ static void apply_shutdown_level(bool enabled)
     }
 }
 
+/**
+ * @brief ISR de sobrecorrente — executada na borda de descida do OC Trip (ativo baixo).
+ * IRAM_ATTR: código na RAM interna para resposta em microssegundos.
+ * Apenas repassa ao callback; desarme de PWM fica no handler registrado (fsm_system).
+ */
 static void IRAM_ATTR oc_trip_isr_handler(void *arg)
 {
     (void)arg;
@@ -35,6 +51,10 @@ static void IRAM_ATTR oc_trip_isr_handler(void *arg)
     }
 }
 
+/**
+ * @brief Configura GPIOs de saída (SD) e entrada (OC Trip).
+ * SD inicia em LOW (shutdown) por segurança no boot.
+ */
 bool hal_gpio_init(void)
 {
     uint64_t output_mask = 0U;
@@ -55,6 +75,7 @@ bool hal_gpio_init(void)
         return false;
     }
 
+    // Fail-safe: drivers desligados até arm explícito
     apply_shutdown_level(false);
 
     gpio_config_t input_conf = {
@@ -68,11 +89,16 @@ bool hal_gpio_init(void)
     return gpio_config(&input_conf) == ESP_OK;
 }
 
+/** Habilita ou desabilita os drivers IR2110 via pinos SD. */
 void hal_shutdown_set_enabled(bool enabled)
 {
     apply_shutdown_level(enabled);
 }
 
+/**
+ * @brief Registra ISR na borda de descida do pino OC Trip (GPIO 26).
+ * Chamado após lm339_protection_init, no final da sequência de boot.
+ */
 bool hal_gpio_attach_oc_trip_isr(hal_gpio_isr_cb_t cb, void *arg)
 {
     esp_err_t err;
@@ -94,6 +120,7 @@ bool hal_gpio_attach_oc_trip_isr(hal_gpio_isr_cb_t cb, void *arg)
     s_oc_trip_cb = cb;
     s_oc_trip_arg = arg;
 
+    // Trip ativo baixo: interrupção na borda de descida
     err = gpio_set_intr_type(PIN_OC_TRIP, GPIO_INTR_NEGEDGE);
     if (err != ESP_OK) {
         return false;
@@ -120,6 +147,7 @@ void hal_gpio_detach_oc_trip_isr(void)
     s_oc_trip_arg = NULL;
 }
 
+/** Retorna true se OC Trip está em nível baixo (comparador LM339 disparou). */
 bool hal_gpio_oc_trip_asserted(void)
 {
     return gpio_get_level(PIN_OC_TRIP) == 0;

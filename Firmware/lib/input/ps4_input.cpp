@@ -1,3 +1,10 @@
+/*
+ * ps4_input.cpp — Entrada via DualShock 4 (Bluepad32 / Bluetooth Classic).
+ *
+ * Camada: entrada. Polling a cada PS4_INPUT_POLL_MS no loop() de main.cpp.
+ * Expõe estado normalizado (R2, direção, Options) sem referenciar a FSM.
+ */
+
 #include "ps4_input.h"
 
 #include "board_config.h"
@@ -10,6 +17,7 @@ static bool s_connected = false;
 static bool s_prev_options = false;
 static ps4_led_status_t s_last_led_status = PS4_LED_OFF;
 
+/** Mapeia estado da FSM para cor RGB da lightbar do controle. */
 static void apply_led_color(ControllerPtr ctl, ps4_led_status_t status)
 {
     switch (status) {
@@ -79,6 +87,7 @@ static ControllerPtr first_active_gamepad(void)
     return nullptr;
 }
 
+/** Bluepad32 throttle() é 0–1023; normaliza para 0–255 como no protocolo DS4. */
 static uint8_t scale_throttle_to_r2(int32_t throttle)
 {
     if (throttle < 0) {
@@ -91,6 +100,7 @@ static uint8_t scale_throttle_to_r2(int32_t throttle)
     return static_cast<uint8_t>((static_cast<uint32_t>(throttle) * 255U) / 1023U);
 }
 
+/** Modo CURRENT: R2 acima do limiar mapeia linearmente 0–MOTOR_CONTROL_MAX_TARGET_AMPS. */
 static float map_r2_to_amps(uint8_t r2_raw)
 {
     if (r2_raw <= PS4_R2_ARM_THRESHOLD) {
@@ -103,6 +113,7 @@ static float map_r2_to_amps(uint8_t r2_raw)
     return (effective / range) * MOTOR_CONTROL_MAX_TARGET_AMPS;
 }
 
+/** Modo SPEED: R2 mapeia linearmente 0–MOTOR_SPEED_MAX_RPM. */
 static float map_r2_to_rpm(uint8_t r2_raw)
 {
     if (r2_raw <= PS4_R2_ARM_THRESHOLD) {
@@ -172,6 +183,10 @@ extern "C" void ps4_input_set_led_status(ps4_led_status_t status)
     s_last_led_status = status;
 }
 
+/**
+ * @brief Atualiza estado do controle (chamado a cada PS4_INPUT_POLL_MS).
+ * Lê R2 via throttle() — não brake() (L2).
+ */
 extern "C" bool ps4_input_update(ps4_input_state_t *out)
 {
     if (out == nullptr) {

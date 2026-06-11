@@ -1,3 +1,11 @@
+/*
+ * battery_monitor.c — Tensão do barramento LiPo e proteção UVLO.
+ *
+ * Camada: drivers. Divisor 39 kΩ / 4,7 kΩ no GPIO 39 (VBAT).
+ * Detecta automaticamente pack 4S–6S no boot; debounce 100 ms no cutoff.
+ * Chamado por fsm_system_tick e main (telemetria).
+ */
+
 #include "battery_monitor.h"
 
 #include "board_config.h"
@@ -5,7 +13,6 @@
 
 #include <math.h>
 
-// Divisor: 39 kOhm (topo) / 4,7 kOhm (base) -> V_adc = V_bat * 4,7 / 43,7
 #define BATTERY_DIVIDER_RATIO  (4.7f / (39.0f + 4.7f))
 
 static bool s_initialized = false;
@@ -17,6 +24,7 @@ static uint8_t s_cell_count_s = BATTERY_CELL_COUNT_S_MIN;
 static float s_uvlo_cutoff_v = 0.0f;
 static float s_uvlo_recover_v = 0.0f;
 
+/** ADC mV → volts reais do barramento (compensa divisor resistivo). */
 static float read_volts_raw(void)
 {
     const uint32_t mv = hal_adc_read_mv(HAL_ADC_VBAT);
@@ -37,6 +45,10 @@ static uint8_t clamp_cell_count(uint8_t cells)
     return cells;
 }
 
+/**
+ * @brief Infere número de células em série a partir da tensão no boot.
+ * Usa faixa entre teto (4,2 V/cél) e piso (3,3 V/cél) para 4S–6S.
+ */
 static uint8_t detect_cell_count(float volts)
 {
     uint8_t s_min;
@@ -76,6 +88,7 @@ static uint8_t detect_cell_count(float volts)
     return clamp_cell_count(cells);
 }
 
+/** Atualiza limiares UVLO proporcionais ao número de células detectadas. */
 static void apply_cell_count(uint8_t cells)
 {
     s_cell_count_s = clamp_cell_count(cells);
@@ -107,6 +120,10 @@ float battery_monitor_read_volts(void)
     return read_volts_raw();
 }
 
+/**
+ * @brief Atualiza filtro de tensão e lógica UVLO com histerese e debounce.
+ * Chamado a cada iteração do loop() Arduino (~contínuo).
+ */
 void battery_monitor_tick(uint32_t now_ms)
 {
     const float volts = battery_monitor_read_volts();
@@ -117,6 +134,7 @@ void battery_monitor_tick(uint32_t now_ms)
         return;
     }
 
+    // Recuperação: tensão acima de 3,5 V/célula libera UVLO
     if (s_uvlo_active) {
         if (volts >= s_uvlo_recover_v) {
             s_uvlo_active = false;
@@ -127,6 +145,7 @@ void battery_monitor_tick(uint32_t now_ms)
         return;
     }
 
+    // Disparo: exige BATTERY_UVLO_DEBOUNCE_MS abaixo de 3,3 V/célula
     if (volts < s_uvlo_cutoff_v) {
         if (!s_below_pending) {
             s_below_pending = true;

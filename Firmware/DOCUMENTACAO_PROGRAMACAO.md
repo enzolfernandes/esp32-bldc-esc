@@ -1,10 +1,14 @@
-# Documentação de Programação — Firmware ESC BLDC (ESP32)
+# Documentação de Programação, Firmware ESC BLDC (ESP32)
 
 ## Prefácio
 
 Este documento descreve a arquitetura, os paradigmas de programação e o fluxo de execução do firmware de um **Controlador Eletrônico de Velocidade (ESC)** trifásico para motores **BLDC** (Brushless DC), implementado no microcontrolador **ESP32**. O texto destina-se a subsidiar o Trabalho de Conclusão de Curso (TCC) em Engenharia Elétrica, servindo como referência teórica e prática para leitores com conhecimentos básicos de C/C++ e eletrônica de potência.
 
 O firmware controla a comutação do inversor, as malhas de corrente e velocidade, a leitura de sensores e as rotinas de proteção, utilizando uma arquitetura em camadas que separa a lógica de controle do acesso direto ao hardware. A especificação funcional de produto encontra-se em [`Docs/especificacao_esc.md`](../Docs/especificacao_esc.md); o roteamento de pinos da placa encontra-se em [`Hardware/PCB_Project/ESP32_PINMAP.md`](../Hardware/PCB_Project/ESP32_PINMAP.md).
+
+Para consulta rápida de siglas e termos técnicos durante a leitura, utilize o [**Glossário de Termos**](GLOSSARIO_TERMOS.md) em arquivo separado — pode mantê-lo aberto em painel lateral ao lado deste documento.
+
+O **passo a passo didático do código** está nos comentários em português dentro dos arquivos-fonte (`.c`, `.cpp`, `.h`). A [Seção 7](#7-leitura-didática-do-código-fonte) indica a ordem de leitura recomendada.
 
 | Parâmetro | Valor |
 |-----------|-------|
@@ -26,7 +30,10 @@ O firmware controla a comutação do inversor, as malhas de corrente e velocidad
 4. [Estrutura de Diretórios e Módulos](#4-estrutura-de-diretórios-e-módulos)
 5. [Máquina de Estados e Fluxo de Execução](#5-máquina-de-estados-e-fluxo-de-execução)
 6. [Tratamento de Exceções e Segurança](#6-tratamento-de-exceções-e-segurança)
-7. [Referências](#7-referências)
+7. [Leitura didática do código-fonte](#7-leitura-didática-do-código-fonte)
+8. [Referências](#8-referências)
+
+**Consulta:** [Glossário de Termos](GLOSSARIO_TERMOS.md) — siglas e abreviações usadas neste documento.
 
 ---
 
@@ -86,13 +93,13 @@ O fluxo de dependências é **unidirecional**: aplicação → controle → driv
 
 ### 1.3 A HAL como contrato de hardware
 
-Os módulos `hal_*` encapsulam os periféricos do ESP32 — MCPWM, ADC1, GPIO com EXTI, DAC1 — expondo uma API em **C puro** independente do framework Arduino. Os pinos e limites operacionais centralizam-se em [`include/board_config.h`](include/board_config.h), única fonte de verdade para o mapeamento GPIO ↔ função.
+Os módulos `hal_*` encapsulam os periféricos do ESP32, MCPWM, ADC1, GPIO com EXTI, DAC1, expondo uma API em **C puro** independente do framework Arduino. Os pinos e limites operacionais centralizam-se em [`include/board_config.h`](include/board_config.h), única fonte de verdade para o mapeamento GPIO ↔ função.
 
-A HAL não realiza conversões físicas: retorna milivolts no ADC, aplica duty cycle no MCPWM e manipula níveis digitais. A interpretação — corrente em ampères, tensão do barramento, limiar de sobrecorrente — compete aos drivers. Essa separação permite calibrar sensores ou substituir um amplificador de corrente sem alterar o código de comutação.
+A HAL não realiza conversões físicas: retorna milivolts no ADC, aplica duty cycle no MCPWM e manipula níveis digitais. A interpretação, corrente em ampères, tensão do barramento, limiar de sobrecorrente, compete aos drivers. Essa separação permite calibrar sensores ou substituir um amplificador de corrente sem alterar o código de comutação.
 
 ### 1.4 Híbrido Arduino e ESP-IDF
 
-O ponto de entrada utiliza o paradigma Arduino (`setup()` / `loop()` em [`src/main.cpp`](src/main.cpp)), escolhido pela integração com **Bluepad32** para comando via Bluetooth. Entretanto, os módulos críticos de potência invocam diretamente as APIs do **ESP-IDF** — `driver/mcpwm.h`, `driver/adc.h`, `driver/gpio.h`, `driver/dac.h`, `esp_timer.h` — por oferecerem controle preciso de dead-time, atribuição de pinos e temporização de alta resolução, recursos nem sempre expostos de forma adequada pela camada Arduino de alto nível.
+O ponto de entrada utiliza o paradigma Arduino (`setup()` / `loop()` em [`src/main.cpp`](src/main.cpp)), escolhido pela integração com **Bluepad32** para comando via Bluetooth. Entretanto, os módulos críticos de potência invocam diretamente as APIs do **ESP-IDF**, `driver/mcpwm.h`, `driver/adc.h`, `driver/gpio.h`, `driver/dac.h`, `esp_timer.h`, por oferecerem controle preciso de dead-time, atribuição de pinos e temporização de alta resolução, recursos nem sempre expostos de forma adequada pela camada Arduino de alto nível.
 
 Essa abordagem híbrida equilibra produtividade na camada de aplicação com rigor na camada de potência. A especificação do projeto prevê, como evolução futura, migração integral para ESP-IDF com FreeRTOS; a arquitetura em camadas facilita essa transição, pois a lógica de controle já está desacoplada do `loop()` Arduino.
 
@@ -160,7 +167,7 @@ platform_packages =
 
 Bluepad32 **não** consta em `lib_deps`: substitui o pacote padrão `framework-arduinoespressif32`, embutindo a stack Bluetooth no core. Essa abordagem garante que o perfil HID do controle PS4 e o stack BT coexistam com o firmware do ESC no mesmo binário.
 
-O arquivo [`sdkconfig.defaults`](sdkconfig.defaults) desabilita o console interativo do Bluepad32 (`CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE=n`), pois este conflita com o uso de `Serial` para telemetria — ambos competiriam pela mesma UART.
+O arquivo [`sdkconfig.defaults`](sdkconfig.defaults) desabilita o console interativo do Bluepad32 (`CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE=n`), pois este conflita com o uso de `Serial` para telemetria, ambos competiriam pela mesma UART.
 
 ### 2.3 Bibliotecas e dependências
 
@@ -193,7 +200,7 @@ A API expõe três modos de condução por fase: **OFF** (ambas as pernas deslig
 
 As leituras de corrente de fase (INA240) e de tensão do barramento utilizam o **ADC1** em [`lib/hal/hal_adc.c`](lib/hal/hal_adc.c), canais associados aos GPIO **34, 35, 36 e 39** (pinos input-only). A escolha do ADC1 em detrimento do ADC2 fundamenta-se em uma restrição documentada do ESP32: o **ADC2** compartilha recursos com o subsistema **Wi-Fi/Bluetooth** e torna-se indisponível ou não confiável quando o rádio está ativo. Como o firmware mantém Bluetooth ativo para o controle PS4, o ADC1 é o único conversor seguro para aquisição contínua.
 
-Configuração: resolução de 12 bits, atenuação de 12 dB (faixa até ~3,3 V). A leitura é **síncrona** via `adc1_get_raw()` — sem DMA —, suficiente para a taxa de 1 kHz da malha de controle.
+Configuração: resolução de 12 bits, atenuação de 12 dB (faixa até ~3,3 V). A leitura é **síncrona** via `adc1_get_raw()`, sem DMA —, suficiente para a taxa de 1 kHz da malha de controle.
 
 #### 2.4.3 DAC1 (Digital-to-Analog Converter)
 
@@ -208,7 +215,7 @@ O módulo [`lib/hal/hal_gpio.c`](lib/hal/hal_gpio.c) configura:
 
 #### 2.4.5 esp_timer (temporizador de alta resolução)
 
-A malha de controle de corrente, comutação e verificação de stall executa-se a **1 kHz** por meio de um temporizador periódico `esp_timer` em [`lib/control/motor_control.c`](lib/control/motor_control.c), configurado com `dispatch_method = ESP_TIMER_TASK`. O callback é despachado para uma **task FreeRTOS**, não para uma ISR de hardware — permitindo chamadas ao ADC, ao PI e à lógica de comutação, operações inviáveis em contexto de interrupção.
+A malha de controle de corrente, comutação e verificação de stall executa-se a **1 kHz** por meio de um temporizador periódico `esp_timer` em [`lib/control/motor_control.c`](lib/control/motor_control.c), configurado com `dispatch_method = ESP_TIMER_TASK`. O callback é despachado para uma **task FreeRTOS**, não para uma ISR de hardware, permitindo chamadas ao ADC, ao PI e à lógica de comutação, operações inviáveis em contexto de interrupção.
 
 ---
 
@@ -226,17 +233,19 @@ extern "C" {
 #endif
 ```
 
-Sem esse bloco, o compilador C++ aplicaria *name mangling* aos símbolos — decorando os nomes de função conforme tipos de parâmetro —, impedindo o linker de resolver chamadas como `fsm_system_init()` a partir de `main.cpp`. O `extern "C"` garante convenção de linkage C e compatibilidade binária entre módulos.
+Sem esse bloco, o compilador C++ aplicaria *name mangling* aos símbolos, decorando os nomes de função conforme tipos de parâmetro —, impedindo o linker de resolver chamadas como `fsm_system_init()` a partir de `main.cpp`. O `extern "C"` garante convenção de linkage C e compatibilidade binária entre módulos.
+
+> **Leitura no código:** o cabeçalho de [`src/fsm_system.h`](src/fsm_system.h) documenta o propósito do bloco `extern "C"`.
 
 ### 3.2 Gerenciamento de memória
 
-Em sistemas embarcados de potência, a alocação dinâmica (`malloc` / `free`) introduz **não determinismo** — o tempo de alocação varia conforme o estado do heap — e risco de **fragmentação** em execução prolongada. O firmware adota **alocação estática exclusiva**:
+Em sistemas embarcados de potência, a alocação dinâmica (`malloc` / `free`) introduz **não determinismo**, o tempo de alocação varia conforme o estado do heap, e risco de **fragmentação** em execução prolongada. O firmware adota **alocação estática exclusiva**:
 
 - Variáveis de estado por módulo declaradas `static` no escopo do arquivo (ex.: `s_state` em `fsm_system.c`, `s_current_pi` em `motor_control.c`).
 - Instâncias de controladores PI como estruturas globais estáticas, não ponteiros para memória alocada em runtime.
 - O handle do temporizador `esp_timer_handle_t` criado uma vez em `motor_control_init()`.
 
-Os **ponteiros** aparecem como *handles* para estruturas já existentes — por exemplo, `pi_compute(pi_controller_t *pi, float setpoint, float measurement)` — sem transferência de propriedade de memória. O parâmetro `pi` referencia uma instância estática; a verificação `if (pi == NULL)` constitui proteção defensiva que retorna saída zero em caso de erro de chamada.
+Os **ponteiros** aparecem como *handles* para estruturas já existentes, por exemplo, `pi_compute(pi_controller_t *pi, float setpoint, float measurement)`, sem transferência de propriedade de memória. O parâmetro `pi` referencia uma instância estática; a verificação `if (pi == NULL)` constitui proteção defensiva que retorna saída zero em caso de erro de chamada.
 
 ### 3.3 Rotinas de tempo real e concorrência
 
@@ -247,13 +256,13 @@ O firmware opera com **duas cadências temporais** distintas:
 | **Loop principal** | `loop()` Arduino | ~20 ms (PS4), 500 ms (telemetria) | Polling do gamepad, UVLO debounce, `fsm_system_tick()`, impressão serial |
 | **Malha de controle** | `esp_timer` → task FreeRTOS | 1 ms (1 kHz) | PI, comutação 6-step, leitura de corrente, detecção de stall |
 
-A malha de controle **não** reside no `loop()` porque este acumula jitter variável — operações de Bluetooth, `Serial.printf()` e `battery_monitor_tick()` — incompatível com a integração numérica do termo integral do PI e com a temporização da comutação trapezoidal. O `esp_timer` garante período estável de 1 ms, alinhado ao campo `dt` do controlador PI.
+A malha de controle **não** reside no `loop()` porque este acumula jitter variável, operações de Bluetooth, `Serial.printf()` e `battery_monitor_tick()`, incompatível com a integração numérica do termo integral do PI e com a temporização da comutação trapezoidal. O `esp_timer` garante período estável de 1 ms, alinhado ao campo `dt` do controlador PI.
 
 O FreeRTOS, subjacente ao framework Arduino no ESP32, permite que a ISR de sobrecorrente (microssegundos) coexistam com a task do temporizador (milissegundos) e com o loop principal, desde que se respeitem as regras de reentrância e sincronização.
 
 ### 3.4 Interrupções de hardware (ISRs)
 
-Duas fontes utilizam interrupções: o **OC Trip** do LM339 ([`hal_gpio.c`](lib/hal/hal_gpio.c)) e, opcionalmente, os comparadores **BEMF ZCD** ([`bemf_zcd.c`](lib/drivers/bemf_zcd.c)). Os handlers são marcados com `IRAM_ATTR`, instruindo o compilador a colocar o código na RAM interna de instrução — evitando falhas caso a flash esteja ocupada por operações de cache durante a interrupção.
+Duas fontes utilizam interrupções: o **OC Trip** do LM339 ([`hal_gpio.c`](lib/hal/hal_gpio.c)) e, opcionalmente, os comparadores **BEMF ZCD** ([`bemf_zcd.c`](lib/drivers/bemf_zcd.c)). Os handlers são marcados com `IRAM_ATTR`, instruindo o compilador a colocar o código na RAM interna de instrução, evitando falhas caso a flash esteja ocupada por operações de cache durante a interrupção.
 
 Adota-se o padrão **deferred processing** (processamento diferido):
 
@@ -263,7 +272,7 @@ Adota-se o padrão **deferred processing** (processamento diferido):
 
 Restrições **ISR-safe**: proibido chamar `Serial`, alocar memória, bloquear mutexes ou executar operações de longa duração. A ISR de OCP hardware desarma o PWM imediatamente; a transição formal para `ESC_STATE_FAULT` ocorre na thread principal.
 
-O qualificador **`volatile`** nas flags garante que o compilador não otimize leituras repetidas da variável — essencial quando um campo é escrito na ISR e lido no loop principal sem barreira de sincronização formal.
+O qualificador **`volatile`** nas flags garante que o compilador não otimize leituras repetidas da variável, essencial quando um campo é escrito na ISR e lido no loop principal sem barreira de sincronização formal.
 
 ### 3.5 Máquinas de estado e tabelas de comutação
 
@@ -286,7 +295,7 @@ Parâmetros críticos definem-se em [`board_config.h`](include/board_config.h) e
 | `MOTOR_SOFTWARE_OC_AMPS` | Limiar de sobrecorrente em software e referência do OCP hardware |
 | `PWM_FREQUENCY_HZ`, `DEAD_TIME_NS` | Parâmetros imutáveis do MCPWM |
 
-A configuração em tempo de compilação sacrifica flexibilidade em runtime em favor de **determinismo** e **otimização** — constantes podem ser inlined pelo compilador, e o binário resultante contém apenas os caminhos de código necessários.
+A configuração em tempo de compilação sacrifica flexibilidade em runtime em favor de **determinismo** e **otimização**, constantes podem ser inlined pelo compilador, e o binário resultante contém apenas os caminhos de código necessários.
 
 ### 3.7 Controlador PI proporcional-integral
 
@@ -323,9 +332,11 @@ I_k = \mathrm{clamp}\big(I_{k-1} + K_i \cdot e_k \cdot \Delta t,\; I_{min},\, I_
 u_k = \mathrm{clamp}(P_k + I_k,\; u_{min},\, u_{max})
 \]
 
-Onde \(r\) é a referência (*setpoint*), \(y_k\) a medição e \(u_k\) a saída do controlador — duty cycle (%) ou corrente de comando (A), conforme a malha.
+Onde \(r\) é a referência (*setpoint*), \(y_k\) a medição e \(u_k\) a saída do controlador, duty cycle (%) ou corrente de comando (A), conforme a malha.
 
 O **anti-windup** impede que o integrador acumule valor enquanto a saída está saturada (ex.: duty em 95 %). Sem essa limitação, ao liberar a saturação o sistema apresentaria *overshoot* e resposta lenta. O módulo é **agnóstico de hardware**: não inclui `board_config.h` nem acessa periféricos.
+
+> **Leitura no código:** [`lib/control/pid_regulator.c`](lib/control/pid_regulator.c) contém comentário **linha a linha** em `pi_compute()`; [`lib/control/pid_regulator.h`](lib/control/pid_regulator.h) documenta cada campo de `pi_controller_t`.
 
 ---
 
@@ -336,7 +347,8 @@ O **anti-windup** impede que o integrador acumule valor enquanto a saída está 
 ```text
 Firmware/
 ├── DOCUMENTACAO_PROGRAMACAO.md
-├── platformio.ini
+├── GLOSSARIO_TERMOS.md           # Siglas e termos técnicos (consulta paralela)
+├── platformio.ini                # Fontes .c/.cpp/.h com comentários didáticos inline
 ├── sdkconfig.defaults
 ├── include/
 │   └── board_config.h            # Pinos, limites e macros de configuração
@@ -401,19 +413,19 @@ Firmware/
 
 #### 4.3.1 Aplicação
 
-**[`src/main.cpp`](src/main.cpp)** — Ponto de entrada Arduino. Responsabilidades: inicialização serial; chamada a `ps4_input_init()` e `fsm_system_init()`; loop com `battery_monitor_tick()`, `fsm_system_tick()`, polling do PS4 a cada `PS4_INPUT_POLL_MS` (20 ms) e telemetria a cada 500 ms. A função `apply_ps4_to_esc()` traduz o estado do gamepad em requisições de arm/disarm, setpoints e troca de sentido. Após cada poll do PS4, `ps4_input_set_led_status()` atualiza a lightbar do controle conforme conexão e estado da FSM.
+**[`src/main.cpp`](src/main.cpp)**, Ponto de entrada Arduino. Responsabilidades: inicialização serial; chamada a `ps4_input_init()` e `fsm_system_init()`; loop com `battery_monitor_tick()`, `fsm_system_tick()`, polling do PS4 a cada `PS4_INPUT_POLL_MS` (20 ms) e telemetria a cada 500 ms. A função `apply_ps4_to_esc()` traduz o estado do gamepad em requisições de arm/disarm, setpoints e troca de sentido. Após cada poll do PS4, `ps4_input_set_led_status()` atualiza a lightbar do controle conforme conexão e estado da FSM.
 
-**[`src/fsm_system.c`](src/fsm_system.c)** — FSM de alto nível do ESC. Estados: `INIT`, `IDLE`, `RUNNING`, `FAULT`. Orquestra a sequência de inicialização dos periféricos e drivers, autoriza ou bloqueia a operação do motor e centraliza a resposta a falhas. Não executa comutação nem cálculo de PI.
+**[`src/fsm_system.c`](src/fsm_system.c)**, FSM de alto nível do ESC. Estados: `INIT`, `IDLE`, `RUNNING`, `FAULT`. Orquestra a sequência de inicialização dos periféricos e drivers, autoriza ou bloqueia a operação do motor e centraliza a resposta a falhas. Não executa comutação nem cálculo de PI.
 
 #### 4.3.2 Entrada
 
-**[`lib/input/ps4_input.cpp`](lib/input/ps4_input.cpp)** — Encapsula a API **Bluepad32** (`BP32.setup`, `BP32.update`). Lê o gatilho **R2** via `ControllerPtr::throttle()` (não `brake()`, que corresponde ao L2). Expõe `ps4_input_state_t` com campos: `connected`, `r2_raw`, `target_amps`, `target_rpm`, `direction`, `options_pressed`, `circle_pressed`. Feedback visual da lightbar via `ps4_input_set_led_status(ps4_led_status_t)`: um valor por estado da FSM (`PS4_LED_INIT`, `PS4_LED_IDLE`, `PS4_LED_RUNNING`, `PS4_LED_FAULT`) ou `PS4_LED_OFF` (desconectado — sem alteração forçada). **Não** referencia `fsm_system`; `main.cpp` traduz `esc_state_t` → `ps4_led_status_t`.
+**[`lib/input/ps4_input.cpp`](lib/input/ps4_input.cpp)**, Encapsula a API **Bluepad32** (`BP32.setup`, `BP32.update`). Lê o gatilho **R2** via `ControllerPtr::throttle()` (não `brake()`, que corresponde ao L2). Expõe `ps4_input_state_t` com campos: `connected`, `r2_raw`, `target_amps`, `target_rpm`, `direction`, `options_pressed`, `circle_pressed`. Feedback visual da lightbar via `ps4_input_set_led_status(ps4_led_status_t)`: um valor por estado da FSM (`PS4_LED_INIT`, `PS4_LED_IDLE`, `PS4_LED_RUNNING`, `PS4_LED_FAULT`) ou `PS4_LED_OFF` (desconectado, sem alteração forçada). **Não** referencia `fsm_system`; `main.cpp` traduz `esc_state_t` → `ps4_led_status_t`.
 
 #### 4.3.3 Controle
 
-**[`lib/control/pid_regulator.c`](lib/control/pid_regulator.c)** — Implementa `pi_compute()`: erro, termo proporcional, integração Euler com clamping, saturação da saída. Uma instância por malha; no ESC existem `s_current_pi` (corrente) e `s_speed_pi` (velocidade, modo SPEED).
+**[`lib/control/pid_regulator.c`](lib/control/pid_regulator.c)**, Implementa `pi_compute()`: erro, termo proporcional, integração Euler com clamping, saturação da saída. Uma instância por malha; no ESC existem `s_current_pi` (corrente) e `s_speed_pi` (velocidade, modo SPEED).
 
-**[`lib/control/motor_control.c`](lib/control/motor_control.c)** — Núcleo do controle de motor. Integra:
+**[`lib/control/motor_control.c`](lib/control/motor_control.c)**, Núcleo do controle de motor. Integra:
 
 - Temporizador `esp_timer` a 1 kHz.
 - Malha de corrente: leitura INA240 → PI → duty cycle.
@@ -444,7 +456,7 @@ API principal: `motor_control_init()`, `motor_control_on_arm()` / `on_disarm()`,
 
 #### 4.3.6 Configuração central
 
-**[`include/board_config.h`](include/board_config.h)** — Centraliza pinos, frequências, ganhos PI padrão, limiares de proteção, parâmetros de partida e macros de modo. Toda alteração de hardware ou limite operacional deve refletir-se neste arquivo.
+**[`include/board_config.h`](include/board_config.h)**, Centraliza pinos, frequências, ganhos PI padrão, limiares de proteção, parâmetros de partida e macros de modo. Toda alteração de hardware ou limite operacional deve refletir-se neste arquivo.
 
 ---
 
@@ -452,7 +464,7 @@ API principal: `motor_control_init()`, `motor_control_on_arm()` / `on_disarm()`,
 
 ### 5.1 FSM do ESC (`fsm_system`)
 
-A FSM de alto nível responde à pergunta: *em que modo operacional o controlador se encontra?* — distinta de *como comutar o motor* (`motor_control`) ou *como ler sensores* (drivers).
+A FSM de alto nível responde à pergunta: *em que modo operacional o controlador se encontra?*, distinta de *como comutar o motor* (`motor_control`) ou *como ler sensores* (drivers).
 
 | Estado | Significado |
 |--------|-------------|
@@ -471,15 +483,15 @@ INIT ──(init OK)──► IDLE ──(arm)──► RUNNING ──(disarm)�
 
 **Sequência de inicialização** (`fsm_system_init()`):
 
-1. `hal_adc_init()` — configura ADC1.
-2. `hal_gpio_init()` — saídas SD em LOW; entrada OC Trip com pull-up.
-3. `lm339_protection_init()` — DAC1 com tensão de referência OCP.
-4. `hal_pwm_init()` — MCPWM 20 kHz; PWM desarmado.
-5. `ina240_calibrate_offset(64)` — média de offset com corrente zero.
-6. `battery_monitor_init()` — detecção automática de células LiPo (4S–6S).
-7. `bemf_zcd_init()` — somente se `BOARD_ENABLE_BEMF_ZCD == 1`.
-8. `lm339_protection_arm()` — habilita ISR no OC Trip.
-9. `motor_control_init()` — cria temporizador 1 kHz.
+1. `hal_adc_init()`, configura ADC1.
+2. `hal_gpio_init()`, saídas SD em LOW; entrada OC Trip com pull-up.
+3. `lm339_protection_init()`, DAC1 com tensão de referência OCP.
+4. `hal_pwm_init()`, MCPWM 20 kHz; PWM desarmado.
+5. `ina240_calibrate_offset(64)`, média de offset com corrente zero.
+6. `battery_monitor_init()`, detecção automática de células LiPo (4S–6S).
+7. `bemf_zcd_init()`, somente se `BOARD_ENABLE_BEMF_ZCD == 1`.
+8. `lm339_protection_arm()`, habilita ISR no OC Trip.
+9. `motor_control_init()`, cria temporizador 1 kHz.
 
 Falha em qualquer etapa invoca `enter_fault_state()` e o ESC permanece em `FAULT`.
 
@@ -488,9 +500,9 @@ Falha em qualquer etapa invoca `enter_fault_state()` e o ESC permanece em `FAULT
 | Função | Transição | Condições |
 |--------|-----------|-----------|
 | `fsm_system_request_arm()` | IDLE → RUNNING | Sem UVLO; sem falha LM339 ativa |
-| `fsm_system_request_disarm()` | RUNNING → IDLE | — |
+| `fsm_system_request_disarm()` | RUNNING → IDLE |, |
 | `fsm_system_clear_fault()` | FAULT → IDLE | Hardware OC liberado; sem UVLO |
-| `fsm_system_tick()` | — | Processa flags de falha, UVLO, OC |
+| `fsm_system_tick()` |, | Processa flags de falha, UVLO, OC |
 
 Ao armar: `hal_shutdown_set_enabled(true)` → `hal_pwm_set_armed(true)` → `motor_control_on_arm()`. Ao desarmar, a ordem inverte-se e o shutdown retorna a LOW.
 
@@ -508,9 +520,9 @@ Sem detecção de posição do rotor, a comutação imediata em malha aberta pro
 |------|--------------|------------|
 | `MOTOR_START_IDLE` | Referência zero; sem torque | Idem |
 | `MOTOR_START_ALIGN` | Alinhamento estático 500 ms | Idem |
-| `MOTOR_START_RUN` | PI corrente + rampa OPEN | — |
-| `MOTOR_START_RUN_OPEN` | — | Rampa OPEN; corrente fixa 0,5 A |
-| `MOTOR_START_RUN_SPEED` | — | PI velocidade + feedforward \(f_{el}\) |
+| `MOTOR_START_RUN` | PI corrente + rampa OPEN |, |
+| `MOTOR_START_RUN_OPEN` |, | Rampa OPEN; corrente fixa 0,5 A |
+| `MOTOR_START_RUN_SPEED` |, | PI velocidade + feedforward \(f_{el}\) |
 
 **Modo CURRENT** (`MOTOR_CONTROL_USE_SPEED_MODE 0`):
 
@@ -542,7 +554,7 @@ Com `BOARD_ENABLE_BEMF_ZCD 0` (padrão), a comutação permanece em **malha aber
 
 Com `BOARD_ENABLE_BEMF_ZCD 1`, após velocidade e duty suficientes, o firmware pode realizar *handover* para **malha fechada por ZCD** (`MOTOR_COMM_ZCD_CLOSED`): comparadores LM339 detectam o cruzamento por zero da BEMF na fase flutuante; após flanco válido, a comutação agenda-se com atraso de 30° elétricos (`BEMF_COMM_DELAY_DEG_ELEC`). O hardware de ZCD requer neutro virtual, divisores RC e comparadores dedicados conforme descrito na tese.
 
-**Nota sobre FOC:** O *Field-Oriented Control* não depende dos pinos ZCD (estes servem à comutação trapezoidal). FOC exige estimativa contínua do ângulo do rotor — por sensores Hall/encoder ou observador *sensorless* em software — e malha de controle substancialmente mais rápida que 1 kHz. A arquitetura em camadas atual não impede essa evolução, mas o `motor_control` v1 implementa exclusivamente comutação 6-step.
+**Nota sobre FOC:** O *Field-Oriented Control* não depende dos pinos ZCD (estes servem à comutação trapezoidal). FOC exige estimativa contínua do ângulo do rotor, por sensores Hall/encoder ou observador *sensorless* em software, e malha de controle substancialmente mais rápida que 1 kHz. A arquitetura em camadas atual não impede essa evolução, mas o `motor_control` v1 implementa exclusivamente comutação 6-step.
 
 ### 5.3 Fluxo de execução temporal
 
@@ -580,15 +592,15 @@ O controle opera exclusivamente via **Bluetooth**; a porta serial (115200 baud) 
 
 O firmware lê o **R2 físico** (gatilho direito) através de `throttle()` na API Bluepad32. O L2 (`brake()`) não participa do controle do ESC.
 
-**Feedback da lightbar** (DualShock 4, via `setColorLED`) — uma cor por estado da FSM:
+**Feedback da lightbar** (DualShock 4, via `setColorLED`), uma cor por estado da FSM:
 
 | Estado FSM | `ps4_led_status_t` | Cor RGB | Significado |
 |------------|-------------------|---------|-------------|
-| Desconectado | `PS4_LED_OFF` | — | Sem comando de cor (controle retorna ao padrão) |
+| Desconectado | `PS4_LED_OFF` |, | Sem comando de cor (controle retorna ao padrão) |
 | `INIT` | `PS4_LED_INIT` | (255, 165, 0) âmbar | Inicialização de periféricos |
-| `IDLE` | `PS4_LED_IDLE` | (0, 120, 255) azul | Pronto — aguardando R2 para armar |
+| `IDLE` | `PS4_LED_IDLE` | (0, 120, 255) azul | Pronto, aguardando R2 para armar |
 | `RUNNING` | `PS4_LED_RUNNING` | (0, 255, 0) verde | Motor armado / em operação |
-| `FAULT` | `PS4_LED_FAULT` | (255, 0, 0) vermelho | Falha ativa — requer clear fault |
+| `FAULT` | `PS4_LED_FAULT` | (255, 0, 0) vermelho | Falha ativa, requer clear fault |
 
 A lightbar é atualizada na conexão (azul `IDLE` por padrão) e no poll de 20 ms quando o estado muda.
 
@@ -599,19 +611,139 @@ A lightbar é atualizada na conexão (azul `IDLE` por padrão) e no poll de 20 m
 
 ### 5.5 Modos de controle: CURRENT e SPEED
 
-A seleção do modo ocorre em **tempo de compilação** via `MOTOR_CONTROL_USE_SPEED_MODE` em `board_config.h`.
+A seleção do modo ocorre em **tempo de compilação** via `MOTOR_CONTROL_USE_SPEED_MODE` em `board_config.h` (`1` = SPEED, padrão do projeto; `0` = CURRENT).
 
-**Modo CURRENT:** o gatilho R2 define diretamente a corrente alvo; um único PI regula a corrente de fase máxima → duty cycle.
+| Aspecto | Modo **CURRENT** | Modo **SPEED** |
+|---------|------------------|----------------|
+| O que o R2 define | Corrente alvo (0–5 A) | RPM alvo (0–3600) |
+| Malhas de controle | 1 PI (corrente → duty) | 2 PIs em cascata (RPM → corrente → duty) |
+| Intuição operacional | Comanda **esforço/torque** (corrente ≈ torque) | Comanda **velocidade de rotação** |
+| Velocidade resultante | Consequência da corrente + carga mecânica | Regulada ativamente (dentro dos limites) |
+| Uso típico | Bancada, limitar esforço elétrico | Operação “tipo ESC”, RPM previsível |
 
-**Modo SPEED (padrão):** estrutura **cascata**:
+**Nomenclatura:** o modo CURRENT também pode ser chamado de **modo corrente** ou **modo torque**; o modo SPEED corresponde ao **modo velocidade**. A expressão “modo carga” é imprecisa — o firmware não regula a carga mecânica, apenas a corrente elétrica, embora a velocidade final varie conforme a carga nesse modo.
+
+#### 5.5.1 Modo CURRENT — controle somente de corrente
+
+O gatilho R2 define diretamente a corrente alvo; um único PI (`s_current_pi`) regula a corrente de fase máxima medida pelo INA240 → duty cycle. **Não há PI de velocidade** nem referência de RPM a partir do R2.
 
 ```text
-RPM_cmd ──► PI_velocidade ──► I_cmd ──► PI_corrente ──► duty %
-                ▲                              │
-                └── RPM_med (estimado)         └── I_med (INA240)
+R2 ──► I_cmd ──► PI_corrente ──► duty % ──► motor
+                    ▲
+               I_med (INA240)
 ```
 
-O PI de velocidade possui saída limitada a `MOTOR_CONTROL_MAX_TARGET_AMPS` (5 A). A estimativa de RPM deriva do período entre passos 6-step: \(RPM = \frac{10^6}{6 \times T_{step}} \times 30\), com média móvel para filtragem.
+**Partida:** `ALIGN` (500 ms) → `MOTOR_START_RUN` — PI de corrente ativo com rampa de comutação em malha aberta (5→120 Hz elétricos).
+
+**Comportamento em regime:**
+
+- \(I_{med} \approx I_{cmd}\) (regulado pelo PI de corrente).
+- A **velocidade mecânica não é comandada**; depende da carga, do atrito e da taxa de comutação em malha aberta (teto ≈ 3600 RPM mecânicos com 2 pares de polos e `MOTOR_OPEN_LOOP_COMM_HZ_MAX` = 120 Hz).
+- **A vazio com R2 alto:** a corrente segue o setpoint, mas o RPM pode subir até o teto da rampa OPEN — **não** implica velocidade máxima automática com qualquer valor de R2; com corrente baixa o rotor pode não acompanhar a rampa (stall ou RPM baixo).
+- **Com carga:** a corrente permanece próxima de \(I_{cmd}\); o RPM **cai** conforme a carga aumenta.
+
+#### 5.5.2 Modo SPEED — controle de velocidade em cascata
+
+Estrutura **cascata** com feedforward de comutação:
+
+```text
+R2 ──► RPM_cmd (slew) ──┬─► feedforward: f_el = RPM × p / 60  → taxa 6-step
+                        │
+                        └─► PI_velocidade ──► I_cmd ──► PI_corrente ──► duty %
+                                ▲                              │
+                                └── RPM_med (estimado)           └── I_med (INA240)
+```
+
+**Partida:** `ALIGN` → `RUN_OPEN` (corrente fixa 0,5 A, rampa OPEN) → `RUN_SPEED` (handover quando RPM_med ≥ 600 por 200 ms).
+
+**Mecanismo do controle de velocidade** (fase `RUN_SPEED`, em `motor_control_tick()`):
+
+1. `s_open_loop_comm_hz = rpm_to_f_el_hz(s_target_rpm)` — a frequência elétrica de comutação segue o RPM alvo (feedforward).
+2. `s_measured_rpm = measure_rpm_from_commutation()` — RPM inferido do intervalo entre passos 6-step (média móvel 7/8 + 1/8).
+3. `s_target_amps_cmd = pi_compute(&s_speed_pi, s_target_rpm, s_measured_rpm)` — PI externo gera corrente de comando (0–5 A).
+4. `s_duty_percent = pi_compute(&s_current_pi, s_target_amps, s_measured_amps)` — PI interno regula duty para atingir a corrente pedida.
+
+O PI de velocidade possui saída limitada a `MOTOR_CONTROL_MAX_TARGET_AMPS` (5 A). A estimativa de RPM deriva do período entre passos 6-step:
+
+\[
+RPM_{med} = \frac{10^6}{6 \times T_{step}} \times \frac{60}{2 \times p}
+= \frac{10^6}{6 \times T_{step}} \times 30 \quad (p = 2)
+\]
+
+**Comportamento em regime:**
+
+- \(RPM_{med} \approx RPM_{cmd}\) após slew e sincronismo (slew: `MOTOR_SPEED_SLEW_RPM_PER_S` = 1500 RPM/s).
+- \(I_{med}\) **não** vem do R2; é calculada pelo PI de velocidade: **baixa a vazio** (vence atrito/inércia), **sobe sob carga** (até 5 A).
+- Na fase `RUN_OPEN` (antes do handover), a corrente é fixa em 0,5 A e o RPM segue a rampa OPEN, **independente** do \(RPM_{cmd}\) do R2.
+
+#### 5.5.3 RPM estimado vs velocidade mecânica real
+
+`RPM_med` **não** provém de encoder, Hall ou tacômetro — reflete **a taxa à qual o firmware comuta**, não uma medição independente do eixo.
+
+| Condição | Relação RPM_med vs eixo real |
+|----------|------------------------------|
+| Motor sincronizado com a sequência 6-step | RPM_med ≈ velocidade mecânica |
+| Carga leve/moderada, malha estável | Diferença pequena |
+| Dessincronismo em malha aberta (`BOARD_ENABLE_BEMF_ZCD 0`, padrão) | RPM_med pode indicar ~RPM_cmd enquanto o eixo gira mais devagar ou trava |
+| Malha fechada ZCD (`BOARD_ENABLE_BEMF_ZCD 1`) | Passos seguem BEMF do rotor; estimativa mais fiel à velocidade real |
+
+Com `BOARD_ENABLE_BEMF_ZCD 0` e fase `RUN_SPEED`, o feedforward fixa a comutação na taxa do RPM alvo; se o rotor “escorregar”, o PI de velocidade pode ver erro ≈ 0 (porque RPM_med acompanha a comutação por timer, não o rotor). Proteções complementares: corrente alta sustentada (stall), passo sem avanço, dessincronismo (`MOTOR_SPEED_DESYNC_RPM` / timeout) com retorno a `RUN_OPEN`.
+
+#### 5.5.4 Mapeamento R2 e estimativas de regime
+
+Com `PS4_R2_ARM_THRESHOLD` = 10 e faixa útil \(255 - 10 = 245\):
+
+\[
+R2_{eff} = R2 - 10 \quad (R2 > 10)
+\]
+
+\[
+I_{cmd} = \frac{R2_{eff}}{245} \times 5 \text{ A} \qquad
+RPM_{cmd} = \frac{R2_{eff}}{245} \times 3600 \text{ RPM}
+\]
+
+R2 ≤ 10: desarme; comandos zero. Slew limita transições: corrente a 2 A/s (`MOTOR_TARGET_SLEW_AMPS_PER_S`); RPM a 1500 RPM/s (`MOTOR_SPEED_SLEW_RPM_PER_S`).
+
+**Comandos imediatos (mapeamento, antes do slew e dos PIs):**
+
+| R2 | % curso | CURRENT \(I_{cmd}\) | SPEED \(RPM_{cmd}\) |
+|----|---------|---------------------|---------------------|
+| 11 | ~0 % | 0,02 A | ~15 RPM |
+| 32 | ~9 % | 0,45 A | ~323 RPM |
+| 64 | ~22 % | 1,10 A | ~794 RPM |
+| 128 | ~48 % | 2,41 A | ~1735 RPM |
+| 192 | ~74 % | 3,71 A | ~2674 RPM |
+| 255 | 100 % | 5,0 A | 3600 RPM |
+
+**Estimativas de regime** (motor sincronizado, sem fault, `BOARD_ENABLE_BEMF_ZCD 0`; valores indicativos — carga e atrito alteram o comportamento real):
+
+*Modo CURRENT — \(I_{med}\) regulado; RPM não comandado:*
+
+| R2 | \(I_{med}\) (est.) | RPM mecânico (est.) |
+|----|--------------------|---------------------|
+| 11 | ~0 A | ~0 (torque insuficiente) |
+| 64 | ~1,0–1,1 A | ~800–2000 RPM (carga leve → mais RPM) |
+| 128 | ~2,3–2,5 A | ~1500–3600 RPM |
+| 255 | ~4,8–5,0 A | ~3600 RPM a vazio (teto da rampa OPEN) |
+
+*Modo SPEED — fase `RUN_SPEED`; \(RPM_{med}\) ≈ alvo; corrente pelo PI:*
+
+| R2 | \(RPM_{med}\) (est.) | \(I_{med}\) a vazio (est.) | \(I_{med}\) com carga (est.) |
+|----|----------------------|----------------------------|------------------------------|
+| 64 | ~750–820 | ~0,4–0,8 A | ~1–3 A |
+| 128 | ~1650–1750 | ~0,5–1,0 A | ~2–4 A |
+| 255 | ~3450–3600 | ~0,8–1,5 A | até 5 A |
+
+**Comparação ilustrativa** (R2 ≈ 50 %, regime estável):
+
+| Grandeza | CURRENT | SPEED |
+|----------|---------|-------|
+| Comando | 2,4 A | 1735 RPM |
+| \(I_{med}\) a vazio | ~2,4 A | ~0,5–1,0 A |
+| RPM a vazio | ~2000–3600 (não fixo) | ~1700–1750 |
+| RPM com carga moderada | ~800–1500 (cai) | ~1700–1750 (PI aumenta corrente) |
+
+**Analogia:** no modo CURRENT o operador fixa o **esforço** (corrente/torque) e a velocidade “obedece” à carga; no modo SPEED fixa a **velocidade** (cruise control) e a corrente adapta-se automaticamente.
 
 ---
 
@@ -619,7 +751,7 @@ O PI de velocidade possui saída limitada a `MOTOR_CONTROL_MAX_TARGET_AMPS` (5 A
 
 ### 6.1 Filosofia: defesa em profundidade
 
-A segurança do ESC estrutura-se em **camadas independentes** — hardware analógico, firmware de supervisão e lógica de entrada — de modo que a falha de um mecanismo não elimine toda a proteção. O princípio orientador é **fail-safe**: qualquer condição anômala deve conduzir ao desarme do PWM e à desabilitação dos drivers IR2110.
+A segurança do ESC estrutura-se em **camadas independentes**, hardware analógico, firmware de supervisão e lógica de entrada, de modo que a falha de um mecanismo não elimine toda a proteção. O princípio orientador é **fail-safe**: qualquer condição anômala deve conduzir ao desarme do PWM e à desabilitação dos drivers IR2110.
 
 ```mermaid
 flowchart LR
@@ -658,7 +790,7 @@ flowchart LR
 | **Ação** | Shutdown LOW nos três IR2110; PWM desarmado; `s_fault_pending = true` |
 | **Recuperação** | Botão Options após o pino OC Trip retornar a HIGH (hardware liberado) |
 
-A proteção em hardware opera **independentemente** do loop de controle e do estado da FSM — requisito essencial em aplicações de potência.
+A proteção em hardware opera **independentemente** do loop de controle e do estado da FSM, requisito essencial em aplicações de potência.
 
 ### 6.3 Proteção de sobrecorrente em software
 
@@ -670,7 +802,7 @@ A proteção em hardware opera **independentemente** do loop de controle e do es
 | **Ação** | `trip_software_overcurrent()` → `s_sw_fault_pending`; FSM transita a `FAULT` (`falha=OC_SW`) |
 | **Recuperação** | *Clear fault* via Options |
 
-Complementa o OCP hardware em cenários de bancada — por exemplo, corrente elevada durante ALIGN com duty fixo antes do disparo analógico — e permite coerência entre limiares SW e HW via `LM339_HW_OC_AMPS`.
+Complementa o OCP hardware em cenários de bancada, por exemplo, corrente elevada durante ALIGN com duty fixo antes do disparo analógico, e permite coerência entre limiares SW e HW via `LM339_HW_OC_AMPS`.
 
 ### 6.4 Proteção de subtensão (UVLO)
 
@@ -688,7 +820,7 @@ A detecção de células *latcha* no boot: troca de pack (4S ↔ 6S) exige *powe
 
 ### 6.5 Detecção de stall (dessincronismo)
 
-Em malha aberta, o rotor pode perder sincronismo com a sequência 6-step — fenômeno distinto de sobrecorrente instantânea. O firmware detecta *stall* por três critérios independentes (qualquer um suficiente):
+Em malha aberta, o rotor pode perder sincronismo com a sequência 6-step, fenômeno distinto de sobrecorrente instantânea. O firmware detecta *stall* por três critérios independentes (qualquer um suficiente):
 
 | Critério | Condição | Constantes |
 |----------|----------|------------|
@@ -708,7 +840,7 @@ Ação: `MOTOR_FAULT_STALL` → `FAULT` (`falha=STALL`). Recuperação: *clear f
 
 ### 6.7 Dessincronismo de velocidade (modo SPEED)
 
-Em `RUN_SPEED`, se o erro de velocidade exceder 200 RPM por 300 ms, o sistema retorna a `RUN_OPEN`, reinicia a rampa de \(f_{el}\) e tenta novo *handover*. Trata-se de proteção de regime, não de falha fatal — o ESC permanece em `RUNNING`.
+Em `RUN_SPEED`, se o erro de velocidade exceder 200 RPM por 300 ms, o sistema retorna a `RUN_OPEN`, reinicia a rampa de \(f_{el}\) e tenta novo *handover*. Trata-se de proteção de regime, não de falha fatal, o ESC permanece em `RUNNING`.
 
 ### 6.8 Sequência unificada de entrada em falha
 
@@ -727,6 +859,8 @@ static void enter_fault_state(void)
 
 Ordem de prioridade: **desabilitar drivers de potência antes de qualquer outra ação**. O integrador do PI zera-se em `motor_control_on_disarm()` para evitar *windup* residual na re-armagem.
 
+> **Leitura no código:** cada linha de `enter_fault_state()` em [`src/fsm_system.c`](src/fsm_system.c) está comentada com a ordem fail-safe e o papel de cada chamada HAL/motor_control.
+
 ### 6.9 Recuperação de falha
 
 A recuperação exige três condições simultâneas:
@@ -735,20 +869,59 @@ A recuperação exige três condições simultâneas:
 2. Hardware OC liberado (`lm339_protection_clear_fault()` bem-sucedido).
 3. UVLO inativo (`battery_monitor_uvlo_active() == false`).
 
-O operador aciona o botão **Options**; a FSM transita a `IDLE` e impõe a flag `aguardando_R2=0` — o gatilho R2 deve ser liberado antes de nova armagem, evitando re-arme acidental com referência não nula.
+O operador aciona o botão **Options**; a FSM transita a `IDLE` e impõe a flag `aguardando_R2=0`, o gatilho R2 deve ser liberado antes de nova armagem, evitando re-arme acidental com referência não nula.
 
 ---
 
-## 7. Referências
+## 7. Leitura didática do código-fonte
+
+A explicação passo a passo do firmware está **nos comentários inline** dos arquivos-fonte, em português, seguindo três níveis:
+
+| Nível | Formato | Exemplo |
+|-------|---------|---------|
+| Cabeçalho de arquivo | Bloco `/* ... */` no topo | Papel do módulo, camada, cadência |
+| Função | `/** @brief ... */` | Propósito e chamadores |
+| Algoritmo | `// Etapa N:` ou `//` por linha | `motor_control_tick`, `apply_ps4_to_esc`, `pi_compute` |
+
+Consulte o [Glossário de Termos](GLOSSARIO_TERMOS.md) para siglas usadas nos comentários.
+
+### 7.1 Ordem de leitura recomendada
+
+Seguir o fluxo de execução (boot → operação → falha):
+
+| Ordem | Arquivo | Foco didático |
+|-------|---------|---------------|
+| 1 | [`include/board_config.h`](include/board_config.h) | Pinos, limites, ganhos PI, modo SPEED/CURRENT |
+| 2 | [`lib/control/pid_regulator.c`](lib/control/pid_regulator.c) | Algoritmo PI + anti-windup (linha a linha) |
+| 3 | [`lib/hal/hal_adc.c`](lib/hal/hal_adc.c), [`hal_dac.c`](lib/hal/hal_dac.c), [`hal_pwm.c`](lib/hal/hal_pwm.c), [`hal_gpio.c`](lib/hal/hal_gpio.c) | Periféricos ESP32 e ISR de OCP |
+| 4 | [`lib/drivers/ina240_current_sensors.c`](lib/drivers/ina240_current_sensors.c), [`battery_monitor.c`](lib/drivers/battery_monitor.c), [`lm339_protection.c`](lib/drivers/lm339_protection.c), [`bemf_zcd.c`](lib/drivers/bemf_zcd.c) | Sensores e proteções |
+| 5 | [`lib/control/motor_control.c`](lib/control/motor_control.c) | Tabela 6-step, `motor_control_tick` (11 etapas), partida e stall |
+| 6 | [`src/fsm_system.c`](src/fsm_system.c) | FSM INIT/IDLE/RUNNING/FAULT, init e `enter_fault_state` |
+| 7 | [`lib/input/ps4_input.cpp`](lib/input/ps4_input.cpp) | Mapeamento R2 → setpoint |
+| 8 | [`src/main.cpp`](src/main.cpp) | `setup`/`loop`, `apply_ps4_to_esc` (7 etapas) |
+
+### 7.2 Funções de referência para o TCC
+
+| Função | Arquivo | Granularidade dos comentários |
+|--------|---------|-------------------------------|
+| `pi_compute` | `pid_regulator.c` | Linha a linha |
+| `motor_control_tick` | `motor_control.c` | 11 etapas numeradas |
+| `apply_ps4_to_esc` | `main.cpp` | 7 etapas numeradas |
+| `enter_fault_state` | `fsm_system.c` | Linha a linha (ordem fail-safe) |
+| `oc_trip_isr_handler` | `hal_gpio.c` | ISR mínima + contexto |
+
+---
+
+## 8. Referências
 
 - Especificação do ESC: [`Docs/especificacao_esc.md`](../Docs/especificacao_esc.md)
 - Mapa de pinos da PCB: [`Hardware/PCB_Project/ESP32_PINMAP.md`](../Hardware/PCB_Project/ESP32_PINMAP.md)
 - Pinout ESP32-DevKitC v4: [`Docs/Thesis/imagens/esp32_devkitC_v4_pinlayout.png`](../Docs/Thesis/imagens/esp32_devkitC_v4_pinlayout.png)
 - Texto da tese (BEMF, ZCD, partida *sensorless*): [`Docs/Thesis/main.tex`](../Docs/Thesis/main.tex)
-- PlatformIO — documentação: [https://docs.platformio.org/](https://docs.platformio.org/)
-- ESP-IDF — MCPWM: [https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/mcpwm.html](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/mcpwm.html)
+- PlatformIO, documentação: [https://docs.platformio.org/](https://docs.platformio.org/)
+- ESP-IDF, MCPWM: [https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/mcpwm.html](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/mcpwm.html)
 - Bluepad32: [https://github.com/ricardoquesada/bluepad32](https://github.com/ricardoquesada/bluepad32)
 
 ---
 
-*Documento reestruturado para referência acadêmica (TCC) — junho de 2026.*
+*Documento reestruturado para referência acadêmica (TCC), junho de 2026.*

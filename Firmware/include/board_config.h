@@ -1,12 +1,21 @@
-// Mapa otimizado DevKitC v4 (esp32_devkitC_v4_pinlayout.png). Ref: Hardware/PCB_Project/ESP32_PINMAP.md
+/*
+ * board_config.h — Configuração central do hardware e parâmetros do ESC.
+ *
+ * Camada: configuração em tempo de compilação (incluída por HAL, drivers e controle).
+ * Única fonte de verdade para pinos GPIO, limites operacionais e ganhos PI.
+ * Alterar um pino ou limiar aqui propaga-se a todo o firmware sem mudar lógica de módulos.
+ *
+ * Ref.: Hardware/PCB_Project/ESP32_PINMAP.md, esp32_devkitC_v4_pinlayout.png
+ */
 
 #ifndef BOARD_CONFIG_H
 #define BOARD_CONFIG_H
 
-// JTAG livre (sem nets ESC): GPIO12 MTDI, 13 MTCK, 14 TMS, 15 MTDO — header ESP-Prog
-// Flash SPI interna reservada: GPIO6, 7, 8, 9, 10, 11
+/* Pinos reservados pelo silício — não usar para o ESC */
+// JTAG (ESP-Prog): GPIO12 MTDI, 13 MTCK, 14 TMS, 15 MTDO
+// Flash SPI interna: GPIO6–11
 
-// --- Pinos de controle de gate (MCPWM) ---
+/* --- Pinos MCPWM: saídas complementares AH/AL, BH/BL, CH/CL para os IR2110 --- */
 #define PIN_PWM_AH    21
 #define PIN_PWM_AL    22
 #define PIN_PWM_BH    27
@@ -14,23 +23,23 @@
 #define PIN_PWM_CH    18
 #define PIN_PWM_CL    19
 
-// --- Shutdown IR2110 (SD, ativo baixo: HIGH = operação, LOW = shutdown) ---
+/* --- Shutdown IR2110: SD ativo em nível baixo no CI (LOW = drivers desligados) --- */
 #define PIN_SD_A      32
 #define PIN_SD_B      33
 #define PIN_SD_C      4
 
-// --- Pinos analógicos (ADC1 — compatível com Wi-Fi ativo) ---
+/* --- ADC1: correntes de fase e VBAT (input-only; seguro com Bluetooth ativo) --- */
 #define PIN_ADC_IA    34   // ADC1_CH6 (input-only)
 #define PIN_ADC_IB    35   // ADC1_CH7 (input-only)
 #define PIN_ADC_IC    36   // ADC1_CH0 / SENSOR_VP (input-only)
 #define PIN_ADC_VBAT  39   // ADC1_CH3 / SENSOR_VN (input-only)
 
-// --- OCP LM339 (wired-OR → OC Trip; Vdac Ref = DAC1) ---
+/* --- Proteção OCP: DAC1 gera Vdac; LM339 dispara OC Trip (GPIO26, ativo baixo) --- */
 #define PIN_VDAC_REF  25   // DAC1, referência comparadores OCP (+)
 #define PIN_OC_TRIP   26   // Entrada digital, ativo baixo + pull-up
 
-// --- ZCD BEMF (LM339) — U3 RX2/TX2/D5; coexistem com JTAG em 12–15 ---
-// 0 = sem comparadores BEMF (malha aberta). 1 = handover OPEN→ZCD.
+/* --- ZCD BEMF (opcional): comparadores para comutação sensorless por cruzamento por zero --- */
+// 0 = malha aberta (padrão). 1 = permite handover OPEN → ZCD fechado.
 #define BOARD_ENABLE_BEMF_ZCD  0
 #define PIN_ZCD_A     16   // U3 RX2 (pino símb. 6)
 #define PIN_ZCD_B     17   // U3 TX2 (pino símb. 7)
@@ -42,7 +51,7 @@
 /** Eventos ZCD válidos consecutivos para handover malha aberta → fechada. */
 #define BEMF_ZCD_HANDOVER_COUNT   6U
 
-// --- Constantes de operação ---
+/* --- PWM e malha: frequência de comutação, dead-time e teto de duty (bootstrap IR2110) --- */
 #define MAX_DUTY_CYCLE_PERCENT 95.0f
 #define PWM_FREQUENCY_HZ       20000
 #define DEAD_TIME_NS           500
@@ -96,7 +105,7 @@
 /** Stall: sem avanço de passo por N vezes o período esperado (RUN, I*>0). */
 #define MOTOR_STALL_STEP_TIMEOUT_MULT  4U
 
-// --- Entrada PS4 (Bluepad32) ---
+/* --- Entrada PS4: limiares do gatilho R2 e período de polling no loop principal --- */
 /** R2 (throttle, gatilho direito) abaixo deste valor desarma; acima permite armar e mapeia corrente. */
 #define PS4_R2_ARM_THRESHOLD  10U
 /** Zona morta analógica do gatilho R2 (0–255). */
@@ -104,7 +113,7 @@
 /** Período de polling do controle no loop principal (ms). */
 #define PS4_INPUT_POLL_MS     20U
 
-// --- UVLO barramento DC (LiPo 4S–6S, auto-detect no boot) ---
+/* --- UVLO: subtensão do pack LiPo; detecção automática de 4S–6S no boot --- */
 /** Faixa de packs suportados (células em série). */
 #define BATTERY_CELL_COUNT_S_MIN       4U
 #define BATTERY_CELL_COUNT_S_MAX       6U
@@ -116,7 +125,7 @@
 /** Tempo contínuo abaixo do cutoff antes de ativar UVLO (ms). */
 #define BATTERY_UVLO_DEBOUNCE_MS       100U
 
-// --- Malha de velocidade (modo dual compile-time) ---
+/* --- Modo SPEED vs CURRENT: seleção em tempo de compilação (R2 → RPM ou corrente) --- */
 /** 1 = R2 controla RPM (SPEED); 0 = R2 controla corrente (CURRENT). */
 #define MOTOR_CONTROL_USE_SPEED_MODE   1
 

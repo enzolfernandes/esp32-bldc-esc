@@ -1,3 +1,7 @@
+/*
+ * ps4_input.h — Estado normalizado do DualShock 4 (Bluepad32).
+ */
+
 #ifndef PS4_INPUT_H
 #define PS4_INPUT_H
 
@@ -8,14 +12,15 @@
 extern "C" {
 #endif
 
+/** Snapshot de uma leitura do controle; preenchido por ps4_input_update(). */
 typedef struct {
     bool connected;
-    bool options_pressed;
-    bool circle_pressed;
-    uint8_t r2_raw;
-    float target_amps;
-    float target_rpm;
-    int8_t direction;
+    bool options_pressed;  /**< Borda de subida do botão Options (clear fault) */
+    bool circle_pressed;     /**< Circle (○): CCW quando pressionado */
+    uint8_t r2_raw;          /**< Gatilho direito 0–255 após deadzone */
+    float target_amps;       /**< Mapeamento linear para modo CURRENT */
+    float target_rpm;        /**< Mapeamento linear para modo SPEED */
+    int8_t direction;        /**< +1 CW, -1 CCW */
 } ps4_input_state_t;
 
 typedef enum {
