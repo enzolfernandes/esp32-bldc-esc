@@ -78,6 +78,26 @@ static void print_telemetry(const ps4_input_state_t *ps4)
     Serial.println();
 }
 
+static ps4_led_status_t led_status_from_fsm(bool connected, esc_state_t state)
+{
+    if (!connected) {
+        return PS4_LED_OFF;
+    }
+
+    switch (state) {
+    case ESC_STATE_INIT:
+        return PS4_LED_INIT;
+    case ESC_STATE_IDLE:
+        return PS4_LED_IDLE;
+    case ESC_STATE_RUNNING:
+        return PS4_LED_RUNNING;
+    case ESC_STATE_FAULT:
+        return PS4_LED_FAULT;
+    default:
+        return PS4_LED_IDLE;
+    }
+}
+
 static void apply_ps4_to_esc(const ps4_input_state_t *st)
 {
     if (st == nullptr) {
@@ -201,6 +221,9 @@ void loop()
 
         if (ps4_input_update(&ps4)) {
             apply_ps4_to_esc(&ps4);
+
+            ps4_input_set_led_status(
+                led_status_from_fsm(ps4.connected, fsm_system_get_state()));
         }
     }
 

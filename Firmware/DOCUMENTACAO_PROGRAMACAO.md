@@ -401,13 +401,13 @@ Firmware/
 
 #### 4.3.1 Aplicação
 
-**[`src/main.cpp`](src/main.cpp)** — Ponto de entrada Arduino. Responsabilidades: inicialização serial; chamada a `ps4_input_init()` e `fsm_system_init()`; loop com `battery_monitor_tick()`, `fsm_system_tick()`, polling do PS4 a cada `PS4_INPUT_POLL_MS` (20 ms) e telemetria a cada 500 ms. A função `apply_ps4_to_esc()` traduz o estado do gamepad em requisições de arm/disarm, setpoints e troca de sentido.
+**[`src/main.cpp`](src/main.cpp)** — Ponto de entrada Arduino. Responsabilidades: inicialização serial; chamada a `ps4_input_init()` e `fsm_system_init()`; loop com `battery_monitor_tick()`, `fsm_system_tick()`, polling do PS4 a cada `PS4_INPUT_POLL_MS` (20 ms) e telemetria a cada 500 ms. A função `apply_ps4_to_esc()` traduz o estado do gamepad em requisições de arm/disarm, setpoints e troca de sentido. Após cada poll do PS4, `ps4_input_set_led_status()` atualiza a lightbar do controle conforme conexão e estado da FSM.
 
 **[`src/fsm_system.c`](src/fsm_system.c)** — FSM de alto nível do ESC. Estados: `INIT`, `IDLE`, `RUNNING`, `FAULT`. Orquestra a sequência de inicialização dos periféricos e drivers, autoriza ou bloqueia a operação do motor e centraliza a resposta a falhas. Não executa comutação nem cálculo de PI.
 
 #### 4.3.2 Entrada
 
-**[`lib/input/ps4_input.cpp`](lib/input/ps4_input.cpp)** — Encapsula a API **Bluepad32** (`BP32.setup`, `BP32.update`). Expõe `ps4_input_state_t` com campos: `connected`, `r2_raw`, `target_amps`, `target_rpm`, `direction`, `options_pressed`, `circle_pressed`. **Não** referencia `fsm_system` nem `motor_control`, preservando isolamento da camada de entrada.
+**[`lib/input/ps4_input.cpp`](lib/input/ps4_input.cpp)** — Encapsula a API **Bluepad32** (`BP32.setup`, `BP32.update`). Lê o gatilho **R2** via `ControllerPtr::throttle()` (não `brake()`, que corresponde ao L2). Expõe `ps4_input_state_t` com campos: `connected`, `r2_raw`, `target_amps`, `target_rpm`, `direction`, `options_pressed`, `circle_pressed`. Feedback visual da lightbar via `ps4_input_set_led_status(ps4_led_status_t)`: um valor por estado da FSM (`PS4_LED_INIT`, `PS4_LED_IDLE`, `PS4_LED_RUNNING`, `PS4_LED_FAULT`) ou `PS4_LED_OFF` (desconectado — sem alteração forçada). **Não** referencia `fsm_system`; `main.cpp` traduz `esc_state_t` → `ps4_led_status_t`.
 
 #### 4.3.3 Controle
 
@@ -572,11 +572,25 @@ O controle opera exclusivamente via **Bluetooth**; a porta serial (115200 baud) 
 
 | Entrada | Ação |
 |---------|------|
-| R2 > `PS4_R2_ARM_THRESHOLD` (10) | Arma o ESC; mapeia referência de corrente (0–5 A) ou RPM (0–3600) |
+| R2 (gatilho direito, `throttle()`) > `PS4_R2_ARM_THRESHOLD` (10) | Arma o ESC; mapeia referência de corrente (0–5 A) ou RPM (0–3600) |
 | R2 ≤ limiar | Desarma; referência zero; permite troca de sentido |
 | Circle (○) solto / pressionado | Sentido CW / CCW (troca efetiva somente com R2 solto) |
 | Options (Start) | *Clear fault* em `FAULT`; exige soltar R2 antes de re-armar |
 | Desconexão Bluetooth | Desarme imediato |
+
+O firmware lê o **R2 físico** (gatilho direito) através de `throttle()` na API Bluepad32. O L2 (`brake()`) não participa do controle do ESC.
+
+**Feedback da lightbar** (DualShock 4, via `setColorLED`) — uma cor por estado da FSM:
+
+| Estado FSM | `ps4_led_status_t` | Cor RGB | Significado |
+|------------|-------------------|---------|-------------|
+| Desconectado | `PS4_LED_OFF` | — | Sem comando de cor (controle retorna ao padrão) |
+| `INIT` | `PS4_LED_INIT` | (255, 165, 0) âmbar | Inicialização de periféricos |
+| `IDLE` | `PS4_LED_IDLE` | (0, 120, 255) azul | Pronto — aguardando R2 para armar |
+| `RUNNING` | `PS4_LED_RUNNING` | (0, 255, 0) verde | Motor armado / em operação |
+| `FAULT` | `PS4_LED_FAULT` | (255, 0, 0) vermelho | Falha ativa — requer clear fault |
+
+A lightbar é atualizada na conexão (azul `IDLE` por padrão) e no poll de 20 ms quando o estado muda.
 
 **Mapeamento do gatilho R2** (após zona morta):
 

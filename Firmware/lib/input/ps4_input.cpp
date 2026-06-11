@@ -8,6 +8,28 @@
 static ControllerPtr s_controllers[BP32_MAX_GAMEPADS];
 static bool s_connected = false;
 static bool s_prev_options = false;
+static ps4_led_status_t s_last_led_status = PS4_LED_OFF;
+
+static void apply_led_color(ControllerPtr ctl, ps4_led_status_t status)
+{
+    switch (status) {
+    case PS4_LED_INIT:
+        ctl->setColorLED(255, 165, 0);
+        break;
+    case PS4_LED_IDLE:
+        ctl->setColorLED(0, 120, 255);
+        break;
+    case PS4_LED_RUNNING:
+        ctl->setColorLED(0, 255, 0);
+        break;
+    case PS4_LED_FAULT:
+        ctl->setColorLED(255, 0, 0);
+        break;
+    case PS4_LED_OFF:
+    default:
+        break;
+    }
+}
 
 static void on_connected_controller(ControllerPtr ctl)
 {
@@ -15,6 +37,8 @@ static void on_connected_controller(ControllerPtr ctl)
         if (s_controllers[i] == nullptr) {
             s_controllers[i] = ctl;
             s_connected = true;
+            apply_led_color(ctl, PS4_LED_IDLE);
+            s_last_led_status = PS4_LED_IDLE;
             return;
         }
     }
@@ -36,6 +60,10 @@ static void on_disconnected_controller(ControllerPtr ctl)
             break;
         }
     }
+
+    if (!s_connected) {
+        s_last_led_status = PS4_LED_OFF;
+    }
 }
 
 static ControllerPtr first_active_gamepad(void)
@@ -51,16 +79,16 @@ static ControllerPtr first_active_gamepad(void)
     return nullptr;
 }
 
-static uint8_t scale_brake_to_r2(int32_t brake)
+static uint8_t scale_throttle_to_r2(int32_t throttle)
 {
-    if (brake < 0) {
-        brake = 0;
+    if (throttle < 0) {
+        throttle = 0;
     }
-    if (brake > 1023) {
-        brake = 1023;
+    if (throttle > 1023) {
+        throttle = 1023;
     }
 
-    return static_cast<uint8_t>((static_cast<uint32_t>(brake) * 255U) / 1023U);
+    return static_cast<uint8_t>((static_cast<uint32_t>(throttle) * 255U) / 1023U);
 }
 
 static float map_r2_to_amps(uint8_t r2_raw)
@@ -107,6 +135,7 @@ extern "C" bool ps4_input_init(void)
 
     s_connected = false;
     s_prev_options = false;
+    s_last_led_status = PS4_LED_OFF;
 
     BP32.setup(&on_connected_controller, &on_disconnected_controller);
     BP32.enableVirtualDevice(false);
@@ -118,6 +147,29 @@ extern "C" bool ps4_input_init(void)
 extern "C" bool ps4_input_is_connected(void)
 {
     return s_connected && (first_active_gamepad() != nullptr);
+}
+
+extern "C" void ps4_input_set_led_status(ps4_led_status_t status)
+{
+    if (status == s_last_led_status) {
+        return;
+    }
+
+    ControllerPtr ctl = first_active_gamepad();
+    if (ctl == nullptr) {
+        if (status == PS4_LED_OFF) {
+            s_last_led_status = PS4_LED_OFF;
+        }
+        return;
+    }
+
+    if (status == PS4_LED_OFF) {
+        s_last_led_status = PS4_LED_OFF;
+        return;
+    }
+
+    apply_led_color(ctl, status);
+    s_last_led_status = status;
 }
 
 extern "C" bool ps4_input_update(ps4_input_state_t *out)
@@ -134,7 +186,7 @@ extern "C" bool ps4_input_update(ps4_input_state_t *out)
         return true;
     }
 
-    uint8_t r2_raw = scale_brake_to_r2(ctl->brake());
+    uint8_t r2_raw = scale_throttle_to_r2(ctl->throttle());
 
     if (r2_raw <= PS4_R2_DEADZONE) {
         r2_raw = 0U;

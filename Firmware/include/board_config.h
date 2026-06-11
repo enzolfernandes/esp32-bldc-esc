@@ -97,7 +97,7 @@
 #define MOTOR_STALL_STEP_TIMEOUT_MULT  4U
 
 // --- Entrada PS4 (Bluepad32) ---
-/** R2 abaixo deste valor desarma; acima permite armar e mapeia corrente. */
+/** R2 (throttle, gatilho direito) abaixo deste valor desarma; acima permite armar e mapeia corrente. */
 #define PS4_R2_ARM_THRESHOLD  10U
 /** Zona morta analógica do gatilho R2 (0–255). */
 #define PS4_R2_DEADZONE       5U
