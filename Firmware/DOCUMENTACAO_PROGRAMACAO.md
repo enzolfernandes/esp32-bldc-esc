@@ -609,6 +609,35 @@ A lightbar é atualizada na conexão (azul `IDLE` por padrão) e no poll de 20 m
 - Modo CURRENT: \(I_{cmd} = \dfrac{R2_{eff}}{255 - threshold} \times 5\) A
 - Modo SPEED: \(RPM_{cmd} = \dfrac{R2_{eff}}{255 - threshold} \times 3600\) RPM
 
+#### 5.4.1 Comportamento da troca de sentido (Circle) com motor em operação
+
+A troca de sentido via Circle (○) é **intencionalmente bloqueada** enquanto o R2 estiver acima do limiar de arm. Isso significa que pressionar Circle com o motor em qualquer velocidade (incluindo velocidade máxima) **não produz efeito**: o sentido permanece inalterado e nenhuma falha é gerada.
+
+O bloqueio ocorre em `motor_control_set_direction()` (`motor_control.c`):
+
+```c
+bool motor_control_set_direction(int8_t direction)
+{
+    if (s_active && motor_control_torque_command_active()) {
+        return false;   // rejeição silenciosa — main.cpp não verifica o retorno
+    }
+    s_comm_direction = (direction >= 0) ? 1 : -1;
+    return true;
+}
+```
+
+A condição de bloqueio é `s_active == true` **e** comando de torque ativo (no modo SPEED: `s_target_rpm_cmd > 0`; no modo CURRENT: `s_target_amps_cmd > 0`).
+
+**Procedimento correto para inversão de sentido:**
+
+| Passo | Ação do operador | Resposta do firmware |
+|-------|-----------------|----------------------|
+| 1 | Soltar R2 (≤ 10) | Desarme; PWM cortado; `s_measured_rpm` zerado |
+| 2 | Pressionar Circle | `s_comm_direction` alterado (CW ↔ CCW) |
+| 3 | Pressionar R2 | Re-arme; nova sequência ALIGN → malha aberta → PI |
+
+Após o corte do PWM (passo 1), o rotor **desacelera por inércia** (coast-down) — não há frenagem ativa. O novo arm (passo 3) inicia o ALIGN independentemente do RPM residual mecânico; por isso, aguardar a parada completa antes de pressionar R2 novamente é recomendável em velocidades elevadas (ver Seção 6.10).
+
 ### 5.5 Modos de controle: CURRENT e SPEED
 
 A seleção do modo ocorre em **tempo de compilação** via `MOTOR_CONTROL_USE_SPEED_MODE` em `board_config.h` (`1` = SPEED, padrão do projeto; `0` = CURRENT).
@@ -870,6 +899,59 @@ A recuperação exige três condições simultâneas:
 3. UVLO inativo (`battery_monitor_uvlo_active() == false`).
 
 O operador aciona o botão **Options**; a FSM transita a `IDLE` e impõe a flag `aguardando_R2=0`, o gatilho R2 deve ser liberado antes de nova armagem, evitando re-arme acidental com referência não nula.
+
+### 6.10 Análise de segurança: inversão automática de sentido com motor em movimento
+
+Esta seção documenta a análise de viabilidade e riscos de uma possível função de **inversão automática**: ao pressionar Circle com R2 acima do limiar, o firmware executaria sozinho a sequência disarm → troca de sentido → re-arm, sem exigir que o operador solte o R2.
+
+#### 6.10.1 O que seria necessário implementar
+
+A sequência equivalente ao procedimento manual seria executada em `apply_ps4_to_esc()` (`main.cpp`), detectando a borda de Circle durante `RUNNING`:
+
+1. `fsm_system_request_disarm()` — corta PWM, zera referências
+2. `motor_control_set_direction(novo_sentido)` — troca `s_comm_direction`
+3. `fsm_system_request_arm()` — inicia novo ciclo ALIGN → malha aberta → PI
+4. Reaplica setpoint de RPM/corrente equivalente ao R2 atual
+
+Implementável em ~15 linhas, sem alterações em `motor_control.c` ou `fsm_system.c`.
+
+#### 6.10.2 Riscos do re-arm imediato com rotor em movimento
+
+O principal problema é a **fase de alinhamento (ALIGN)** executada em todo re-arm. Nela, `begin_align_sequence()` aplica um vetor eletromagnético fixo ao estator por `MOTOR_ALIGN_DURATION_MS` = 500 ms a `MOTOR_ALIGN_DUTY_PERCENT` = 12 % de duty cycle, com o objetivo de posicionar mecanicamente o rotor antes da rampa em malha aberta.
+
+Se o rotor ainda estiver girando com RPM residual significativo no momento do re-arm:
+
+**a) BEMF presente durante o ALIGN**
+
+O motor girando gera FCEM nos terminais das fases não energizadas. Ao aplicar o vetor de ALIGN, o firmware impõe uma tensão de estator que pode atuar **em oposição** ao movimento, criando um efeito de frenagem regenerativa não controlada. A corrente resultante pode disparar a proteção OC de software (`MOTOR_SOFTWARE_OC_AMPS` = 8 A) em menos de 1 ms, transitando imediatamente para `FAULT`.
+
+**b) Proteção de stall inativa durante o ALIGN**
+
+`trip_stall_high_current()` e `trip_stall_no_commutation()` só atuam quando `is_run_phase(s_start_phase)` é verdadeiro — o que **exclui** `MOTOR_START_ALIGN`. Durante o alinhamento, o único protetor ativo contra corrente elevada é o OC de software (8 A); correntes entre `MOTOR_STALL_CURRENT_AMPS` (6 A) e 8 A não disparam nenhum mecanismo.
+
+**c) Ausência de medição de RPM residual fora do ciclo ativo**
+
+`motor_control_on_disarm()` zera `s_measured_rpm`. O firmware não possui estimativa de velocidade no estado coast-down (motor desarmado girando por inércia), portanto não há como condicionar o re-arm ao RPM real do rotor.
+
+#### 6.10.3 Faixa de segurança estimada
+
+| Velocidade no momento do Circle | Avaliação |
+|----------------------------------|-----------|
+| Motor parado ou < ~200 RPM | Seguro — inércia baixa, ALIGN domina o rotor sem corrente expressiva |
+| 200–600 RPM | Risco moderado — possível pico de corrente no início do ALIGN; OC pode ou não disparar |
+| > 600 RPM (handover ZCD / velocidade cruzeiro) | **Risco elevado** — BEMF suficiente para gerar corrente acima de 8 A durante o ALIGN; trip de OC provável |
+
+#### 6.10.4 Pré-requisitos para uma implementação segura
+
+Para que a inversão automática seja considerada segura, ao menos uma das seguintes salvaguardas precisaria ser adicionada:
+
+1. **Timeout de coast-down fixo** — aguardar um intervalo conservador (p. ex., 2–5 s em RPM máximo) entre o disarm e o re-arm, estimado a partir da inércia mecânica do motor.
+2. **Detecção de BEMF zero no coast-down** — leitura dos comparadores ZCD com o motor desarmado para confirmar que o rotor parou; a arquitetura atual (`bemf_zcd`) não opera em estado desarmado.
+3. **Redução dinâmica do duty de ALIGN** (`s_align_duty_percent`) em função do RPM medido antes do disarm, limitando o torque eletromagnético aplicado ao rotor ainda em movimento.
+
+#### 6.10.5 Conclusão
+
+O design atual — que exige soltar o R2 antes de trocar o sentido — é a salvaguarda que transfere para o operador a responsabilidade de aguardar a parada do rotor. Sem pelo menos o item (1) da seção anterior, a inversão automática com motor em velocidade elevada resultará sistematicamente em trip de sobrecorrente e transição para `FAULT`.
 
 ---
 
