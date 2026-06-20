@@ -38,13 +38,13 @@ Project Logs*/
 # IDEs e Ferramentas (Cursor e Clangd)
 # ===================================================
 .cursor/
-*.clangd/
-.clangd/
 
 # ===================================================
 # PlatformIO (Firmware)
 # ===================================================
 Firmware/.pio/
+Firmware/.gitignore
+Firmware/compile_commands.json
 
 # ===================================================
 # VS Code / Cursor — Arquivos locais do firmware
@@ -55,7 +55,12 @@ Firmware/.vscode/c_cpp_properties.json
 Firmware/.vscode/launch.json
 Firmware/.vscode/ipch/
 
+# Cache do índice do Clangd (gerado localmente)
+Firmware/.vscode/.cache/
+
 # Arquivos gerados dinamicamente pelo configurar_ambiente.bat
 Firmware/.vscode/compile_commands.json
 Firmware/.vscode/settings.json
 Firmware/.vscode/extra_script.py
+Firmware/.clangd
+esp32-bldc-esc.code-workspace
