@@ -14,6 +14,18 @@ powershell -Command "$userPath = [Environment]::GetEnvironmentVariable('Path', '
 
 echo.
 echo ===================================================
+echo   1b. Configurando Clangd (LLVM) no PATH do Windows
+echo ===================================================
+echo.
+
+set "CLANGD_PATH=C:\Program Files\LLVM\bin"
+echo O seguinte diretorio sera verificado no PATH:
+echo %CLANGD_PATH%
+
+powershell -Command "$clangdPath = 'C:\Program Files\LLVM\bin'; $userPath = [Environment]::GetEnvironmentVariable('Path', 'User'); if ($userPath -notlike '*LLVM*') { [Environment]::SetEnvironmentVariable('Path', $userPath + ';' + $clangdPath, 'User'); Write-Host 'Sucesso: Caminho do Clangd adicionado!' -ForegroundColor Green } else { Write-Host 'Aviso: O Clangd (LLVM) ja esta no seu PATH.' -ForegroundColor Yellow }"
+
+echo.
+echo ===================================================
 echo   2. Configurando o Projeto (Clangd e Cursor)
 echo ===================================================
 echo.
@@ -56,6 +68,7 @@ echo.
 echo [Etapa 4/4] Configurando settings.json...
 (
 echo {
+echo     "clangd.path": "C:\\Program Files\\LLVM\\bin\\clangd.exe",
 echo     "clangd.arguments": [
 echo         "--log=verbose",
 echo         "--pretty",
