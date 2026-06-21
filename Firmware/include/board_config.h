@@ -59,9 +59,11 @@
 #define CONTROL_LOOP_HZ        10000.0f
 #define CONTROL_DT_S           (1.0f / CONTROL_LOOP_HZ)
 
-/** Malha aberta: frequência elétrica inicial / máxima (Hz) e incremento por passo. */
+/** Malha aberta: frequência elétrica inicial / máxima (Hz) e incremento por passo.
+ *  Motor A2212/10T 1400kV (14 polos, p=7): teto de 300 Hz → ≈ 2571 RPM mecânicos.
+ *  Limite garante FCEM detectável para handover ZCD sem perda de sincronismo (stall). */
 #define MOTOR_OPEN_LOOP_COMM_HZ_START        5.0f
-#define MOTOR_OPEN_LOOP_COMM_HZ_MAX          120.0f
+#define MOTOR_OPEN_LOOP_COMM_HZ_MAX          300.0f
 #define MOTOR_OPEN_LOOP_COMM_HZ_RAMP_PER_STEP 1.5f
 #define MOTOR_OPEN_LOOP_COMM_HZ_MAX_LIMIT      300.0f
 #define MOTOR_OPEN_LOOP_COMM_RAMP_MIN          0.1f
@@ -129,9 +131,10 @@
 /** 1 = R2 controla RPM (SPEED); 0 = R2 controla corrente (CURRENT). */
 #define MOTOR_CONTROL_USE_SPEED_MODE   1
 
-/** Pares de polos (motor 4 polos → 2). */
-#define MOTOR_POLE_PAIRS               2U
-#define MOTOR_SPEED_MAX_RPM            3600.0f
+/** Pares de polos — motor A2212/10T 1400kV (14 polos magnéticos → p = 7).
+ *  Governa f_e = p · n/60: conversão entre frequência elétrica de comutação e RPM mecânico. */
+#define MOTOR_POLE_PAIRS               7U
+#define MOTOR_SPEED_MAX_RPM            2571.0f   /* 300 Hz × 60 / 7 (A2212/10T) */
 #define MOTOR_SPEED_MIN_RPM            300.0f
 #define MOTOR_SPEED_SLEW_RPM_PER_S     1500.0f
 #define MOTOR_SPEED_PI_KP_DEFAULT      0.02f

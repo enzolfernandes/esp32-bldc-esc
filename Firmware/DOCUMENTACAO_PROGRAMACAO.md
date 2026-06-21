@@ -117,7 +117,7 @@ O firmware encontra-se em estágio **funcional de bancada**, com os seguintes co
 | Comutação com ZCD/BEMF | Opcional (`BOARD_ENABLE_BEMF_ZCD 0` por padrão) |
 | FOC / sensores Hall | Não implementado (escopo futuro) |
 
-Na configuração padrão, a comutação opera em **malha aberta** com rampa de frequência elétrica (5→120 Hz), adequada ao hardware inicial sem circuito de detecção de cruzamento por zero da BEMF.
+Na configuração padrão, a comutação opera em **malha aberta** com rampa de frequência elétrica (5→300 Hz — motor A2212/10T 1400kV, `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f`), adequada ao hardware inicial sem circuito de detecção de cruzamento por zero da BEMF.
 
 ### 1.6 Mapa de hardware (resumo)
 
@@ -294,6 +294,8 @@ Parâmetros críticos definem-se em [`board_config.h`](include/board_config.h) e
 | `BOARD_ENABLE_BEMF_ZCD` | Habilita ou desabilita comutação por cruzamento por zero da BEMF |
 | `MOTOR_SOFTWARE_OC_AMPS` | Limiar de sobrecorrente em software e referência do OCP hardware |
 | `PWM_FREQUENCY_HZ`, `DEAD_TIME_NS` | Parâmetros imutáveis do MCPWM |
+| `MOTOR_POLE_PAIRS` | Número de pares de polos do motor de teste; governa a relação \(f_e = p \cdot n/60\) entre frequência elétrica de comutação e velocidade mecânica do rotor. **Motor A2212/10T 1400kV (14 polos magnéticos):** `7U` |
+| `MOTOR_OPEN_LOOP_COMM_HZ_MAX` | Frequência elétrica máxima da rampa em malha aberta; limita a comutação forçada para prevenir perda de sincronismo magnético (stall/engasgo) durante a aceleração inicial, garantindo FCEM suficiente para handover ao ZCD. **Motor A2212/10T 1400kV:** `300.0f` Hz → teto de ≈ 2571 RPM mecânicos |
 
 A configuração em tempo de compilação sacrifica flexibilidade em runtime em favor de **determinismo** e **otimização**, constantes podem ser inlined pelo compilador, e o binário resultante contém apenas os caminhos de código necessários.
 
@@ -527,7 +529,7 @@ Sem detecção de posição do rotor, a comutação imediata em malha aberta pro
 **Modo CURRENT** (`MOTOR_CONTROL_USE_SPEED_MODE 0`):
 
 ```text
-IDLE ──► ALIGN (500 ms) ──► RUN (PI + rampa f_el 5→120 Hz)
+IDLE ──► ALIGN (500 ms) ──► RUN (PI + rampa f_el 5→300 Hz)
 ```
 
 **Modo SPEED** (padrão, `MOTOR_CONTROL_USE_SPEED_MODE 1`):
@@ -540,17 +542,17 @@ IDLE ──► ALIGN ──► RUN_OPEN ──► RUN_SPEED
 
 Em `RUN_SPEED`, se \(|RPM_{med} - RPM_{cmd}| > 200\) por 300 ms, o sistema retorna a `RUN_OPEN` e reinicia a rampa.
 
-**Relação entre velocidade mecânica e frequência elétrica** (motor com 2 pares de polos):
+**Relação entre velocidade mecânica e frequência elétrica** (motor A2212/10T 1400kV — 7 pares de polos):
 
 \[
-f_{el} = \frac{RPM \times p}{60}, \quad RPM = f_{el} \times \frac{60}{p} = f_{el} \times 30
+f_{el} = \frac{RPM \times p}{60}, \quad RPM = f_{el} \times \frac{60}{p} = f_{el} \times \frac{60}{7}
 \]
 
-Com \(p = 2\): 120 Hz elétricos correspondem a 3600 RPM mecânicos (`MOTOR_SPEED_MAX_RPM`).
+Com \(p = 7\) (motor A2212/10T — 14 polos magnéticos, 7 pares): `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f` Hz corresponde a ≈ **2571 RPM** mecânicos (`MOTOR_SPEED_MAX_RPM`).
 
 #### 5.2.3 Comutação: malha aberta e ZCD
 
-Com `BOARD_ENABLE_BEMF_ZCD 0` (padrão), a comutação permanece em **malha aberta** (`MOTOR_COMM_OPEN_LOOP`): os passos 6-step avançam por temporizador, com rampa de \(f_{el}\) de 5 Hz até 120 Hz (+1,5 Hz por passo comutado).
+Com `BOARD_ENABLE_BEMF_ZCD 0` (padrão), a comutação permanece em **malha aberta** (`MOTOR_COMM_OPEN_LOOP`): os passos 6-step avançam por temporizador, com rampa de \(f_{el}\) de 5 Hz até **300 Hz** (`MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f` — motor A2212/10T 1400kV) (+1,5 Hz por passo comutado).
 
 Com `BOARD_ENABLE_BEMF_ZCD 1`, após velocidade e duty suficientes, o firmware pode realizar *handover* para **malha fechada por ZCD** (`MOTOR_COMM_ZCD_CLOSED`): comparadores LM339 detectam o cruzamento por zero da BEMF na fase flutuante; após flanco válido, a comutação agenda-se com atraso de 30° elétricos (`BEMF_COMM_DELAY_DEG_ELEC`). O hardware de ZCD requer neutro virtual, divisores RC e comparadores dedicados conforme descrito na tese.
 
@@ -584,7 +586,7 @@ O controle opera exclusivamente via **Bluetooth**; a porta serial (115200 baud) 
 
 | Entrada | Ação |
 |---------|------|
-| R2 (gatilho direito, `throttle()`) > `PS4_R2_ARM_THRESHOLD` (10) | Arma o ESC; mapeia referência de corrente (0–5 A) ou RPM (0–3600) |
+| R2 (gatilho direito, `throttle()`) > `PS4_R2_ARM_THRESHOLD` (10) | Arma o ESC; mapeia referência de corrente (0–5 A) ou RPM (0–2571) |
 | R2 ≤ limiar | Desarma; referência zero; permite troca de sentido |
 | Circle (○) solto / pressionado | Sentido CW / CCW (troca efetiva somente com R2 solto) |
 | Options (Start) | *Clear fault* em `FAULT`; exige soltar R2 antes de re-armar |
@@ -607,7 +609,7 @@ A lightbar é atualizada na conexão (azul `IDLE` por padrão) e no poll de 20 m
 **Mapeamento do gatilho R2** (após zona morta):
 
 - Modo CURRENT: \(I_{cmd} = \dfrac{R2_{eff}}{255 - threshold} \times 5\) A
-- Modo SPEED: \(RPM_{cmd} = \dfrac{R2_{eff}}{255 - threshold} \times 3600\) RPM
+- Modo SPEED: \(RPM_{cmd} = \dfrac{R2_{eff}}{255 - threshold} \times 2571\) RPM
 
 #### 5.4.1 Comportamento da troca de sentido (Circle) com motor em operação
 
@@ -644,7 +646,7 @@ A seleção do modo ocorre em **tempo de compilação** via `MOTOR_CONTROL_USE_S
 
 | Aspecto | Modo **CURRENT** | Modo **SPEED** |
 |---------|------------------|----------------|
-| O que o R2 define | Corrente alvo (0–5 A) | RPM alvo (0–3600) |
+| O que o R2 define | Corrente alvo (0–5 A) | RPM alvo (0–2571) |
 | Malhas de controle | 1 PI (corrente → duty) | 2 PIs em cascata (RPM → corrente → duty) |
 | Intuição operacional | Comanda **esforço/torque** (corrente ≈ torque) | Comanda **velocidade de rotação** |
 | Velocidade resultante | Consequência da corrente + carga mecânica | Regulada ativamente (dentro dos limites) |
@@ -662,12 +664,12 @@ R2 ──► I_cmd ──► PI_corrente ──► duty % ──► motor
                I_med (INA240)
 ```
 
-**Partida:** `ALIGN` (500 ms) → `MOTOR_START_RUN` — PI de corrente ativo com rampa de comutação em malha aberta (5→120 Hz elétricos).
+**Partida:** `ALIGN` (500 ms) → `MOTOR_START_RUN` — PI de corrente ativo com rampa de comutação em malha aberta (5→300 Hz elétricos, motor A2212/10T — `MOTOR_POLE_PAIRS = 7U`, `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f`).
 
 **Comportamento em regime:**
 
 - \(I_{med} \approx I_{cmd}\) (regulado pelo PI de corrente).
-- A **velocidade mecânica não é comandada**; depende da carga, do atrito e da taxa de comutação em malha aberta (teto ≈ 3600 RPM mecânicos com 2 pares de polos e `MOTOR_OPEN_LOOP_COMM_HZ_MAX` = 120 Hz).
+- A **velocidade mecânica não é comandada**; depende da carga, do atrito e da taxa de comutação em malha aberta (teto ≈ 2571 RPM mecânicos com 7 pares de polos — motor A2212/10T — e `MOTOR_OPEN_LOOP_COMM_HZ_MAX` = 300 Hz).
 - **A vazio com R2 alto:** a corrente segue o setpoint, mas o RPM pode subir até o teto da rampa OPEN — **não** implica velocidade máxima automática com qualquer valor de R2; com corrente baixa o rotor pode não acompanhar a rampa (stall ou RPM baixo).
 - **Com carga:** a corrente permanece próxima de \(I_{cmd}\); o RPM **cai** conforme a carga aumenta.
 
@@ -696,7 +698,7 @@ O PI de velocidade possui saída limitada a `MOTOR_CONTROL_MAX_TARGET_AMPS` (5 A
 
 \[
 RPM_{med} = \frac{10^6}{6 \times T_{step}} \times \frac{60}{2 \times p}
-= \frac{10^6}{6 \times T_{step}} \times 30 \quad (p = 2)
+= \frac{10^6}{6 \times T_{step}} \times \frac{60}{14} \approx \frac{10^6}{6 \times T_{step}} \times 4{,}286 \quad (p = 7,\ \text{motor A2212/10T})
 \]
 
 **Comportamento em regime:**
@@ -728,21 +730,24 @@ R2_{eff} = R2 - 10 \quad (R2 > 10)
 
 \[
 I_{cmd} = \frac{R2_{eff}}{245} \times 5 \text{ A} \qquad
-RPM_{cmd} = \frac{R2_{eff}}{245} \times 3600 \text{ RPM}
+RPM_{cmd} = \frac{R2_{eff}}{245} \times 2571 \text{ RPM}
 \]
 
 R2 ≤ 10: desarme; comandos zero. Slew limita transições: corrente a 2 A/s (`MOTOR_TARGET_SLEW_AMPS_PER_S`); RPM a 1500 RPM/s (`MOTOR_SPEED_SLEW_RPM_PER_S`).
+
+- Modo CURRENT: teto ≈ 2571 RPM a vazio (rampa OPEN, `MOTOR_OPEN_LOOP_COMM_HZ_MAX` = 300 Hz, `MOTOR_POLE_PAIRS` = 7 — motor A2212/10T).
+- Modo SPEED: \(RPM_{cmd}\) em 0–2571 RPM; corrente adapta-se à carga (até 5 A).
 
 **Comandos imediatos (mapeamento, antes do slew e dos PIs):**
 
 | R2 | % curso | CURRENT \(I_{cmd}\) | SPEED \(RPM_{cmd}\) |
 |----|---------|---------------------|---------------------|
-| 11 | ~0 % | 0,02 A | ~15 RPM |
-| 32 | ~9 % | 0,45 A | ~323 RPM |
-| 64 | ~22 % | 1,10 A | ~794 RPM |
-| 128 | ~48 % | 2,41 A | ~1735 RPM |
-| 192 | ~74 % | 3,71 A | ~2674 RPM |
-| 255 | 100 % | 5,0 A | 3600 RPM |
+| 11 | ~0 % | 0,02 A | ~10 RPM |
+| 32 | ~9 % | 0,45 A | ~231 RPM |
+| 64 | ~22 % | 1,10 A | ~567 RPM |
+| 128 | ~48 % | 2,41 A | ~1238 RPM |
+| 192 | ~74 % | 3,71 A | ~1909 RPM |
+| 255 | 100 % | 5,0 A | 2571 RPM |
 
 **Estimativas de regime** (motor sincronizado, sem fault, `BOARD_ENABLE_BEMF_ZCD 0`; valores indicativos — carga e atrito alteram o comportamento real):
 
@@ -751,26 +756,26 @@ R2 ≤ 10: desarme; comandos zero. Slew limita transições: corrente a 2 A/s (`
 | R2 | \(I_{med}\) (est.) | RPM mecânico (est.) |
 |----|--------------------|---------------------|
 | 11 | ~0 A | ~0 (torque insuficiente) |
-| 64 | ~1,0–1,1 A | ~800–2000 RPM (carga leve → mais RPM) |
-| 128 | ~2,3–2,5 A | ~1500–3600 RPM |
-| 255 | ~4,8–5,0 A | ~3600 RPM a vazio (teto da rampa OPEN) |
+| 64 | ~1,0–1,1 A | ~500–1400 RPM (carga leve → mais RPM) |
+| 128 | ~2,3–2,5 A | ~900–2571 RPM |
+| 255 | ~4,8–5,0 A | ~2571 RPM a vazio (teto da rampa OPEN) |
 
 *Modo SPEED — fase `RUN_SPEED`; \(RPM_{med}\) ≈ alvo; corrente pelo PI:*
 
 | R2 | \(RPM_{med}\) (est.) | \(I_{med}\) a vazio (est.) | \(I_{med}\) com carga (est.) |
 |----|----------------------|----------------------------|------------------------------|
-| 64 | ~750–820 | ~0,4–0,8 A | ~1–3 A |
-| 128 | ~1650–1750 | ~0,5–1,0 A | ~2–4 A |
-| 255 | ~3450–3600 | ~0,8–1,5 A | até 5 A |
+| 64 | ~540–580 | ~0,4–0,8 A | ~1–3 A |
+| 128 | ~1180–1250 | ~0,5–1,0 A | ~2–4 A |
+| 255 | ~2450–2571 | ~0,8–1,5 A | até 5 A |
 
 **Comparação ilustrativa** (R2 ≈ 50 %, regime estável):
 
 | Grandeza | CURRENT | SPEED |
 |----------|---------|-------|
-| Comando | 2,4 A | 1735 RPM |
+| Comando | 2,4 A | 1238 RPM |
 | \(I_{med}\) a vazio | ~2,4 A | ~0,5–1,0 A |
-| RPM a vazio | ~2000–3600 (não fixo) | ~1700–1750 |
-| RPM com carga moderada | ~800–1500 (cai) | ~1700–1750 (PI aumenta corrente) |
+| RPM a vazio | ~1200–2571 (não fixo) | ~1200–1250 |
+| RPM com carga moderada | ~500–1000 (cai) | ~1200–1250 (PI aumenta corrente) |
 
 **Analogia:** no modo CURRENT o operador fixa o **esforço** (corrente/torque) e a velocidade “obedece” à carga; no modo SPEED fixa a **velocidade** (cruise control) e a corrente adapta-se automaticamente.
 

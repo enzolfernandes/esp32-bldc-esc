@@ -12,13 +12,31 @@ As entradas estão em ordem alfabética. Cada termo inclui o nome por extenso, u
 
 [A](#a) · [B](#b) · [C](#c) · [D](#d) · [E](#e) · [F](#f) · [G](#g) · [H](#h) · [I](#i) · [J](#j) · [K](#k) · [L](#l) · [M](#m) · [N](#n) · [O](#o) · [P](#p) · [R](#r) · [S](#s) · [T](#t) · [U](#u) · [V](#v) · [W](#w) · [Z](#z)
 
-[6-step](#6-step) · [ADC](#adc) · [ADC1](#adc1) · [ADC2](#adc2) · [AH / AL](#ah--al) · [ALIGN](#align) · [anti-windup](#anti-windup) · [API](#api) · [arm](#arm) · [baud](#baud) · [BEMF](#bemf) · [BH / BL](#bh--bl) · [BLDC](#bldc) · [Bluepad32](#bluepad32) · [bootstrap](#bootstrap) · [BT](#bt) · [cascata](#cascata) · [CH / CL](#ch--cl) · [clear fault](#clear-fault) · [CURRENT](#current) · [CW / CCW](#cw--ccw) · [DAC](#dac) · [DAC1](#dac1) · [dB](#db) · [dead-time](#dead-time) · [debounce](#debounce) · [disarm](#disarm) · [DMA](#dma) · [duty cycle](#duty-cycle) · [ESC](#esc) · [ESP-IDF](#esp-idf) · [ESP32](#esp32) · [ESP-Prog](#esp-prog) · [ESP_TIMER_TASK](#esp_timer_task) · [EXTI](#exti) · [fail-safe](#fail-safe) · [feedforward](#feedforward) · [FAULT](#fault) · [FOC](#foc) · [FreeRTOS](#freertos) · [FSM](#fsm) · [fsm_system](#fsm_system) · [GPIO](#gpio) · [HAL](#hal) · [handover](#handover) · [HID](#hid) · [high-side / low-side](#high-side--low-side) · [Hz / kHz](#hz--khz) · [IDLE](#idle) · [INA240](#ina240) · [INIT](#init) · [IR2110](#ir2110) · [IRAM_ATTR](#iram_attr) · [Isense](#isense) · [ISR](#isr) · [jitter](#jitter) · [JTAG](#jtag) · [Kconfig](#kconfig) · [L2](#l2) · [LDF](#ldf) · [LEDC](#ledc) · [LiPo](#lipo) · [LM339](#lm339) · [malha aberta / fechada](#malha-aberta--fechada) · [MCPWM](#mcpwm) · [MCU](#mcu) · [motor_control](#motor_control) · [ms / ns](#ms--ns) · [mutex](#mutex) · [OC](#oc) · [OC Trip](#oc-trip) · [OCP](#ocp) · [OFF / SOURCE / SINK](#off--source--sink) · [OPEN_LOOP](#open_loop) · [overshoot](#overshoot) · [PCB](#pcb) · [PI](#pi) · [pid_regulator](#pid_regulator) · [PlatformIO](#platformio) · [polling](#polling) · [power-cycle](#power-cycle) · [PS4](#ps4) · [PWM](#pwm) · [R2](#r2) · [RC](#rc) · [RGB](#rgb) · [RPM](#rpm) · [RUN / RUN_OPEN / RUN_SPEED](#run--run_open--run_speed) · [RUNNING](#running) · [SD](#sd) · [SDK](#sdk) · [sensorless](#sensorless) · [setpoint](#setpoint) · [SPEED](#speed) · [SPI](#spi) · [stall](#stall) · [TCC](#tcc) · [trapezoidal](#trapezoidal) · [UART](#uart) · [UVLO](#uvlo) · [VBAT](#vbat) · [Vdac](#vdac) · [volatile](#volatile) · [Wi-Fi](#wi-fi) · [wired-OR](#wired-or) · [ZCD](#zcd) · [ZCD_CLOSED](#zcd_closed)
+[6-step](#6-step) · [A2212](#a2212) · [ADC](#adc) · [ADC1](#adc1) · [ADC2](#adc2) · [AH / AL](#ah--al) · [ALIGN](#align) · [anti-windup](#anti-windup) · [API](#api) · [arm](#arm) · [baud](#baud) · [BEMF](#bemf) · [BH / BL](#bh--bl) · [BLDC](#bldc) · [Bluepad32](#bluepad32) · [bootstrap](#bootstrap) · [BT](#bt) · [cascata](#cascata) · [CH / CL](#ch--cl) · [clear fault](#clear-fault) · [CURRENT](#current) · [CW / CCW](#cw--ccw) · [DAC](#dac) · [DAC1](#dac1) · [dB](#db) · [dead-time](#dead-time) · [debounce](#debounce) · [disarm](#disarm) · [DMA](#dma) · [duty cycle](#duty-cycle) · [ESC](#esc) · [ESP-IDF](#esp-idf) · [ESP32](#esp32) · [ESP-Prog](#esp-prog) · [ESP_TIMER_TASK](#esp_timer_task) · [EXTI](#exti) · [fail-safe](#fail-safe) · [FAULT](#fault) · [feedforward](#feedforward) · [FOC](#foc) · [frequência elétrica](#frequência-elétrica) · [FreeRTOS](#freertos) · [FSM](#fsm) · [fsm_system](#fsm_system) · [GPIO](#gpio) · [HAL](#hal) · [handover](#handover) · [HID](#hid) · [high-side / low-side](#high-side--low-side) · [Hz / kHz](#hz--khz) · [IDLE](#idle) · [INA240](#ina240) · [INIT](#init) · [IR2110](#ir2110) · [IRAM_ATTR](#iram_attr) · [Isense](#isense) · [ISR](#isr) · [jitter](#jitter) · [JTAG](#jtag) · [Kconfig](#kconfig) · [L2](#l2) · [LDF](#ldf) · [LEDC](#ledc) · [LiPo](#lipo) · [LM339](#lm339) · [malha aberta / fechada](#malha-aberta--fechada) · [MCPWM](#mcpwm) · [MCU](#mcu) · [MOTOR_OPEN_LOOP_COMM_HZ_MAX](#motor_open_loop_comm_hz_max) · [MOTOR_POLE_PAIRS](#motor_pole_pairs) · [motor_control](#motor_control) · [ms / ns](#ms--ns) · [mutex](#mutex) · [OC](#oc) · [OC Trip](#oc-trip) · [OCP](#ocp) · [OFF / SOURCE / SINK](#off--source--sink) · [OPEN_LOOP](#open_loop) · [outrunner](#outrunner) · [overshoot](#overshoot) · [pares de polos](#pares-de-polos) · [PCB](#pcb) · [PI](#pi) · [pid_regulator](#pid_regulator) · [PlatformIO](#platformio) · [polling](#polling) · [power-cycle](#power-cycle) · [PS4](#ps4) · [PWM](#pwm) · [R2](#r2) · [RC](#rc) · [RGB](#rgb) · [RPM](#rpm) · [RUN / RUN_OPEN / RUN_SPEED](#run--run_open--run_speed) · [RUNNING](#running) · [SD](#sd) · [SDK](#sdk) · [sensorless](#sensorless) · [setpoint](#setpoint) · [SPEED](#speed) · [SPI](#spi) · [stall](#stall) · [TCC](#tcc) · [trapezoidal](#trapezoidal) · [UART](#uart) · [UVLO](#uvlo) · [VBAT](#vbat) · [Vdac](#vdac) · [volatile](#volatile) · [Wi-Fi](#wi-fi) · [wired-OR](#wired-or) · [ZCD](#zcd) · [ZCD_CLOSED](#zcd_closed)
 
 ---
 
 <a id="a"></a>
 
 ## A
+
+<a id="a2212"></a>
+
+### A2212
+
+Motor **Brushless Outrunner A2212/10T 1400kV** — motor de teste adotado nos ensaios em bancada deste projeto.
+
+| Parâmetro | Valor |
+|-----------|-------|
+| Tipo | Outrunner (rotor externo) |
+| Constante de velocidade K_V | 1400 RPM/V |
+| Número de polos magnéticos | 14 |
+| Pares de polos (p) | **7** |
+| `MOTOR_POLE_PAIRS` | `7U` |
+| `MOTOR_OPEN_LOOP_COMM_HZ_MAX` | `300.0f` Hz |
+| RPM máx. em malha aberta | ≈ 2571 RPM (300 Hz × 60 / 7) |
+
+A geometria outrunner com 14 polos impõe frequência elétrica de comutação 7× maior que a frequência mecânica de rotação, conforme a relação \(f_e = p \cdot n / 60\). Ver também: [outrunner](#outrunner), [pares de polos](#pares-de-polos), [frequência elétrica](#frequência-elétrica).
 
 <a id="adc"></a>
 
@@ -346,6 +364,22 @@ Contribuição de comando calculada diretamente a partir da referência, sem pas
 
 **No firmware:** em RUN_SPEED, a frequência elétrica de comutação segue a referência de RPM como feedforward.
 
+<a id="frequência-elétrica"></a>
+
+### frequência elétrica
+
+Também representada como \(f_{el}\) ou \(f_e\). Frequência em Hz à qual o campo magnético giratório do estator completa um ciclo elétrico completo de 360°.
+
+A relação entre frequência elétrica e velocidade mecânica é governada pelo número de **pares de polos** \(p\) do motor:
+
+\[
+f_e = \frac{p \times n}{60} \quad \Leftrightarrow \quad n = \frac{f_e \times 60}{p}
+\]
+
+onde \(n\) é a velocidade em RPM. Para o motor A2212/10T (\(p = 7\)): 300 Hz elétricos ≡ ≈ 2571 RPM mecânicos.
+
+**No firmware:** `s_open_loop_comm_hz` armazena a frequência elétrica atual da rampa em malha aberta; `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f` é o limite para o motor A2212/10T. Ver também: [pares de polos](#pares-de-polos), [A2212](#a2212).
+
 <a id="fault"></a>
 
 ### FAULT
@@ -640,6 +674,34 @@ Módulo central da camada de controle.
 
 Integra temporizador 1 kHz, malhas PI de corrente/velocidade, comutação 6-step, partida (ALIGN → RUN) e detecção de stall.
 
+<a id="motor_open_loop_comm_hz_max"></a>
+
+### MOTOR_OPEN_LOOP_COMM_HZ_MAX
+
+Macro de `board_config.h` que define a **frequência elétrica máxima** da rampa de comutação em malha aberta, em Hz (`float`).
+
+Governa o limite superior da aceleração forçada antes de FCEM suficiente para handover ao ZCD. Um valor excessivamente alto causa perda de sincronismo magnético (stall) porque o campo giratório do estator acelera mais rápido do que o rotor consegue acompanhar dado seu momento de inércia e o torque eletromagnético disponível. Um valor excessivamente baixo pode não atingir a velocidade mínima de leitura confiável dos comparadores.
+
+**Motor de teste A2212/10T 1400kV:** `300.0f` Hz → teto mecânico de ≈ 2571 RPM (\(300 \times 60 / 7\)).
+
+Ver também: [frequência elétrica](#frequência-elétrica), [MOTOR_POLE_PAIRS](#motor_pole_pairs), [malha aberta / fechada](#malha-aberta--fechada), [stall](#stall).
+
+<a id="motor_pole_pairs"></a>
+
+### MOTOR_POLE_PAIRS
+
+Macro de `board_config.h` que define o número de **pares de polos magnéticos** do motor (`uint`).
+
+É o parâmetro físico mais crítico para a relação eletromecânica do motor: um valor errado resulta em estimativa de RPM completamente incorreta e em dessincronismo permanente entre o campo do estator e os ímãs do rotor. Determina a conversão entre frequência elétrica de comutação e velocidade mecânica:
+
+\[
+n \text{ [RPM]} = \frac{f_{el} \text{ [Hz]} \times 60}{p}
+\]
+
+**Motor de teste A2212/10T 1400kV (14 polos magnéticos):** `7U`.
+
+Ver também: [pares de polos](#pares-de-polos), [frequência elétrica](#frequência-elétrica), [A2212](#a2212).
+
 <a id="ms--ns"></a>
 
 ### ms / ns
@@ -714,6 +776,16 @@ Comutação em **malha aberta**, os passos 6-step avançam por temporizador, sem
 
 Modo padrão com `BOARD_ENABLE_BEMF_ZCD 0`.
 
+<a id="outrunner"></a>
+
+### outrunner
+
+Configuração construtiva de motor BLDC em que o **rotor (ímãs permanentes) envolve externamente o estator (bobinas fixas)**.
+
+Característica: diâmetro externo maior, relação K_V mais baixa, número de polos tipicamente maior que motores inrunner de mesma classe de potência. Exemplo: motor A2212/10T 1400kV possui 14 polos na carcaça giratória externa. Contrasta com o [inrunner](#bldc) (rotor interno), como o Turnigy XK3674-2200KV de 4 polos.
+
+**Implicação de firmware:** o maior número de pares de polos (\(p = 7\) vs \(p = 2\)) eleva a frequência elétrica de comutação necessária para uma mesma velocidade mecânica, exigindo ajuste dos parâmetros `MOTOR_POLE_PAIRS` e `MOTOR_OPEN_LOOP_COMM_HZ_MAX`.
+
 <a id="overshoot"></a>
 
 ### overshoot
@@ -735,6 +807,27 @@ O anti-windup do PI reduz overshoot quando a saída estava saturada.
 **P**rinted **C**ircuit **B**oard (Placa de Circuito Impresso).
 
 Placa física que interliga o ESP32, drivers IR2110, sensores e conectores. Documentada em `Hardware/PCB_Project/`.
+
+<a id="pares-de-polos"></a>
+
+### pares de polos
+
+Número de **pares de polos magnéticos** do rotor de um motor BLDC, denotado \(p\). Cada par é composto por um polo Norte e um polo Sul adjacentes no rotor. O número total de polos é \(2p\).
+
+Este parâmetro é fundamental para a conversão eletromecânica: governa quantas vezes o campo magnético do estator precisa completar um ciclo elétrico para que o rotor avance um giro mecânico completo:
+
+\[
+f_e = p \cdot \frac{n}{60}
+\]
+
+onde \(f_e\) é a frequência elétrica de comutação (Hz) e \(n\) a velocidade mecânica (RPM).
+
+| Motor | Polos totais | Pares de polos \(p\) | `MOTOR_POLE_PAIRS` |
+|-------|-------------|----------------------|--------------------|
+| Turnigy XK3674-2200KV (inrunner) | 4 | 2 | `2U` |
+| **A2212/10T 1400kV (outrunner)** | **14** | **7** | **`7U`** |
+
+**No firmware:** macro `MOTOR_POLE_PAIRS` em `board_config.h`; usada na conversão RPM ↔ f_el e na estimativa de RPM a partir do intervalo entre passos de comutação. Ver também: [frequência elétrica](#frequência-elétrica), [MOTOR_POLE_PAIRS](#motor_pole_pairs), [outrunner](#outrunner).
 
 <a id="pi"></a>
 
