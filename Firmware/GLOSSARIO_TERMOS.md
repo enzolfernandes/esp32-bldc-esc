@@ -1,5 +1,13 @@
 # Glossário de Termos, Firmware ESC BLDC (ESP32)
 
+---
+
+## Diretriz de Sincronização Contínua
+
+> **REGRA DE MANUTENÇÃO:** Toda vez que o código C++ for alterado ou o texto em LaTeX sofrer revisões de escopo (ex.: mudança de motores, adição de sensores, alteração de limiares de proteção, inclusão de novos módulos de firmware), a IA atuante DEVE obrigatoriamente atualizar a Documentação de Programação e a Memória do TCC (`MEMORIA_TCC.md`) em paralelo para evitar defasagem técnica entre o estado real do código e os documentos de referência do trabalho. Novas siglas ou termos introduzidos nesse processo devem ser adicionados a este glossário.
+
+---
+
 Este glossário complementa a [Documentação de Programação](DOCUMENTACAO_PROGRAMACAO.md). Mantenha este arquivo aberto em um painel lateral enquanto lê o documento principal para consultar rapidamente siglas, abreviações e termos técnicos.
 
 As entradas estão em ordem alfabética. Cada termo inclui o nome por extenso, uma definição acessível e, quando relevante, o contexto no firmware deste projeto.

@@ -208,3 +208,162 @@ Embora as análises computacionais prévias tenham apontado transientes teórico
 Com o propósito de mitigar as perdas ôhmicas, o roteamento físico descartou o uso de trilhas convencionais em favor de grandes polígonos de preenchimento (\textit{copper pours}) sólidos. A camada superior (Figura \ref{fig:pcb_top}) acomoda as ilhas de comutação das fases e o barramento positivo, com gargalos projetados em um mínimo de $5 \: mm$ de largura. Contudo, como a espessura padrão do cobre de um laminado comum (tipicamente $1 \: oz/ft^2$ ou $35 \: \mu m$) possui uma secção transversal insuficiente para conduzir altas correntes, o sistema estaria sujeito à falha por superaquecimento térmico via Efeito Joule ($P = I^2 \cdot R_{trilha}$). Para contornar essa limitação e elevar o limite térmico do circuito, tirou-se proveito da própria natureza do material de prototipagem utilizado: o laminado de cobre nu. A ausência da máscara de solda isolante deixou todos os polígonos de potência naturalmente expostos. Esta característica facilitou a deposição manual de espessas camadas de liga de estanho e o assentamento de condutores de cobre sólido diretamente sobre as malhas críticas, aumentando substancialmente a área da secção transversal ($A$) das trilhas e reduzindo a sua resistência ôhmica equivalente ($\rho \cdot \frac{L}{A}$).
 
 Do ponto de vista de compatibilidade eletromagnética (EMC), duas estratégias de isolamento foram rigorosamente aplicadas no layout. Primeiro, os espaços não roteados da placa foram preenchidos por dois imensos planos de terra funcionalmente segregados: o Terra de Potência (\textit{PGND}), concentrado na camada inferior (Figura \ref{fig:pcb_bottom}) sob o estágio do inversor, e o Terra de Sinal (\textit{SGND}), restrito à periferia dos circuitos lógicos e sensores. A conexão elétrica entre esses dois referenciais foi consolidada estritamente através da técnica de ponto único de aterramento (\textit{Star Ground}). Essa configuração impede o surgimento de laços de terra (\textit{ground loops}) e garante que as severas correntes de retorno induzidas pelo chaveamento do motor permaneçam confinadas na malha de potência, mitigando o fenômeno de flutuação de referencial (\textit{ground bounce}) sobre a eletrônica sensível. Segundo, a Unidade de Controle (ESP32) foi posicionada no extremo oposto da placa em relação aos MOSFETs. Como a comutação rápida de corrente gera campos magnéticos irradiados devido às altas taxas de $di/dt$, o distanciamento físico atua atenuando a intensidade do acoplamento indesejado de forma inversamente proporcional ao quadrado da distância, blindando o microcontrolador contra perturbações eletromagnéticas e travamentos espúrios.
+
+% ============================================================
+\section{Desenvolvimento e Validação do Firmware}
+% ============================================================
+
+O firmware desenvolvido para o ESC constitui, em si, um objeto de validação arquitetural independente do hardware. A avaliação de um sistema embarcado de potência não se restringe à medição de grandezas elétricas no banco de testes; ela abrange também a análise de coerência interna, a capacidade do código de garantir, por construção, determinadas propriedades de segurança, temporização e manutenibilidade. Esta seção apresenta os resultados dessa avaliação, organizados em quatro dimensões: a eficácia da arquitetura modular e do isolamento da \textit{Hardware Abstraction Layer} (HAL), a robustez da máquina de estados finita (FSM), as rotinas de proteção e o tratamento de exceções, e, por fim, a parametrização definida em tempo de compilação e o comportamento observado em bancada com o motor A2212/10T 1400\,kV.
+
+% ------------------------------------------------------------
+\subsection{Arquitetura Modular e Isolamento da HAL}
+% ------------------------------------------------------------
+
+A principal escolha arquitetural do firmware foi a adoção de um modelo em camadas com inversão de dependência, no qual o acesso direto ao silício do ESP32 está concentrado exclusivamente nos módulos \texttt{hal\_pwm}, \texttt{hal\_adc}, \texttt{hal\_gpio} e \texttt{hal\_dac}. O resultado mais relevante dessa decisão é verificável por inspeção estrutural: o módulo \texttt{pid\_regulator}, responsável pelo cálculo do controlador proporcional-integral, não inclui nenhum cabeçalho de periférico nem referencia o arquivo \texttt{board\_config.h}. Ele opera exclusivamente sobre grandezas numéricas em ponto flutuante — referência, medição e limites — sem qualquer conhecimento da topologia do inversor ou do mapeamento de pinos. Esse isolamento constitui uma garantia formal de que modificações no hardware (substituição de amplificador de corrente, alteração de pinos, migração para outra família de microcontrolador) não propagam alterações para a lógica de controle.
+
+A HAL não realiza conversões físicas: expõe milivolts brutos do ADC1, aplica ciclo de trabalho no MCPWM e manipula níveis digitais. A conversão de tensão em corrente de fase — equacionada como $(V_{ADC} - V_{offset}) / (20 \times 0{,}001)$, onde $20\,\text{V/V}$ é o ganho fixo do INA240 e $0{,}001\,\Omega$ é o \textit{shunt} — está restrita ao driver \texttt{ina240\_current\_sensors}. Essa separação significa que recalibrar o sensor implica alterar exatamente um módulo, sem risco de regressão em qualquer outro subsistema.
+
+A abordagem híbrida Arduino/ESP-IDF demonstrou ser tecnicamente coerente com os requisitos do projeto. O ponto de entrada utiliza o paradigma \texttt{setup()}/\texttt{loop()} do Arduino, o que viabilizou a integração com a biblioteca \textbf{Bluepad32} para o controle via DualShock 4 por Bluetooth. Os módulos críticos de potência, por sua vez, invocam diretamente as APIs do ESP-IDF — \texttt{driver/mcpwm.h}, \texttt{driver/adc.h}, \texttt{driver/gpio.h}, \texttt{driver/dac.h} e \texttt{esp\_timer.h} — para obter controle preciso de \textit{dead-time} (500\,ns, compatível com os \textit{drivers} IR2110), resolução de temporização em microssegundos e isolamento do subsistema de rádio. Uma restrição documentada do ESP32 reforça a correção dessa escolha: o ADC2 compartilha recursos com o subsistema Wi-Fi/Bluetooth e torna-se não confiável quando o rádio está ativo; por esse motivo, todas as aquisições de corrente de fase e tensão de barramento foram roteadas para o ADC1 (pinos 34, 35, 36 e 39), que opera de forma estável durante a transmissão Bluetooth.
+
+A configuração central em \texttt{board\_config.h} como única fonte de verdade do mapeamento GPIO–função demonstrou seu valor durante a evolução do projeto: a tabela de comutação 6-step, as proteções de corrente e a sequência de partida foram ajustadas sem que nenhuma linha de código fora desse arquivo precisasse ser rastreada. A compilação condicional — notavelmente as macros \texttt{BOARD\_ENABLE\_BEMF\_ZCD} e \texttt{MOTOR\_CONTROL\_USE\_SPEED\_MODE} — permite selecionar topologias de controle inteiramente distintas sem duplicação de código, gerando binários enxutos contendo apenas os caminhos de execução necessários.
+
+% ------------------------------------------------------------
+\subsection{Máquina de Estados e Robustez das Transições}
+% ------------------------------------------------------------
+
+A FSM de alto nível (\texttt{fsm\_system}) encapsula quatro estados operacionais — \texttt{INIT}, \texttt{IDLE}, \texttt{RUNNING} e \texttt{FAULT} — com transições explícitas e guardadas por condições de segurança. O resultado mais importante dessa escolha de paradigma é a impossibilidade estrutural de armar o PWM fora do estado \texttt{IDLE}: a função \texttt{fsm\_system\_request\_arm()} verifica a ausência de subtensão (UVLO) e a ausência de latch de falha ativa antes de qualquer chamada à HAL. Em \texttt{ESC\_STATE\_FAULT}, a operação permanece bloqueada até que um \textit{clear fault} explícito seja emitido via botão Options do controle — condição adicional que exige que o hardware tenha liberado o pino OC Trip e que a tensão do barramento tenha recuperado ao limiar de histerese. Esse comportamento elimina a classe de falhas em que um sistema orientado a flags booleanas poderia rearmar silenciosamente após a remoção de uma condição de falha.
+
+A sequência de inicialização — detalhada em \texttt{fsm\_system\_init()} — impõe uma ordem determinística de ativação dos subsistemas:
+
+\begin{enumerate}
+    \item Configuração do ADC1 (\texttt{hal\_adc\_init});
+    \item Configuração das saídas de \textit{shutdown} e da entrada OC Trip (\texttt{hal\_gpio\_init});
+    \item Programação do DAC1 com a tensão de referência OCP do LM339 (\texttt{lm339\_protection\_init});
+    \item Inicialização do MCPWM com PWM desarmado (\texttt{hal\_pwm\_init});
+    \item Calibração de \textit{offset} do INA240 com corrente nula (\texttt{ina240\_calibrate\_offset}, 64 amostras);
+    \item Inicialização do monitor de bateria e detecção automática de número de células (\texttt{battery\_monitor\_init});
+    \item Arme da ISR de sobrecorrente no OC Trip (\texttt{lm339\_protection\_arm});
+    \item Criação do temporizador de 1\,kHz da malha de controle (\texttt{motor\_control\_init}).
+\end{enumerate}
+
+Qualquer falha em etapa intermediária invoca \texttt{enter\_fault\_state()} e mantém o ESC em \texttt{FAULT}, prevenindo operação com subsistema em estado indeterminado. A detecção de número de células LiPo ocorre em \textit{boot} e é travada — uma troca de bateria de 4S para 6S, ou vice-versa, exige \textit{power-cycle} do controlador para atualizar os limiares de UVLO.
+
+Internamente ao estado \texttt{RUNNING}, o módulo \texttt{motor\_control} executa sua própria sub-FSM de partida, com as fases \texttt{IDLE}, \texttt{ALIGN}, \texttt{RUN} (modo corrente), \texttt{RUN\_OPEN} e \texttt{RUN\_SPEED} (modo velocidade). A fase de alinhamento aplica o vetor estático do passo 0 (CW) ou do passo 3 (CCW) por 500\,ms a 12\,\% de ciclo de trabalho, garantindo posição angular inicial $\theta_0$ conhecida antes do início da rampa trapezoidal — requisito fundamental para a estratégia \textit{sensorless} sem detecção de FCEM em velocidade zero. A transição para a fase \texttt{RUN\_SPEED} no modo cascata condiciona-se ao RPM estimado superar 600\,RPM por ao menos 200\,ms consecutivos, evitando um \textit{handover} prematuro para o PI de velocidade em condição de aceleração instável.
+
+\textbf{[LACUNA BANCADA: Inserir aqui o oscilograma da sequência de partida do motor A2212 --- tensão de fase e corrente de armadura durante as fases ALIGN $\to$ RUN\_OPEN $\to$ RUN\_SPEED, com identificação visual dos instantes de transição e do tempo total de rampa medido]}
+
+A troca de sentido via botão Circle do controle é intencionalmente bloqueada enquanto o gatilho R2 estiver acima do limiar de arme. A função \texttt{motor\_control\_set\_direction()} retorna \texttt{false} silenciosamente quando \texttt{s\_active == true} e o comando de torque está ativo, transferindo para o operador a responsabilidade de aguardar a desaceleração do rotor antes de comandar a inversão. Essa decisão de projeto foi documentada como salvaguarda deliberada: uma inversão automática com rotor em movimento acima de $\approx$\,600\,RPM produziria FCEM em oposição ao vetor de alinhamento aplicado no re-arme, com probabilidade elevada de disparo do OCP por sobrecorrente durante a fase ALIGN.
+
+% ------------------------------------------------------------
+\subsection{Rotinas de Proteção e Tratamento de Exceções}
+% ------------------------------------------------------------
+
+A estratégia de segurança do ESC é organizada em três camadas independentes, implementando o princípio de defesa em profundidade: proteção analógica de hardware, proteção de firmware por interrupção e proteção de software por supervisão periódica.
+
+\subsubsection*{Proteção de Sobrecorrente em Hardware (OCP)}
+
+A proteção primária baseia-se nos comparadores LM339 conectados às saídas dos amplificadores INA240. A tensão de referência $V_{dac}$, gerada pelo DAC1 (GPIO\,25) e calculada por:
+
+\begin{equation}
+    V_{dac} = 1{,}65 + I_{lim} \times 0{,}001 \times 20 \quad [\text{V}]
+\end{equation}
+
+fixa o limiar de disparo em 8\,A ($V_{dac} \approx 1{,}81\,\text{V}$). Quando qualquer fase supera esse limiar, o LM339 satura em coletor aberto, puxando o nó \textit{OC Trip} (GPIO\,26) a zero e disparando uma ISR marcada \texttt{IRAM\_ATTR}. O \textit{handler}, executado na RAM interna de instrução para evitar falhas de cache durante a interrupção, realiza apenas três operações: desabilita o \textit{shutdown} dos IR2110 (pinos SD em LOW), desarma o MCPWM via \texttt{hal\_pwm\_disable\_all()} e levanta o flag \texttt{s\_fault\_pending}. O tempo de resposta dessa cadeia é da ordem de microssegundos, independente do estado do loop de controle. A transição formal para \texttt{ESC\_STATE\_FAULT} ocorre no próximo ciclo de \texttt{fsm\_system\_tick()}, onde operações mais elaboradas — como impressão do código de falha na telemetria serial — são executadas com segurança fora do contexto de interrupção.
+
+\textbf{[LACUNA BANCADA: Inserir aqui o oscilograma do evento de disparo OCP --- canal 1: corrente de fase medida pelo INA240; canal 2: nível lógico do pino OC Trip (GPIO\,26); canal 3: sinal PWM de gate do MOSFET High-Side --- evidenciando o tempo de resposta entre o cruzamento do limiar e a queda do PWM]}
+
+\subsubsection*{Proteção de Sobrecorrente em Software}
+
+Em paralelo à proteção analógica, o módulo \texttt{motor\_control\_tick()} supervisiona o valor máximo entre as três correntes de fase a cada 1\,ms. Caso $\max(|I_A|, |I_B|, |I_C|)$ supere \texttt{MOTOR\_SOFTWARE\_OC\_AMPS} (8\,A) com torque ativo, a função \texttt{trip\_software\_overcurrent()} levanta \texttt{s\_sw\_fault\_pending} e sinaliza \texttt{MOTOR\_FAULT\_SW\_OC} à FSM. Esta proteção cobre cenários em que a corrente eleva-se de forma sustentada abaixo do limiar analógico, como durante a fase de alinhamento com duty fixo, e garante coerência entre os limiares de software e hardware via a macro compartilhada \texttt{LM339\_HW\_OC\_AMPS}.
+
+\subsubsection*{Proteção de Subtensão (UVLO)}
+
+O monitor de bateria (\texttt{battery\_monitor}) lê a tensão do barramento a cada iteração do loop principal através do divisor resistivo de $39\,\text{k}\Omega / 4{,}7\,\text{k}\Omega$ no GPIO\,39. Os limiares de UVLO são parametrizados por célula: 3,3\,V/célula como \textit{cutoff} e 3,5\,V/célula como limiar de recuperação, com histerese de 200\,mV/célula para evitar oscilação em torno do ponto de corte. Um debounce de 100\,ms de leitura contínua abaixo do \textit{cutoff} é exigido antes do disparo, filtrando quedas transitórias de tensão causadas por picos de corrente de comutação. Em \texttt{RUNNING}, a UVLO encaminha a FSM diretamente para \texttt{FAULT} com código \texttt{falha=UVLO}; em \texttt{IDLE}, bloqueia o arme silenciosamente.
+
+\textbf{[LACUNA BANCADA: Inserir aqui o gráfico de tensão de barramento em função do tempo durante ensaio de descarga da bateria 4S, com marcação dos instantes de disparo do UVLO e de recuperação após troca de bateria --- evidenciando a histerese de tensão e o debounce de 100\,ms]}
+
+\subsubsection*{Detecção de Stall (Dessincronismo)}
+
+Em operação com comutação em malha aberta (\texttt{BOARD\_ENABLE\_BEMF\_ZCD\,=\,0}), o rotor pode perder sincronismo com a sequência 6-step sem gerar sobrecorrente instantânea. O firmware detecta esse estado por três critérios independentes, qualquer um suficiente para disparar \texttt{MOTOR\_FAULT\_STALL}:
+
+\begin{itemize}
+    \item Corrente de fase média acima de \texttt{MOTOR\_STALL\_CURRENT\_AMPS} (6\,A) por mais de \texttt{MOTOR\_STALL\_TIMEOUT\_MS} (300\,ms) durante fase de marcha;
+    \item Ausência de avanço de passo 6-step por um intervalo superior a $4 \times T_{passo\_esperado}$ (\texttt{MOTOR\_STALL\_STEP\_TIMEOUT\_MULT\,=\,4});
+    \item RPM estimado abaixo de \texttt{MOTOR\_SPEED\_MIN\_RPM} (300\,RPM) com referência de velocidade acima de 600\,RPM por mais de 300\,ms, na fase \texttt{RUN\_SPEED}.
+\end{itemize}
+
+A detecção de stall por corrente elevada sustentada é complementar à OCP: enquanto a segunda age em microssegundos sobre picos instantâneos, a primeira identifica a condição crônica de rotor travado com corrente moderada que esgotaria a bateria e aqueceria os enrolamentos progressivamente.
+
+\subsubsection*{Sequência Unificada de Entrada em Falha e Recuperação}
+
+Independentemente da origem da falha — hardware analógico, ISR de interrupção ou supervisão de software —, a função \texttt{enter\_fault\_state()} centraliza a resposta em quatro operações ordenadas: desabilitação dos \textit{drivers} IR2110 (\texttt{hal\_shutdown\_set\_enabled(false)}), disarme do controle de motor (\texttt{motor\_control\_on\_disarm()}, que zera o integrador do PI para evitar \textit{windup} residual na re-armagem), desabilitação do MCPWM (\texttt{hal\_pwm\_set\_armed(false)}) e corte forçado de todos os canais PWM (\texttt{hal\_pwm\_disable\_all()}). A ordem é deliberada: os drivers de potência são desabilitados antes de qualquer operação de software, garantindo que o estágio de potência esteja seguro mesmo que as operações subsequentes falhem. A recuperação exige que o operador emita \textit{clear fault} via botão Options, que o pino OC Trip tenha retornado a HIGH (hardware liberado) e que a tensão do barramento esteja acima do limiar de histerese de UVLO — três condições simultâneas que bloqueiam o re-arme acidental.
+
+% ------------------------------------------------------------
+\subsection{Parametrização e Comportamento em Regime com o Motor A2212/10T}
+% ------------------------------------------------------------
+
+\subsubsection*{Justificativa da Escolha do Motor de Bancada: Prova de Conceito em Escala Reduzida}
+
+A especificação original da plataforma de hardware prevê o acionamento do motor Turnigy XK3674-2200\,KV, um modelo de alta potência com tensão nominal de $25{,}2\,\text{V}$ e corrente de pico da ordem de $90\,\text{A}$. No entanto, a validação funcional integral de uma arquitetura de controle --- compreendendo a máquina de estados, as malhas de proteção, a lógica de comutação de seis passos e a interface de comando --- não requer, em sua fase inicial, que o sistema opere sob plena capacidade de potência. Submeter um protótipo de primeira iteração a regimes de corrente extremos antes de garantir a correção do firmware e a integridade do layout de PCB representa um risco de engenharia desnecessário, com elevada probabilidade de falha catastrófica nos semicondutores de potência.
+
+Adotou-se, portanto, uma estratégia deliberada de \textbf{Prova de Conceito em escala reduzida} (\textit{Proof of Concept} --- PoC): o motor A2212/10T 1400\,kV foi selecionado como carga de bancada por ser um \textit{outrunner} compacto, com tensão de operação compatível com uma bateria de 4 células LiPo ($\approx 14{,}8\,\text{V}$) e corrente nominal muito inferior à do motor de projeto. Essa escolha viabiliza a validação completa da arquitetura de controle --- comutação trapezoidal, rampa de aceleração, malhas de proteção analógica e de software, interface DualShock\,4 e FSM de alto nível --- operando em uma faixa de corrente segura (limitada a $3\,\text{A}$), sem exigir dissipadores externos nem representar risco de incêndio em caso de falha.
+
+Esta abordagem metodológica é amplamente difundida no desenvolvimento de sistemas de potência embarcados: consolida-se o firmware e o layout em potência reduzida e, somente após a validação, realiza-se o escalonamento (\textit{scale-up}) para a carga nominal. Os ensaios descritos nesta seção foram integralmente conduzidos com o motor A2212/10T como carga representativa, sendo os resultados diretamente extrapoláveis para o motor de projeto após o escalonamento de potência e a recalibração dos limiares de proteção.
+
+O motor selecionado para os ensaios de bancada é o A2212/10T 1400\,kV, caracterizado por 14 polos magnéticos e, portanto, $p = 7$ pares de polos. Esses parâmetros governam diretamente a relação entre frequência elétrica de comutação e velocidade mecânica do rotor:
+
+\begin{equation}
+    f_{el} = \frac{n \cdot p}{60} \implies n = \frac{f_{el} \cdot 60}{p} = \frac{f_{el} \cdot 60}{7}
+\end{equation}
+
+Com base nessa equação, a frequência máxima da rampa em malha aberta foi fixada em \texttt{MOTOR\_OPEN\_LOOP\_COMM\_HZ\_MAX\,=\,300{,}0\,Hz}, correspondendo a um teto de $\approx$\,2571\,RPM mecânicos. Esse limite foi definido de forma conservadora para prevenir a perda de sincronismo magnético (\textit{stall}) durante a aceleração forçada sem realimentação de posição: com frequência de comutação superior à capacidade mecânica do rotor de acompanhar o campo girante do estator, o motor engasga e a corrente eleva-se abruptamente. O incremento de rampa de +1,5\,Hz por passo comutado garante uma aceleração suave o suficiente para que o torque eletromagnético, proporcional ao desalinhamento angular entre campo de estator e imãs do rotor, mantenha o sincronismo durante a transição.
+
+\textbf{[LACUNA BANCADA: Inserir aqui o gráfico de RPM estimado (eixo primário) e corrente de fase média (eixo secundário) em função do tempo durante a rampa de aceleração completa do motor A2212 --- desde o alinhamento estático até o regime em 2571\,RPM, evidenciando as fases ALIGN, RUN\_OPEN e a linearidade da rampa de frequência]}
+
+\textbf{[LACUNA BANCADA: Inserir aqui o valor empírico do tempo de duração da rampa completa (de 5\,Hz a 300\,Hz) medido em bancada com o motor A2212 em condição de vazio, comparando com o valor teórico derivado do incremento de +1{,}5\,Hz/passo]}
+
+O controlador PI de corrente (\texttt{s\_current\_pi}) e o controlador PI de velocidade em cascata (\texttt{s\_speed\_pi}) — utilizados no modo \texttt{MOTOR\_CONTROL\_USE\_SPEED\_MODE\,=\,1} — foram inicializados com ganhos padrão definidos em \texttt{board\_config.h}. O algoritmo implementado em \texttt{pid\_regulator.c} adota a integração de Euler com clamping do integrador (\textit{anti-windup}):
+
+\begin{equation}
+    I_k = \mathrm{clamp}\!\left(I_{k-1} + K_i \cdot e_k \cdot \Delta t,\; I_{min},\; I_{max}\right)
+\end{equation}
+
+\begin{equation}
+    u_k = \mathrm{clamp}(P_k + I_k,\; u_{min},\; u_{max})
+\end{equation}
+
+onde $\Delta t = 1\,\text{ms}$ é o período do temporizador \texttt{esp\_timer}. O \textit{anti-windup} por clamping previne que o integrador acumule valor enquanto a saída está saturada no teto de 95\,\% de ciclo de trabalho — margem reservada para recarga do capacitor de \textit{bootstrap} do IR2110, que não tolera \textit{duty cycle} de 100\,\% indefinidamente. Sem essa limitação, a saída do integrador cresceria durante a saturação e, ao ser liberada, provocaria sobressinal (\textit{overshoot}) e resposta oscilatória indesejada.
+
+\textbf{[LACUNA BANCADA: Inserir aqui os ganhos $K_p$ e $K_i$ finais do PI de corrente e do PI de velocidade determinados por ajuste fino em bancada com o motor A2212, bem como a resposta ao degrau de referência de RPM no modo SPEED --- gráfico de RPM estimado vs. tempo, com indicação do \textit{overshoot} percentual e do tempo de assentamento ($t_s$ a 5\,\%)]}
+
+No modo corrente (\texttt{MOTOR\_CONTROL\_USE\_SPEED\_MODE\,=\,0}), o gatilho R2 do controle mapeia linearmente a corrente alvo de 0 a 5\,A na faixa efetiva $R2_{eff} \in [0, 245]$, com taxa de variação limitada a \texttt{MOTOR\_TARGET\_SLEW\_AMPS\_PER\_S\,=\,2\,A/s} para evitar transitórios abruptos de corrente. No modo velocidade, o mapeamento é de 0 a 2571\,RPM com \textit{slew} de 1500\,RPM/s. O RPM estimado é calculado a partir do intervalo medido entre passos 6-step consecutivos, com filtro de média ponderada que combina 7/8 do valor anterior com 1/8 da nova leitura:
+
+\begin{equation}
+    \widehat{n}_k = \frac{7}{8}\,\widehat{n}_{k-1} + \frac{1}{8}\,\frac{10^6}{6 \cdot T_{step}} \cdot \frac{60}{2p}
+\end{equation}
+
+É importante ressaltar que, com \texttt{BOARD\_ENABLE\_BEMF\_ZCD\,=\,0} (configuração padrão adotada nesta fase de validação), $\widehat{n}$ reflete a taxa à qual o firmware comuta, não uma medição independente do eixo. Em condição de dessincronismo, o RPM estimado pode indicar o valor comandado enquanto o eixo real gira mais devagar ou permanece travado — situação mitigada pela detecção de stall por corrente sustentada descrita na seção anterior.
+
+\textbf{[LACUNA BANCADA: Inserir aqui a comparação entre o RPM estimado pelo firmware e o RPM medido por tacômetro óptico (ou encoder) durante operação em regime estável no modo SPEED com referência de 1500\,RPM e 2000\,RPM, quantificando o desvio percentual de estimativa em condição de vazio e com carga]}
+
+\textbf{[LACUNA BANCADA: Inserir aqui o oscilograma da tensão de fase flutuante (BEMF) capturada no osciloscópio durante operação em malha aberta a 2571\,RPM --- evidenciando a forma de onda trapezoidal da FCEM e o cruzamento por zero que será utilizado como referência para a futura transição à malha fechada por ZCD]}
+
+A interface de comando via DualShock 4, gerenciada pela biblioteca Bluepad32 integrada ao \textit{core} Arduino customizado, demonstrou comportamento estável durante os ensaios de funcionalidade do firmware. O \textit{polling} do gamepad a cada 20\,ms, executado no \texttt{loop()} Arduino, não interferiu na malha de controle a 1\,kHz, pois esta reside em uma \textit{task} FreeRTOS despachada pelo \texttt{esp\_timer} — cadência temporal independente e de maior prioridade. O \textit{feedback} visual por \textit{lightbar} — âmbar na inicialização, azul em \texttt{IDLE}, verde em \texttt{RUNNING} e vermelho em \texttt{FAULT} — permitiu validar as transições da FSM sem necessidade de monitor serial durante os ensaios de campo, confirmando a utilidade do mecanismo como ferramenta de diagnóstico em tempo real.
+
+% ============================================================
+\section{Estado de Implementação da Detecção de Cruzamento por Zero (ZCD)}
+% ============================================================
+
+É necessário estabelecer, de forma explícita e inequívoca, o escopo da implementação do módulo de Detecção de Cruzamento por Zero (\textit{Zero-Crossing Detection} --- ZCD) nesta etapa do protótipo: \textbf{a transição para a malha fechada orientada pela FCEM não foi implementada na presente versão do firmware}. A macro de compilação condicional \texttt{BOARD\_ENABLE\_BEMF\_ZCD}, definida em \texttt{board\_config.h}, encontra-se fixada em zero (\texttt{0}), desabilitando integralmente o caminho de código responsável pelo monitoramento das interrupções do comparador LM339 e pela lógica de \textit{handover} da malha aberta para a malha fechada.
+
+Esta decisão de escopo é justificada por três razões técnicas de ordem prática:
+
+\begin{enumerate}
+    \item \textbf{Prioridade de validação arquitetural:} o objetivo primário desta fase é demonstrar a correção da malha aberta de comutação trapezoidal, da infraestrutura de proteção e da FSM de alto nível. A ativação prematura do ZCD, antes da validação estável da sequência de partida, introduziria uma variável adicional de falha que dificultaria a depuração sistemática do sistema.
+
+    \item \textbf{Limitação da bancada de ensaios atual:} a validação do ZCD exige que o motor atinja uma velocidade angular mínima --- tipicamente entre $5\,\%$ e $10\,\%$ da velocidade nominal --- para que a amplitude da FCEM supere o limiar de histerese dos comparadores LM339. A instrumentação disponível na bancada atual (limitada a $3\,\text{A}$ com o motor A2212) não oferece excursão dinâmica suficiente para caracterizar de forma reprodutível o ponto de \textit{handover} e validar a compensação de atraso de fase do filtro RC descrita na Metodologia.
+
+    \item \textbf{Escopo delimitado do trabalho:} a implementação do ZCD, com a respectiva validação empírica do cálculo dinâmico de $T_{wait}$ e da operação em malha fechada auto-sincronizada, constitui o passo subsequente imediato na evolução deste projeto, a ser conduzido na etapa de escalonamento de potência com o motor Turnigy XK3674-2200\,KV.
+\end{enumerate}
+
+O hardware de condicionamento de sinal para o ZCD --- divisores resistivos de fase, filtros RC passa-baixa, neutro virtual e comparadores LM339 --- está integralmente projetado, dimensionado e presente no esquemático e no layout da PCB, conforme detalhado na Subseção~\ref{subsec:condicionamento_sinais}. A ausência da implementação em software é, portanto, uma decisão metodológica de escalonamento incremental, e não uma limitação de hardware irresolvida.

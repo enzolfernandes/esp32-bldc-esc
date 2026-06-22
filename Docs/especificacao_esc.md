@@ -1,6 +1,14 @@
 ```markdown
 # Arquitetura de Firmware: ESC Trifásico para Motor BLDC (ESP32)
 
+---
+
+## Diretriz de Sincronização Contínua
+
+> **REGRA DE MANUTENÇÃO:** Toda vez que o código C++ for alterado ou o texto em LaTeX sofrer revisões de escopo (ex.: mudança de motores, adição de sensores, alteração de limiares de proteção, inclusão de novos módulos de firmware), a IA atuante DEVE obrigatoriamente atualizar a Documentação de Programação (`Firmware/DOCUMENTACAO_PROGRAMACAO.md`) e a Memória do TCC (`MEMORIA_TCC.md`) em paralelo para evitar defasagem técnica entre o estado real do código e os documentos de referência do trabalho. Divergências entre esta especificação funcional e a implementação efetiva devem ser documentadas na Seção 1 ou Seção 4 da Documentação de Programação.
+
+---
+
 ## 1. Visão Geral
 Sistema de controle de velocidade eletrônico (ESC) para motor BLDC trifásico, operando sob o microcontrolador ESP32 (framework ESP-IDF com FreeRTOS). A arquitetura é estritamente modular, baseada em eventos, dividida em camadas (Aplicação, Controle, Drivers de Sensores e HAL), garantindo o isolamento da lógica matemática do hardware físico. O mapeamento de pinos segue o DevKitC v4; GPIO **12–15** reservados para JTAG (ESP-Prog); ZCD BEMF em GPIO **16, 17, 5** (U3 RX2/TX2/D5).
 
