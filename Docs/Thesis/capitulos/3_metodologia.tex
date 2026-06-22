@@ -280,7 +280,7 @@ O controle lógico do inversor é centralizado no microcontrolador, responsável
 ]
 \node[camada, fill=gray!10] (aplicacao)
     {\textbf{Camada de Aplica\c{c}\~ao} \\[1pt]
-     Ponto de Entrada \quad M\'aquina de Estados \quad Interface Bluetooth};
+     Ponto de Entrada \quad M\'aquina de Estados \quad Interface Bluetooth \quad Telemetria Wi-Fi};
 
 \node[camada, fill=gray!20, below=of aplicacao] (controle)
     {\textbf{Camada de Controle} \\[1pt]
@@ -296,7 +296,7 @@ O controle lógico do inversor é centralizado no microcontrolador, responsável
 
 \node[camada, fill=gray!65, below=of hal] (silicio)
     {\textbf{Sil\'icio ESP32} \\[1pt]
-     MCPWM \quad ADC1 \quad GPIO \quad DAC \quad Bluetooth};
+     MCPWM \quad ADC1 \quad GPIO \quad DAC \quad Bluetooth \quad Wi-Fi};
 
 \draw[seta] (aplicacao.south) -- (controle.north);
 \draw[seta] (controle.south)  -- (drivers.north);
@@ -317,6 +317,33 @@ Para a etapa de validação experimental do protótipo em bancada, a definição
 Nesse contexto, foi adotado o controle \textit{DualShock 4} (PS4) como dispositivo de entrada principal do sistema. A escolha fundamenta-se em três critérios de engenharia de sistemas: (1) o controle disponibiliza dois gatilhos analógicos de alta resolução (R2 para aceleração, L2 para frenagem), com curso contínuo que permite mapear linearmente toda a faixa de referência de corrente ou velocidade do ESC sem os degraus discretos de um potenciômetro rotativo; (2) sua interface de comunicação é \textbf{Bluetooth Low Energy (BLE)}, eliminando cabos entre o operador e o banco de ensaios e, consequentemente, removendo qualquer risco de choque elétrico por conexão direta a um circuito de alta tensão em operação; (3) o controle expõe pinos de LED colorido (\textit{lightbar}) e botões de ação nomeados (Circle, Options), os quais foram aproveitados como canal de diagnóstico visual e como comandos de arme/desarme e \textit{clear fault} da Máquina de Estados do ESC, respectivamente, dispensando interface serial durante ensaios de campo.
 
 A integração com o microcontrolador ESP32 é viabilizada pela biblioteca de código aberto \textbf{Bluepad32}, que implementa a pilha de protocolo HID Bluetooth para gamepads comerciais diretamente sobre o núcleo Arduino customizado para o ESP32. Os detalhes de implementação desta integração são apresentados na subseção referente à escolha da linguagem de programação.
+
+% ------------------------------------------------------------
+\subsection{Dashboard de Telemetria via Wi-Fi}
+% ------------------------------------------------------------
+
+A aquisição de dados em tempo real durante os ensaios de potência constitui requisito indispensável para a validação das malhas de controle, das rotinas de proteção e da máquina de estados do ESC. A abordagem convencional --- conexão do microcontrolador ao computador do operador por cabo USB/UART --- introduz, contudo, um elo condutor entre o domínio de alta energia do inversor e o equipamento de medição. Em bancadas de eletrônica de potência, essa interligação expõe o operador e o hardware de aquisição a riscos elétricos severos:
+
+\begin{itemize}
+    \item \textbf{Loops de terra (\textit{ground loops}):} quando o referencial de terra do circuito de potência (barramento DC, carcaça do motor, blindagem do cabo de alimentação) não coincide com o terra do computador, circulam correntes parasitas pelo condutor USB, distorcendo medições e elevando a temperatura dos condutores de retorno.
+    \item \textbf{Acoplamento de transientes e surtos:} picos de tensão indutiva no barramento, falhas de comutação ou eventos de proteção (disparo do LM339, UVLO) podem propagar-se pelo cabo de dados e atingir a interface USB do laptop, com potencial de dano irreversível à porta serial integrada ou ao próprio computador.
+    \item \textbf{Restrição ergonômica em bancada:} o cabo USB limita a distância e a liberdade de movimento do operador durante ensaios dinâmicos com o controle Bluetooth, além de constituir obstáculo físico próximo ao eixo em rotação.
+\end{itemize}
+
+Para mitigar esses riscos sem renunciar à visibilidade do estado interno do firmware, foi implementada uma \textbf{Dashboard de Telemetria via Wi-Fi}, que estabelece um \textbf{isolamento galvânico virtual} entre o ESP32 e o equipamento de visualização: o notebook ou smartphone do operador comunica-se com o microcontrolador exclusivamente por ondas de rádio, sem qualquer condutor metálico compartilhado com o circuito de potência.
+
+A arquitetura de software adotada integra-se à camada de aplicação do firmware e opera conforme o fluxo descrito a seguir:
+
+\begin{enumerate}
+    \item \textbf{Modo Access Point (AP):} o ESP32 cria uma rede Wi-Fi local (\texttt{ESC-Dashboard}, IP fixo \texttt{192.168.4.1}), independente de roteador externo e sem necessidade de conexão à internet.
+    \item \textbf{Servidor HTTP assíncrono:} o módulo \texttt{wifi\_telemetry} utiliza a biblioteca ESPAsyncWebServer para servir a interface web (\texttt{index.html}) e o endpoint de dados \texttt{GET /data}, ambos armazenados no sistema de arquivos LittleFS da flash interna.
+    \item \textbf{Telemetria por HTTP \textit{polling}:} o \textit{browser} do operador requisita o JSON de telemetria a cada $1\,\text{s}$; o \texttt{loop()} principal atualiza o \textit{snapshot} a cada $100\,\text{ms}$ via \texttt{push\_wifi\_telemetry()}. Essa estratégia foi preferida à conexão WebSocket persistente para limitar o consumo de \textit{heap} ($\approx 19\,\text{KB}$ por cliente WebSocket), recurso já pressionado pela coexistência de Bluetooth Classic (PS4) e Wi-Fi no mesmo rádio do ESP32.
+    \item \textbf{Visualização local:} a biblioteca Chart.js é servida a partir da flash (arquivo \texttt{chart.min.js}), eliminando dependência de CDN externo --- inacessível quando o operador está conectado exclusivamente ao AP do ESC.
+\end{enumerate}
+
+O \textit{payload} JSON transmitido consolida, em chaves compactas, o estado da FSM, correntes de fase, tensão de barramento, RPM, parâmetros do PI, latência do \texttt{motor\_control\_tick()}, \textit{heap} livre, status do controle PS4 (\texttt{ps4c}, R2, Circle) e código de falha ativo. A telemetria serial por UART ($115200\,\text{baud}$) permanece disponível para depuração em laboratório, porém os ensaios de potência com motor em rotação foram conduzidos preferencialmente sem cabo USB conectado, utilizando exclusivamente a dashboard Wi-Fi como canal de monitoramento.
+
+A inicialização do subsistema Wi-Fi precede a do Bluetooth no \texttt{setup()}, conforme exigência do \textit{scheduler} de coexistência de rádio do ESP-IDF; a inversão dessa ordem impede a subida correta do Access Point. As leituras de corrente e tensão continuam roteadas ao ADC1 (GPIO 34--36 e 39), periférico não afetado pelo compartilhamento de rádio entre Wi-Fi e Bluetooth, preservando a integridade da malha de controle a $1\,\text{kHz}$.
 
 % ------------------------------------------------------------
 \subsection{Escolha da Linguagem e Paradigma de Programação}
@@ -347,6 +374,8 @@ O \textbf{PlatformIO}, ambiente adotado neste trabalho, endereça essas limitaç
     \item \textbf{Compilação modular automática:} o \textit{Library Dependency Finder} (LDF) compila automaticamente cada módulo no diretório de bibliotecas como uma biblioteca estática independente, vinculando-as ao binário final sem declarações manuais de dependências locais. Isso preserva o isolamento entre módulos e detecta inclusões circulares no processo de compilação.
     \item \textbf{Integração com ferramentas profissionais:} ao funcionar como extensão de editores de código modernos, o PlatformIO habilita \textit{IntelliSense} (autocompletar e navegação por definição), indicação de erros em tempo real e integração com sistemas de controle de versão como o Git, recursos que reduzem erros e agilizam o ciclo de desenvolvimento.
     \item \textbf{Configuração de SDK por arquivo:} um arquivo de configuração específico permite ajustar opções de \textit{firmware} do ESP-IDF --- como desabilitar o console USB da pilha Bluetooth que conflitaria com a porta serial de telemetria --- sem modificar o código-fonte, mantendo a separação entre configuração e implementação.
+    \item \textbf{Filesystem LittleFS:} partição de arquivos na flash interna, gravada pelo comando \texttt{pio run -t uploadfs}, contendo \texttt{index.html} e \texttt{chart.min.js} da dashboard Wi-Fi.
+    \item \textbf{Dependências de rede:} ESPAsyncWebServer-esphome e AsyncTCP-esphome declaradas em \texttt{platformio.ini}; \texttt{board\_build.filesystem = littlefs}.
 \end{itemize}
 
 % ------------------------------------------------------------

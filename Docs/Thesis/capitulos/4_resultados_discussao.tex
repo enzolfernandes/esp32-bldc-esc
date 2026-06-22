@@ -361,6 +361,29 @@ No modo corrente (\texttt{MOTOR\_CONTROL\_USE\_SPEED\_MODE\,=\,0}), o gatilho R2
 A interface de comando via DualShock 4, gerenciada pela biblioteca Bluepad32 integrada ao \textit{core} Arduino customizado, demonstrou comportamento estável durante os ensaios de funcionalidade do firmware. O \textit{polling} do gamepad a cada 20\,ms, executado no \texttt{loop()} Arduino, não interferiu na malha de controle a 1\,kHz, pois esta reside em uma \textit{task} FreeRTOS despachada pelo \texttt{esp\_timer} — cadência temporal independente e de maior prioridade. O \textit{feedback} visual por \textit{lightbar} — âmbar na inicialização, azul em \texttt{IDLE}, verde em \texttt{RUNNING} e vermelho em \texttt{FAULT} — permitiu validar as transições da FSM sem necessidade de monitor serial durante os ensaios de campo, confirmando a utilidade do mecanismo como ferramenta de diagnóstico em tempo real.
 
 % ============================================================
+\subsection{Interface de Monitoramento e Telemetria Sem Fio}
+% ============================================================
+
+A validação dinâmica do ESC em bancada com motor em rotação impõe a observação contínua de grandezas elétricas e de estado interno do firmware --- correntes de fase, tensão de barramento, RPM estimado, fase de partida, código de falha e status do controle PS4 --- sem manter o microcontrolador acoplado por cabo USB ao computador do operador. A dashboard de telemetria via Wi-Fi, descrita na Metodologia, foi submetida a ensaio de funcionalidade com o motor A2212/10T em operação e demonstrou comportamento estável: o \textit{browser} manteve atualização periódica dos painéis laterais e dos quatro gráficos de série temporal (correntes, RPM, \textit{duty cycle}/frequência elétrica e latência/\textit{heap}) sem travamentos, quedas de conexão ou degradação perceptível da malha de controle a $1\,\text{kHz}$.
+
+O mecanismo de aquisição opera por requisições HTTP \texttt{GET /data} a cada $1\,\text{s}$, respondidas pelo módulo \texttt{wifi\_telemetry} com o \textit{snapshot} JSON mais recente, previamente atualizado no \texttt{loop()} a cada $100\,\text{ms}$. Essa cadência assíncrona --- atualização rápida no firmware, visualização a $1\,\text{Hz}$ no \textit{browser} --- mostrou-se adequada para acompanhamento de regimes transitórios (partida, degrau de referência, entrada em falha) e para exportação posterior dos dados em CSV e PNG diretamente pela interface web, dispensando \textit{scripts} externos de captura serial durante os ensaios de potência.
+
+Do ponto de vista de segurança de bancada, a eliminação do cabo USB durante os testes com carga mecânica confirmou o benefício projetado: o notebook permaneceu galvanicamente isolado do barramento de $12\,\text{V}$ e dos transientes de comutação do inversor, enquanto o operador visualizava em tempo real o estado \texttt{RUNNING}, a evolução de $I_{med}$ e $RPM_{med}$ e a ativação de proteções (UVLO, \texttt{FAULT}) sem expor a interface USB a surtos ou loops de terra. O indicador \textit{Dashboard online} no cabeçalho da página reflete exclusivamente o sucesso da comunicação HTTP com o ESP32; o status Bluetooth do DualShock\,4 é exibido separadamente no cartão \textit{Controle PS4}, evitando ambiguidade entre conectividade de rede e pareamento do gamepad.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Inserir captura de tela da dashboard Wi-Fi em operação
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{3cm}
+    \textbf{[LACUNA BANCADA: Inserir aqui captura de tela (screenshot) da Dashboard Wi-Fi operando em tempo real com a telemetria do motor A2212]}
+    \vspace{3cm}}}
+    \caption{Dashboard de telemetria Wi-Fi do ESC BLDC em operação com o motor A2212/10T: painel lateral com estado da FSM, grandezas elétricas e status do controle PS4; gráficos de corrente, RPM, \textit{duty cycle} e recursos de CPU atualizados por HTTP \textit{polling}.}
+    \caption*{Fonte: Elaborado pelo autor.}
+    \label{fig:dashboard_wifi_telemetry}
+\end{figure}
+
+A interface web servida localmente pelo LittleFS inclui, além dos gráficos históricos (buffer de $300$ pontos, equivalente a $5\,\text{min}$ de operação contínua a $1\,\text{Hz}$), exportação dos dados capturados pelo \textit{browser} em formato CSV e captura dos gráficos em PNG --- funcionalidades que consolidam a dashboard como ferramenta de documentação experimental para o presente trabalho, sem dependência de infraestrutura de rede externa.
+
+% ============================================================
 \section{Estado de Implementação da Detecção de Cruzamento por Zero (ZCD)}
 % ============================================================
 
@@ -704,7 +727,7 @@ O conjunto de ensaios apresentado até aqui validou o comportamento funcional e 
 A malha de controle do ESC é disparada a $1\,\text{kHz}$ pelo temporizador de hardware \texttt{esp\_timer}, com período nominal $T_{malha} = 1000\,\mu\text{s}$. O tempo de execução efetivo da função \texttt{motor\_control\_tick()} --- doravante denominado $t_{tick}$ --- determina a fração do período disponível para processamento adicional. Para quantificar $t_{tick}$, foram inseridas duas chamadas à função de leitura de tempo de alta resolução do ESP-IDF, \texttt{esp\_timer\_get\_time()}, imediatamente antes e após o corpo da função de controle:
 
 \begin{equation}
-    t_{tick} = t_{saída} - t_{entrada} \quad [\mu\text{s}]
+    t_{tick} = t_{\text{saída}} - t_{\text{entrada}} \quad [\mu\text{s}]
     \label{eq:ttick}
 \end{equation}
 

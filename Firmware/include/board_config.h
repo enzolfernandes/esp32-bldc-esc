@@ -150,4 +150,15 @@
 #define MOTOR_SPEED_DESYNC_RPM             200.0f
 #define MOTOR_SPEED_DESYNC_TIMEOUT_MS      300U
 
+/* --- Wi-Fi Telemetry Dashboard (Access Point mode) ---
+ * O ESP32 cria uma rede Wi-Fi própria sem necessidade de roteador.
+ * Conectar ao SSID abaixo e abrir http://192.168.4.1 no browser.
+ * Coexistência BT Classic (DualShock 4) + Wi-Fi gerenciada pelo ESP-IDF.
+ * ADC1 (pinos 34/35/36/39) não é afetado — apenas ADC2 tem conflito com rádio.
+ */
+#define WIFI_AP_SSID        "ESC-Dashboard"
+#define WIFI_AP_PASSWORD    "esc12345"
+#define WIFI_AP_CHANNEL     6
+#define WIFI_TELEMETRY_PORT 80
+
 #endif // BOARD_CONFIG_H

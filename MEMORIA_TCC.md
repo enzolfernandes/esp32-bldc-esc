@@ -226,6 +226,14 @@ A abordagem adotada é top-down: especificação da carga → dimensionamento da
 - **Níveis lógicos:** 3,3V (requer interface via IR2110 para acionamento dos MOSFETs)
 - **Periférico utilizado:** MCPWM (Motor Control PWM) — gera os 6 sinais de controle da ponte com inserção automática de Dead Time para prevenção de shoot-through
 
+#### Dashboard de Telemetria via Wi-Fi (validação sem cabo USB)
+
+- **Motivação:** isolamento galvânico virtual entre circuito de potência e computador do operador; mitigação de ground loops, surtos no barramento e risco à porta USB durante ensaios de potência
+- **Arquitetura:** ESP32 em modo AP (`ESC-Dashboard`, `192.168.4.1`); módulo `wifi_telemetry`; ESPAsyncWebServer; LittleFS (`index.html`, `chart.min.js`); HTTP polling `GET /data` (1 s no browser, snapshot atualizado a 100 ms no firmware)
+- **Payload JSON:** FSM, correntes, VBAT, RPM, PI, latência tick, heap, `ps4c`/R2/Circle, fault
+- **Coexistência:** Wi-Fi inicializado antes do Bluetooth; ADC1 inalterado; WebSocket descartado por consumo de heap (~19 KB/cliente)
+- **Deploy:** `pio run -t upload` + `pio run -t uploadfs`
+
 #### Firmware — Máquina de Estados de Comutação
 
 - **Estado 1 — Alinhamento (Estático):**
@@ -1435,7 +1443,7 @@ Subseção de testes dinâmicos com o motor A2212/10T conectado, alimentação 1
 
 - Todos os parâmetros referenciados existem em `board_config.h`: `MOTOR_TARGET_SLEW_AMPS_PER_S = 2`, `MOTOR_STALL_STEP_TIMEOUT_MULT = 4`, `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f`, `MOTOR_POLE_PAIRS = 7U`
 - Sequência `enter_fault_state()` descrita na Seção 6.8 da DOCUMENTACAO\_PROGRAMACAO.md
-- Telemetria via Serial 115200 baud conforme Seção 5.4 da DOCUMENTACAO\_PROGRAMACAO.md
+- Telemetria via Serial 115200 baud **e** dashboard Wi-Fi (HTTP polling) conforme Seções 5.4 e 8 da DOCUMENTACAO\_PROGRAMACAO.md
 
 *Seção adicionada em: 2026-06-22 | Fonte: `capitulos/4_resultados_discussao.tex` (adição de `\subsection{Análise Dinâmica e Controle do Motor A2212}`).*
 
@@ -1468,3 +1476,40 @@ Subseção de instrumentação do próprio microcontrolador (Setup 5 — bancada
 Estimativas de custo computacional por operação de ponto flutuante na FPU Xtensa LX6 a 240 MHz (~15 ns/op), com custo aproximado de algoritmos futuros: Observador de Luenberger (<1 µs), ZCD por software (2–4 µs), EKF simplificado (<5 µs). Confirma margem para evolução sem degradar o determinismo de 1 kHz.
 
 *Seção adicionada em: 2026-06-22 | Fonte: `capitulos/4_resultados_discussao.tex` (adição de `\subsection{Métricas de Desempenho e Escalabilidade de Software}`).*
+
+---
+
+## Registro de Escrita — Dashboard Wi-Fi (Metodologia, Resultados e Documentação) (2026-06-22)
+
+> **Fonte:** `capitulos/3_metodologia.tex`, `capitulos/4_resultados_discussao.tex`, `Firmware/DOCUMENTACAO_PROGRAMACAO.md`, `Firmware/GLOSSARIO_TERMOS.md`.
+
+---
+
+### O que foi adicionado
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `3_metodologia.tex` | `\subsection{Dashboard de Telemetria via Wi-Fi}` — justificativa de segurança (ground loops, surtos, isolamento galvânico virtual); arquitetura AP + LittleFS + HTTP polling; coexistência BT/Wi-Fi; diagrama de camadas atualizado |
+| `4_resultados_discussao.tex` | `\subsection{Interface de Monitoramento e Telemetria Sem Fio}` — validação funcional assumida; gráficos sem travamento; figura `fig:dashboard_wifi_telemetry` com lacuna para screenshot |
+| `DOCUMENTACAO_PROGRAMACAO.md` | Seção 8 (dashboard) já existente; reforço da motivação de segurança de bancada em §8.1 |
+| `GLOSSARIO_TERMOS.md` | Entradas AP, Chart.js, Dashboard, ESPAsyncWebServer, HTTP polling, LittleFS, ps4c, wifi_telemetry; Wi-Fi corrigido de "não utilizado" para AP ativo |
+| `MEMORIA_TCC.md` | Resumo Cap. 3 — bloco Dashboard Wi-Fi; consistência telemetria serial + Wi-Fi |
+
+### Justificativa de engenharia (eixo central)
+
+A dashboard não é recurso estético: elimina o cabo USB durante ensaios de potência, reduzindo risco de **loops de terra** e **acoplamento de transientes** do barramento BLDC ao computador do operador. A aquisição de dados permanece confiável via JSON periódico e gráficos Chart.js servidos localmente (sem CDN).
+
+### Lacunas pendentes
+
+- **Figura `fig:dashboard_wifi_telemetry`:** screenshot da dashboard com motor A2212 em operação
+- **Sub-teste 5.2:** heap com Wi-Fi AP + BT ativos (valor típico observado em bancada: ~55 KB livres)
+
+### Arquivos de firmware envolvidos
+
+- `src/wifi_telemetry.cpp` / `.h`
+- `src/main.cpp` (`push_wifi_telemetry`, ordem de init)
+- `data/index.html`, `data/chart.min.js`
+- `include/board_config.h` (`WIFI_AP_*`)
+- `platformio.ini` (LittleFS, ESPAsyncWebServer, AsyncTCP)
+
+*Seção adicionada em: 2026-06-22.*

@@ -365,7 +365,7 @@ Em sistemas de potência, as vantagens da FSM são diretas:
 
 \begin{itemize}
     \item \textbf{Segurança estrutural:} transições perigosas são proibidas por código. A função de arme do ESC verifica explicitamente a ausência de subtensão e de falha ativa antes de liberar o PWM. Um sistema baseado em \textit{flags} poderia armar inadvertidamente caso uma dessas verificações fosse omitida em algum caminho de execução.
-    \item \textbf{Rastreabilidade:} o estado atual é uma variável enumerada (\textit{enum}) visível na telemetria serial, facilitando o diagnóstico em bancada sem necessidade de osciloscópio ou depurador em circuito.
+    \item \textbf{Rastreabilidade:} o estado atual é uma variável enumerada (\textit{enum}) visível na telemetria serial e na dashboard Wi-Fi, facilitando o diagnóstico em bancada sem necessidade de osciloscópio ou depurador em circuito.
     \item \textbf{Resposta a falhas centralizada:} qualquer fonte de erro seja de hardware analógico, interrupção de sobrecorrente ou supervisão de software, converge para uma única função de entrada em falha, que executa a sequência de desligamento em ordem determinística: primeiro os \textit{drivers} de potência, depois o PWM, garantindo que o estágio de potência esteja seguro mesmo que operações subsequentes falhem.
     \item \textbf{Manutenibilidade:} novas condições de transição por exemplo, uma proteção térmica futura são adicionadas à FSM sem modificar a lógica de comutação ou a camada de entrada, isolando o impacto da mudança em um único módulo.
 \end{itemize}

@@ -28,7 +28,7 @@ O **passo a passo didático do código** está nos comentários em português de
 | Teto de duty cycle | 95 % (margem para recarga bootstrap IR2110) |
 | Malha de controle | 1 kHz (`esp_timer`) |
 | Interface de comando | DualShock 4 via Bluetooth (Bluepad32) |
-| Telemetria | Serial 115200 baud, somente leitura |
+| Telemetria | Serial 115200 baud (somente leitura) + dashboard Wi-Fi (HTTP polling) |
 
 ---
 
@@ -41,7 +41,8 @@ O **passo a passo didático do código** está nos comentários em português de
 5. [Máquina de Estados e Fluxo de Execução](#5-máquina-de-estados-e-fluxo-de-execução)
 6. [Tratamento de Exceções e Segurança](#6-tratamento-de-exceções-e-segurança)
 7. [Leitura didática do código-fonte](#7-leitura-didática-do-código-fonte)
-8. [Referências](#8-referências)
+8. [Dashboard Wi-Fi e telemetria HTTP](#8-dashboard-wi-fi-e-telemetria-http)
+9. [Referências](#9-referências)
 
 **Consulta:** [Glossário de Termos](GLOSSARIO_TERMOS.md) — siglas e abreviações usadas neste documento.
 
@@ -62,6 +63,7 @@ flowchart TB
     subgraph aplicacao [Camada de Aplicacao]
         Main[main.cpp]
         FSM[fsm_system]
+        WiFi[wifi_telemetry]
     end
     subgraph entrada [Camada de Entrada]
         PS4[ps4_input]
@@ -83,8 +85,10 @@ flowchart TB
         DAC[hal_dac]
     end
     PS4_BT[DualShock4 BT] --> PS4
+    Browser[Browser Wi-Fi] --> WiFi
     Main --> FSM
     Main --> PS4
+    Main --> WiFi
     FSM --> MC
     MC --> PI
     MC --> drivers
@@ -93,7 +97,7 @@ flowchart TB
 
 | Camada | Responsabilidade | Exemplos |
 |--------|------------------|----------|
-| **Aplicação** | Ciclo de vida do ESC, orquestração de entrada, telemetria | `main.cpp`, `fsm_system` |
+| **Aplicação** | Ciclo de vida do ESC, orquestração de entrada, telemetria serial e Wi-Fi | `main.cpp`, `fsm_system`, `wifi_telemetry` |
 | **Entrada** | Conversão de comandos externos em setpoints e eventos | `ps4_input` |
 | **Controle** | Algoritmos de malha fechada e comutação BLDC | `motor_control`, `pid_regulator` |
 | **Drivers** | Conversão entre sinais elétricos e grandezas de engenharia | `ina240`, `battery_monitor`, `lm339_protection`, `bemf_zcd` |
@@ -124,6 +128,7 @@ O firmware encontra-se em estágio **funcional de bancada**, com os seguintes co
 | FSM do ESC (`fsm_system`) | Implementado |
 | Controle de motor (6-step, PI corrente/velocidade) | Implementado |
 | Entrada PS4 (Bluepad32) | Implementado |
+| Dashboard Wi-Fi (AP + HTTP polling + Chart.js local) | Implementado |
 | Comutação com ZCD/BEMF | Opcional (`BOARD_ENABLE_BEMF_ZCD 0` por padrão) |
 | FOC / sensores Hall | Não implementado (escopo futuro) |
 
@@ -162,7 +167,9 @@ O projeto utiliza **PlatformIO** com configuração em [`platformio.ini`](platfo
 | `framework` | `arduino` | Ciclo `setup()`/`loop()` com core Arduino-ESP32 |
 | `build_flags` | `-I include` | Expõe `board_config.h` a todas as bibliotecas em `lib/` |
 | `monitor_speed` | `115200` | Taxa da porta serial de telemetria |
+| `board_build.filesystem` | `littlefs` | Partição LittleFS para `index.html` e `chart.min.js` |
 | `board_build.sdkconfig.defaults` | `sdkconfig.defaults` | Opções Kconfig do ESP-IDF embutidas no build |
+| `lib_deps` | ESPAsyncWebServer, AsyncTCP | Servidor HTTP assíncrono do dashboard |
 
 A compilação executa-se com `pio run`. O **Library Dependency Finder (LDF)** do PlatformIO compila automaticamente cada pasta em `lib/` como biblioteca estática e realiza o link no firmware final, dispensando declaração explícita de dependências locais no `platformio.ini`.
 
@@ -184,7 +191,9 @@ O arquivo [`sdkconfig.defaults`](sdkconfig.defaults) desabilita o console intera
 | Origem | Componente | Papel |
 |--------|------------|-------|
 | Core customizado | Bluepad32 | Pareamento e leitura do DualShock 4 |
+| `lib_deps` | ESPAsyncWebServer-esphome, AsyncTCP-esphome | Servidor HTTP do dashboard Wi-Fi |
 | ESP-IDF (via Arduino) | `driver/mcpwm`, `driver/adc`, `driver/gpio`, `driver/dac` | Periféricos de potência e aquisição |
+| ESP-IDF (via Arduino) | `LittleFS` | Armazenamento de `index.html` e `chart.min.js` na flash |
 | ESP-IDF (via Arduino) | `esp_timer` | Temporizador periódico da malha de controle |
 | Repositório local | `lib/control/` | PI e controle de motor |
 | Repositório local | `lib/hal/` | Abstração de hardware |
@@ -208,7 +217,7 @@ A API expõe três modos de condução por fase: **OFF** (ambas as pernas deslig
 
 #### 2.4.2 ADC1 (Analog-to-Digital Converter)
 
-As leituras de corrente de fase (INA240) e de tensão do barramento utilizam o **ADC1** em [`lib/hal/hal_adc.c`](lib/hal/hal_adc.c), canais associados aos GPIO **34, 35, 36 e 39** (pinos input-only). A escolha do ADC1 em detrimento do ADC2 fundamenta-se em uma restrição documentada do ESP32: o **ADC2** compartilha recursos com o subsistema **Wi-Fi/Bluetooth** e torna-se indisponível ou não confiável quando o rádio está ativo. Como o firmware mantém Bluetooth ativo para o controle PS4, o ADC1 é o único conversor seguro para aquisição contínua.
+As leituras de corrente de fase (INA240) e de tensão do barramento utilizam o **ADC1** em [`lib/hal/hal_adc.c`](lib/hal/hal_adc.c), canais associados aos GPIO **34, 35, 36 e 39** (pinos input-only). A escolha do ADC1 em detrimento do ADC2 fundamenta-se em uma restrição documentada do ESP32: o **ADC2** compartilha recursos com o subsistema **Wi-Fi/Bluetooth** e torna-se indisponível ou não confiável quando o rádio está ativo. Como o firmware mantém Bluetooth (PS4) e Wi-Fi AP (dashboard) ativos, o ADC1 é o único conversor seguro para aquisição contínua.
 
 Configuração: resolução de 12 bits, atenuação de 12 dB (faixa até ~3,3 V). A leitura é **síncrona** via `adc1_get_raw()`, sem DMA —, suficiente para a taxa de 1 kHz da malha de controle.
 
@@ -263,7 +272,7 @@ O firmware opera com **duas cadências temporais** distintas:
 
 | Cadência | Contexto | Período | Responsabilidades |
 |----------|----------|---------|-------------------|
-| **Loop principal** | `loop()` Arduino | ~20 ms (PS4), 100 ms telemetria em `RUNNING` / 500 ms nos demais estados | Polling do gamepad, UVLO debounce, `fsm_system_tick()`, impressão serial |
+| **Loop principal** | `loop()` Arduino | ~20 ms (PS4), 100 ms telemetria em `RUNNING` ou com dashboard ativo / 500 ms nos demais estados | Polling do gamepad, UVLO debounce, `fsm_system_tick()`, telemetria serial e `push_wifi_telemetry()` |
 | **Malha de controle** | `esp_timer` → task FreeRTOS | 1 ms (1 kHz) | PI, comutação 6-step, leitura de corrente, detecção de stall, medição de latência do tick |
 
 A malha de controle **não** reside no `loop()` porque este acumula jitter variável, operações de Bluetooth, `Serial.printf()` e `battery_monitor_tick()`, incompatível com a integração numérica do termo integral do PI e com a temporização da comutação trapezoidal. O `esp_timer` garante período estável de 1 ms, alinhado ao campo `dt` do controlador PI.
@@ -306,6 +315,7 @@ Parâmetros críticos definem-se em [`board_config.h`](include/board_config.h) e
 | `PWM_FREQUENCY_HZ`, `DEAD_TIME_NS` | Parâmetros imutáveis do MCPWM |
 | `MOTOR_POLE_PAIRS` | Número de pares de polos do motor de teste; governa a relação \(f_e = p \cdot n/60\) entre frequência elétrica de comutação e velocidade mecânica do rotor. **Motor A2212/10T 1400kV (14 polos magnéticos):** `7U` |
 | `MOTOR_OPEN_LOOP_COMM_HZ_MAX` | Frequência elétrica máxima da rampa em malha aberta; limita a comutação forçada para prevenir perda de sincronismo magnético (stall/engasgo) durante a aceleração inicial, garantindo FCEM suficiente para handover ao ZCD. **Motor A2212/10T 1400kV:** `300.0f` Hz → teto de ≈ 2571 RPM mecânicos |
+| `WIFI_AP_SSID`, `WIFI_AP_PASSWORD`, `WIFI_AP_CHANNEL`, `WIFI_TELEMETRY_PORT` | Parâmetros do Access Point e porta HTTP do dashboard Wi-Fi |
 
 A configuração em tempo de compilação sacrifica flexibilidade em runtime em favor de **determinismo** e **otimização**, constantes podem ser inlined pelo compilador, e o binário resultante contém apenas os caminhos de código necessários.
 
@@ -364,9 +374,13 @@ Firmware/
 ├── sdkconfig.defaults
 ├── include/
 │   └── board_config.h            # Pinos, limites e macros de configuração
+├── data/
+│   ├── index.html                # Dashboard web (painel lateral + gráficos)
+│   └── chart.min.js              # Chart.js 4 servido localmente (sem CDN)
 ├── src/
 │   ├── main.cpp                  # Aplicação: setup/loop, PS4, telemetria
 │   ├── fsm_system.h / .c         # FSM do ESC
+│   ├── wifi_telemetry.h / .cpp   # AP Wi-Fi, LittleFS, GET /data
 ├── lib/
 │   ├── input/
 │   │   └── ps4_input.h / .cpp    # DualShock 4 via Bluepad32
@@ -394,6 +408,7 @@ Firmware/
 │    ps4_input ──► apply_ps4_to_esc() ──► fsm_system          │
 │                      │                      │                │
 │                      └──── motor_control_set_target_*()      │
+│    push_wifi_telemetry() ──► wifi_telemetry_push()          │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼───────────────────────────────┐
@@ -425,9 +440,11 @@ Firmware/
 
 #### 4.3.1 Aplicação
 
-**[`src/main.cpp`](src/main.cpp)**, Ponto de entrada Arduino. Responsabilidades: inicialização serial; chamada a `ps4_input_init()` e `fsm_system_init()`; loop com `battery_monitor_tick()`, `fsm_system_tick()`, polling do PS4 a cada `PS4_INPUT_POLL_MS` (20 ms) e telemetria a cada 500 ms. A função `apply_ps4_to_esc()` traduz o estado do gamepad em requisições de arm/disarm, setpoints e troca de sentido. Após cada poll do PS4, `ps4_input_set_led_status()` atualiza a lightbar do controle conforme conexão e estado da FSM.
+**[`src/main.cpp`](src/main.cpp)**, Ponto de entrada Arduino. Responsabilidades: inicialização serial; **`wifi_telemetry_init()` antes de `ps4_input_init()`** (ordem exigida pelo coexistence scheduler BT+Wi-Fi do ESP-IDF); chamada a `fsm_system_init()`; loop com `battery_monitor_tick()`, `fsm_system_tick()`, polling do PS4 a cada `PS4_INPUT_POLL_MS` (20 ms) e telemetria serial + Wi-Fi a cada 100 ms (`RUNNING` ou dashboard ativo) ou 500 ms (demais estados). A função `apply_ps4_to_esc()` traduz o estado do gamepad em requisições de arm/disarm, setpoints e troca de sentido. Após cada poll do PS4, `ps4_input_set_led_status()` atualiza a lightbar do controle conforme conexão e estado da FSM. `push_wifi_telemetry()` monta o JSON compacto e chama `wifi_telemetry_push()`.
 
 **[`src/fsm_system.c`](src/fsm_system.c)**, FSM de alto nível do ESC. Estados: `INIT`, `IDLE`, `RUNNING`, `FAULT`. Orquestra a sequência de inicialização dos periféricos e drivers, autoriza ou bloqueia a operação do motor e centraliza a resposta a falhas. Não executa comutação nem cálculo de PI.
+
+**[`src/wifi_telemetry.cpp`](src/wifi_telemetry.cpp)**, Módulo de dashboard Wi-Fi. Sobe o ESP32 em modo **Access Point** (`WIFI_AP_SSID`, `WIFI_AP_PASSWORD` em `board_config.h`), monta o **LittleFS**, inicia o **ESPAsyncWebServer** e expõe `GET /data` (JSON da telemetria) e `GET /` (`index.html`). Estratégia de **HTTP polling** (browser requisita `/data` a cada 1 s) em vez de WebSocket persistente, para evitar sobrecarga de heap (~19 KB por conexão WebSocket) com BT Classic + Wi-Fi coexistindo. `wifi_telemetry_push()` atualiza um buffer estático `s_last_json`; `wifi_telemetry_client_count()` retorna 1 quando o servidor está ativo (mantém intervalo de 100 ms no loop).
 
 #### 4.3.2 Entrada
 
@@ -997,7 +1014,9 @@ Seguir o fluxo de execução (boot → operação → falha):
 | 5 | [`lib/control/motor_control.c`](lib/control/motor_control.c) | Tabela 6-step, `motor_control_tick` (11 etapas), partida e stall |
 | 6 | [`src/fsm_system.c`](src/fsm_system.c) | FSM INIT/IDLE/RUNNING/FAULT, init e `enter_fault_state` |
 | 7 | [`lib/input/ps4_input.cpp`](lib/input/ps4_input.cpp) | Mapeamento R2 → setpoint |
-| 8 | [`src/main.cpp`](src/main.cpp) | `setup`/`loop`, `apply_ps4_to_esc` (7 etapas) |
+| 8 | [`src/main.cpp`](src/main.cpp) | `setup`/`loop`, `apply_ps4_to_esc` (7 etapas), `push_wifi_telemetry` |
+| 9 | [`src/wifi_telemetry.cpp`](src/wifi_telemetry.cpp) | AP, LittleFS, rotas HTTP |
+| 10 | [`data/index.html`](data/index.html) | Polling, painel lateral, gráficos Chart.js, export CSV/PNG |
 
 ### 7.2 Funções de referência para o TCC
 
@@ -1011,7 +1030,88 @@ Seguir o fluxo de execução (boot → operação → falha):
 
 ---
 
-## 8. Referências
+## 8. Dashboard Wi-Fi e telemetria HTTP
+
+### 8.1 Visão geral
+
+O firmware expõe um **dashboard web** acessível sem cabo USB, via rede Wi-Fi local criada pelo próprio ESP32. O browser do operador (celular ou notebook) conecta-se ao Access Point, abre `http://192.168.4.1` e visualiza estado do ESC, grandezas elétricas, gráficos históricos e status do controle PS4. A telemetria serial (115200 baud) permanece disponível em paralelo para depuração no terminal.
+
+A motivação de engenharia para essa funcionalidade é **segurança de bancada**, não apenas ergonomia de interface: durante ensaios de potência com motor em rotação, a conexão USB/UART cria um elo condutor entre o domínio de alta energia do inversor e o computador do operador. Isso expõe o equipamento a **loops de terra** (correntes parasitas no condutor de retorno), **acoplamento de transientes** do barramento de comutação e risco de dano à porta USB em eventos de falha. A comunicação Wi-Fi atua como **isolamento galvânico virtual** — não há condutor metálico compartilhado entre o circuito de potência e o dispositivo de visualização.
+
+A implementação prioriza **baixo uso de RAM** e **ausência de internet**: Chart.js é servido localmente de `data/chart.min.js` no LittleFS, pois o AP não fornece rota à internet.
+
+### 8.2 Acesso e deploy
+
+| Item | Valor |
+|------|-------|
+| SSID | `ESC-Dashboard` (`WIFI_AP_SSID`) |
+| Senha | `esc12345` (`WIFI_AP_PASSWORD`) |
+| Canal | 6 (`WIFI_AP_CHANNEL`) |
+| URL | `http://192.168.4.1` |
+| Endpoint JSON | `GET http://192.168.4.1/data` |
+| Upload firmware | `pio run -t upload` |
+| Upload filesystem | `pio run -t uploadfs` |
+
+Após alterar `data/index.html` ou `chart.min.js`, é obrigatório `pio run -t uploadfs`. O browser pode cachear HTML antigo; use **Ctrl+Shift+R** (hard refresh) após o upload.
+
+**Ordem de inicialização no `setup()`:** `wifi_telemetry_init()` **antes** de `ps4_input_init()`. Inverter a ordem faz o `softAP` falhar silenciosamente por conflito no scheduler de coexistência BT+Wi-Fi do ESP-IDF.
+
+### 8.3 Arquitetura HTTP polling
+
+```text
+Browser (1 s)          ESP32 loop (100 ms)           LittleFS
+    │                        │                          │
+    ├── GET /data ──────────►│ s_last_json ◄── push ────┤
+    │◄── JSON 200 ───────────┤                          │
+    ├── GET / ──────────────►│ index.html ─────────────►│
+    └── GET /chart.min.js ──►│ chart.min.js ───────────►│
+```
+
+O browser faz **polling** a cada 1 s (`fetch('/data', { cache: 'no-store' })`). O firmware atualiza `s_last_json` a cada 100 ms (quando o servidor está ativo). Não há conexão WebSocket persistente.
+
+O indicador **"Dashboard online"** no header da página reflete sucesso do `fetch` HTTP (comunicação com o ESP32), **não** o pareamento Bluetooth do PS4. O status do controle aparece no card **Controle PS4 → Bluetooth**.
+
+### 8.4 Formato JSON (`push_wifi_telemetry`)
+
+Chaves curtas para minimizar bytes over-the-air (~380 bytes):
+
+| Chave | Tipo | Significado |
+|-------|------|-------------|
+| `t` | uint | `millis()` |
+| `ia`, `ib`, `ic` | float | Correntes de fase (A) |
+| `im`, `it`, `itc` | float | Corrente medida, alvo e comando |
+| `d` | float | Duty cycle (%) |
+| `v` | float | V barramento |
+| `rpm`, `rpmt`, `rpmtc` | float | RPM medido, alvo e comando |
+| `fel` | float | Frequência elétrica (Hz) |
+| `kp`, `ki` | float | Ganhos PI de corrente |
+| `lat`, `lmin`, `lmax` | uint | Latência do tick (µs) |
+| `heap` | uint | Heap livre (bytes) |
+| `state` | int | FSM: 0=INIT, 1=IDLE, 2=RUNNING, 3=FAULT |
+| `phase` | int | Fase de partida (0–4) |
+| `step` | int | Passo 6-step (0–5) |
+| `cmode` | int | 0=OPEN_LOOP, 1=ZCD_CLOSED |
+| `uvlo` | bool | UVLO ativo |
+| `ps4c` | bool | PS4 Bluetooth conectado |
+| `r2` | uint | Gatilho R2 (0–100 %); 0 se `ps4c=false` |
+| `circle` | bool | Botão Circle (CCW); `false` se `ps4c=false` |
+| `fault` | string | Motivo da falha (vazio se não em FAULT) |
+
+Quando o PS4 está desconectado (`ps4c=false`), `r2` e `circle` são forçados a zero/false no firmware; o dashboard exibe **"—"** nos campos de entrada em vez de interpretar estado de botão.
+
+### 8.5 Interface web (`data/index.html`)
+
+- **Painel lateral:** estado FSM, elétrico, velocidade, PI, PS4 (Bluetooth, R2, Circle), CPU/heap.
+- **Gráficos (Chart.js):** correntes de fase, RPM, duty/f_el, latência/heap (buffer de 300 pontos).
+- **Exportação:** CSV (histórico em memória do browser) e PNG (captura dos 4 gráficos).
+
+### 8.6 Coexistência BT + Wi-Fi e ADC1
+
+O ESP32 compartilha o rádio entre Bluetooth Classic (PS4) e Wi-Fi AP via time-sharing do ESP-IDF. O **ADC1** (GPIO 34–36, 39) permanece seguro para leitura contínua; apenas o **ADC2** é afetado pelo rádio ativo. A escolha de HTTP polling em vez de WebSocket reduz pressão sobre o heap (~55 KB livres típicos com BT+AP ativos).
+
+---
+
+## 9. Referências
 
 - Especificação do ESC: [`Docs/especificacao_esc.md`](../Docs/especificacao_esc.md)
 - Mapa de pinos da PCB: [`Hardware/PCB_Project/ESP32_PINMAP.md`](../Hardware/PCB_Project/ESP32_PINMAP.md)
@@ -1020,6 +1120,8 @@ Seguir o fluxo de execução (boot → operação → falha):
 - PlatformIO, documentação: [https://docs.platformio.org/](https://docs.platformio.org/)
 - ESP-IDF, MCPWM: [https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/mcpwm.html](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/mcpwm.html)
 - Bluepad32: [https://github.com/ricardoquesada/bluepad32](https://github.com/ricardoquesada/bluepad32)
+- Chart.js: [https://www.chartjs.org/](https://www.chartjs.org/)
+- ESPAsyncWebServer: [https://github.com/esphome/ESPAsyncWebServer](https://github.com/esphome/ESPAsyncWebServer)
 
 ---
 

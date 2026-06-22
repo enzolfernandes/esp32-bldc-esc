@@ -18,6 +18,7 @@
 #include "ina240_current_sensors.h"
 #include "motor_control.h"
 #include "ps4_input.h"
+#include "wifi_telemetry.h"
 
 static uint32_t s_last_telemetry_ms = 0;
 static bool s_require_r2_release = false;
@@ -193,6 +194,79 @@ static void apply_ps4_to_esc(const ps4_input_state_t *st)
 #endif
 }
 
+/**
+ * @brief Serializa o estado atual do ESC como JSON e envia via WebSocket.
+ *
+ * Campos do JSON (chaves curtas para minimizar bytes over-the-air):
+ *   t=millis, ia/ib/ic=correntes fase, im=I medida, it=I alvo, itc=I cmd,
+ *   d=duty%, v=VBAT, rpm=RPM medido, rpmt=RPM alvo, rpmtc=RPM cmd,
+ *   fel=f elétrica Hz, kp/ki=ganhos PI, lat/lmin/lmax=latência tick µs,
+ *   heap=heap livre bytes, state=FSM(0-3), phase=partida(0-4),
+ *   step=passo 6-step, cmode=modo comutação(0=OPEN,1=ZCD),
+ *   uvlo=bool, ps4c=PS4 conectado, r2=R2%, circle=bool, fault=string.
+ */
+static void push_wifi_telemetry(const ps4_input_state_t *ps4)
+{
+    if (wifi_telemetry_client_count() == 0) {
+        return;
+    }
+
+    const esc_state_t state = fsm_system_get_state();
+    const bool running = (state == ESC_STATE_RUNNING);
+    const bool connected = (ps4 != nullptr && ps4->connected);
+
+    char json[380];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"t\":%lu,"
+        "\"ia\":%.2f,\"ib\":%.2f,\"ic\":%.2f,"
+        "\"im\":%.2f,\"it\":%.2f,\"itc\":%.2f,"
+        "\"d\":%.1f,\"v\":%.2f,"
+        "\"rpm\":%.0f,\"rpmt\":%.0f,\"rpmtc\":%.0f,"
+        "\"fel\":%.1f,"
+        "\"kp\":%.2f,\"ki\":%.1f,"
+        "\"lat\":%lu,\"lmin\":%lu,\"lmax\":%lu,"
+        "\"heap\":%lu,"
+        "\"state\":%d,\"phase\":%d,\"step\":%d,\"cmode\":%d,"
+        "\"uvlo\":%s,"
+        "\"ps4c\":%s,\"r2\":%u,\"circle\":%s,"
+        "\"fault\":\"%s\""
+        "}",
+        (unsigned long)millis(),
+        ina240_read_amps(INA240_PHASE_A),
+        ina240_read_amps(INA240_PHASE_B),
+        ina240_read_amps(INA240_PHASE_C),
+        running ? motor_control_get_measured_amps()      : 0.0f,
+        running ? motor_control_get_target_amps()        : 0.0f,
+        running ? motor_control_get_target_command_amps(): 0.0f,
+        running ? motor_control_get_duty_percent()       : 0.0f,
+        battery_monitor_get_volts_filtered(),
+        running ? motor_control_get_measured_rpm()       : 0.0f,
+        running ? motor_control_get_target_rpm()         : 0.0f,
+        running ? motor_control_get_target_command_rpm() : 0.0f,
+        running ? motor_control_get_open_loop_comm_hz()  : 0.0f,
+        motor_control_get_pi_kp(),
+        motor_control_get_pi_ki(),
+        (unsigned long)motor_control_get_tick_latency_us(),
+        (unsigned long)motor_control_get_tick_latency_min_us(),
+        (unsigned long)motor_control_get_tick_latency_max_us(),
+        (unsigned long)esp_get_free_heap_size(),
+        static_cast<int>(state),
+        static_cast<int>(motor_control_get_start_phase()),
+        static_cast<int>(motor_control_get_commutation_step()),
+        static_cast<int>(motor_control_get_comm_mode()),
+        battery_monitor_uvlo_active() ? "true" : "false",
+        connected ? "true" : "false",
+        connected ? static_cast<unsigned>(ps4->r2_raw * 100U / 255U) : 0U,
+        (connected && ps4->circle_pressed) ? "true" : "false",
+        (state == ESC_STATE_FAULT)
+            ? motor_control_fault_reason_name(motor_control_get_last_fault_reason())
+            : ""
+    );
+
+    wifi_telemetry_push(json);
+}
+
 /** Boot: Serial, PS4, init da FSM (HAL, drivers, timer 1 kHz). */
 void setup()
 {
@@ -214,6 +288,13 @@ void setup()
 #else
                   "corrente");
 #endif
+
+    /* Wi-Fi ANTES do Bluetooth: o ESP-IDF exige que o modo Wi-Fi seja configurado
+     * antes de o stack BT (Bluepad32) alocar o coexistence scheduler de rádio.
+     * Inverter a ordem faz o softAP falhar silenciosamente. */
+    if (!wifi_telemetry_init()) {
+        Serial.println("[WiFi] Dashboard desabilitado.");
+    }
 
     if (!ps4_input_init()) {
         Serial.println("ps4_input_init: FALHA");
@@ -265,13 +346,16 @@ void loop()
         }
     }
 
-    /* Em RUNNING: 100 ms para capturar resposta ao degrau (Sub-teste 4.3).
-     * Em demais estados: 500 ms para não saturar o terminal. */
+    /* Em RUNNING ou com cliente Wi-Fi conectado: 100 ms (melhor resolução para
+     * gráficos e evita timeout do WebSocket).
+     * Em IDLE/FAULT sem cliente Wi-Fi: 500 ms para não saturar o terminal. */
     const uint32_t telem_interval_ms =
-        (fsm_system_get_state() == ESC_STATE_RUNNING) ? 100U : 500U;
+        (fsm_system_get_state() == ESC_STATE_RUNNING ||
+         wifi_telemetry_client_count() > 0) ? 100U : 500U;
 
     if ((now_ms - s_last_telemetry_ms) >= telem_interval_ms) {
         s_last_telemetry_ms = now_ms;
         print_telemetry(&ps4);
+        push_wifi_telemetry(&ps4);
     }
 }
