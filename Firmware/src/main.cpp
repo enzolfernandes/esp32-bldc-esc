@@ -10,6 +10,7 @@
  */
 
 #include <Arduino.h>
+#include <esp_system.h>   /* esp_get_free_heap_size() — Sub-teste 5.2 */
 
 #include "battery_monitor.h"
 #include "board_config.h"
@@ -81,7 +82,16 @@ static void print_telemetry(const ps4_input_state_t *ps4)
         Serial.printf("  Kp=%.2f Ki=%.1f",
                       motor_control_get_pi_kp(),
                       motor_control_get_pi_ki());
+
+        /* Sub-teste 5.1: latência do tick em µs (last / min / max desde o boot) */
+        Serial.printf("  tick=%lu/%lu/%lu us",
+                      (unsigned long)motor_control_get_tick_latency_us(),
+                      (unsigned long)motor_control_get_tick_latency_min_us(),
+                      (unsigned long)motor_control_get_tick_latency_max_us());
     }
+
+    /* Sub-teste 5.2: heap livre do FreeRTOS em bytes */
+    Serial.printf("  heap=%lu B", (unsigned long)esp_get_free_heap_size());
 
     if (s_require_r2_release) {
         Serial.print("  aguardando_R2=0");
@@ -255,7 +265,12 @@ void loop()
         }
     }
 
-    if ((now_ms - s_last_telemetry_ms) >= 500U) {
+    /* Em RUNNING: 100 ms para capturar resposta ao degrau (Sub-teste 4.3).
+     * Em demais estados: 500 ms para não saturar o terminal. */
+    const uint32_t telem_interval_ms =
+        (fsm_system_get_state() == ESC_STATE_RUNNING) ? 100U : 500U;
+
+    if ((now_ms - s_last_telemetry_ms) >= telem_interval_ms) {
         s_last_telemetry_ms = now_ms;
         print_telemetry(&ps4);
     }

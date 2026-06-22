@@ -78,6 +78,11 @@ static uint64_t s_align_end_us = 0U;
 static motor_start_phase_t s_start_phase = MOTOR_START_IDLE;
 static int8_t s_comm_direction = 1;
 static volatile bool s_sw_fault_pending = false;
+
+/* --- Instrumentação de latência do tick (Sub-teste 5.1 — esp_timer_get_time) --- */
+static uint32_t s_tick_latency_us     = 0U;
+static uint32_t s_tick_latency_min_us = UINT32_MAX;
+static uint32_t s_tick_latency_max_us = 0U;
 static motor_fault_reason_t s_last_fault_reason = MOTOR_FAULT_NONE;
 static uint64_t s_stall_begin_us = 0U;
 static uint64_t s_low_rpm_stall_begin_us = 0U;
@@ -874,6 +879,9 @@ void motor_control_tick(void)
         return;
     }
 
+    // Marca o início do caminho ativo do tick para medir a latência real do controle.
+    const int64_t t_tick_start_us = esp_timer_get_time();
+
     // --- Etapa 2: aquisição — corrente máxima entre fases A/B/C (INA240 → ADC) ---
     s_measured_amps = read_bus_current_amps();
 
@@ -962,6 +970,12 @@ void motor_control_tick(void)
 
     // --- Etapa 11: aplica passo 6-step e duty ao MCPWM (três fases) ---
     apply_commutation_step(s_duty_percent);
+
+    // Registra latência do caminho completo do tick (Etapas 2–11).
+    const uint32_t elapsed_us = (uint32_t)(esp_timer_get_time() - t_tick_start_us);
+    s_tick_latency_us = elapsed_us;
+    if (elapsed_us < s_tick_latency_min_us) { s_tick_latency_min_us = elapsed_us; }
+    if (elapsed_us > s_tick_latency_max_us) { s_tick_latency_max_us = elapsed_us; }
 }
 
 /* --- API pública: setpoints (chamada por main/ps4 a cada poll de 20 ms) --- */
@@ -1210,4 +1224,20 @@ bool motor_control_set_target_slew_amps_per_s(float amps_per_s)
 
     s_target_slew_amps_per_s = amps_per_s;
     return true;
+}
+
+/* --- Getters de latência do tick (Sub-teste 5.1) --- */
+uint32_t motor_control_get_tick_latency_us(void)
+{
+    return s_tick_latency_us;
+}
+
+uint32_t motor_control_get_tick_latency_min_us(void)
+{
+    return (s_tick_latency_min_us == UINT32_MAX) ? 0U : s_tick_latency_min_us;
+}
+
+uint32_t motor_control_get_tick_latency_max_us(void)
+{
+    return s_tick_latency_max_us;
 }

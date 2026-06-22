@@ -1161,11 +1161,68 @@ Este capítulo responde às hipóteses, dimensionamentos e expectativas levantad
 
 9. **Temperatura real dos MOSFETs em operação:** validar se os copper pours + reforço de estanho são suficientes para manter T_junção dentro dos limites seguros para a corrente de teste (3A inicial) e projetar o comportamento em regime nominal.
 
-10. **Justificativa da divergência do fusível (80A vs. 100A):** o texto não explica explicitamente por que o fusível foi reduzido de 100A (Metodologia) para 80A (esquemático final). Esta justificativa **deve** ser inserida antes da entrega.
+10. **Justificativa da divergência do fusível (80A vs. 100A):** ~~justificativa ausente~~ → **RESOLVIDO em 2026-06-22**. Justificativa inserida no Capítulo 4, subseção Supply: curva de tempo-corrente do MIDI permite picos transitórios acima do nominal sem atuação; 80A protege melhor contra sobrecargas sustentadas; modelo 0498080.M é valor padronizado comercialmente.
 
 ---
 
 *Seção adicionada em: 2026-06-21 | Fonte: `capitulos/4_resultados_discussao.tex` (leitura direta e isolada)*
+
+---
+
+## Registro Retroativo — Capítulo 4, Seções 3 e 4: Firmware e ZCD (sessão anterior a 2026-06-22)
+
+> **Nota:** Estas seções foram escritas em sessão anterior e não possuíam registro na MEMORIA\_TCC.md. Registradas retroativamente em 2026-06-22 após auditoria de completude.
+
+---
+
+### `\section{Desenvolvimento e Validação do Firmware}`
+
+Seção de validação arquitetural do firmware, independente dos ensaios físicos. Organizada em quatro subsecções:
+
+| Subseção | Conteúdo |
+|----------|----------|
+| Arquitetura Modular e Isolamento da HAL | Demonstração por inspeção estrutural da inversão de dependência: `pid_regulator` não referencia `board_config.h`; conversão de tensão→corrente confinada em `ina240_current_sensors`; compilação condicional `BOARD_ENABLE_BEMF_ZCD` e `MOTOR_CONTROL_USE_SPEED_MODE` |
+| Máquina de Estados e Robustez das Transições | Sequência determinística de inicialização (9 etapas); análise das guardas de transição IDLE→RUNNING (UVLO + fault check); sub-FSM de partida ALIGN→RUN\_OPEN→RUN\_SPEED; inversão de sentido bloqueada com torque ativo |
+| Rotinas de Proteção e Tratamento de Exceções | OCP hardware (LM339 → ISR IRAM\_ATTR → $t_{resp}$ microssegundos); OCP software (`motor_control_tick()`, 1 ms); UVLO (debounce 100 ms, histerese 200 mV/célula); Detecção de Stall (3 critérios independentes); sequência unificada `enter_fault_state()` |
+| Parametrização e Comportamento com A2212/10T | Justificativa de `MOTOR_POLE_PAIRS = 7U` e `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f`; equação de estimativa de RPM; mapeamento R2→setpoint; filtro exponencial de RPM (7/8 + 1/8); interface DualShock 4 e lightbar FSM |
+
+**Lacunas (LACUNA BANCADA)** presentes nesta seção:
+- Oscilograma da sequência de partida (ALIGN → RUN\_OPEN → RUN\_SPEED)
+- Oscilograma do evento OCP (4 canais)
+- Gráfico de tensão de barramento durante UVLO
+- Ganhos Kp e Ki finais do PI (corrente e velocidade)
+- Comparação RPM estimado vs tacômetro óptico
+- Oscilograma da BEMF a 2571 RPM (preparação para ZCD)
+
+---
+
+### `\section{Estado de Implementação da Detecção de Cruzamento por Zero (ZCD)}`
+
+Seção que estabelece explicitamente o escopo da implementação atual: **`BOARD_ENABLE_BEMF_ZCD = 0`** — a malha fechada ZCD não foi ativada nesta versão. Justificativas:
+
+1. Prioridade de validação arquitetural em malha aberta antes de introduzir nova variável de falha
+2. Limitação da bancada atual (3 A com A2212) insuficiente para caracterizar o ponto de handover ZCD de forma reprodutível
+3. Escopo delimitado: implementação ZCD + validação empírica de `T_wait` é o próximo passo, a ser conduzido com o motor Turnigy XK3674 em escalonamento de potência
+
+**Hardware ZCD projetado e presente na PCB:** divisores resistivos de fase, filtros RC, neutro virtual, comparadores LM339 — a ausência é de software, não de hardware.
+
+---
+
+### Atualização dos Ganchos para Resultados (Cap. 4)
+
+Os itens abaixo da lista de pendências (registrada em 2026-06-21) foram endereçados por seções já escritas:
+
+| Item | Status | Onde endereçado |
+|------|--------|-----------------|
+| 3 — Validação experimental do protótipo | ✅ Esqueleto escrito | `\subsection{Validação Estática}` (Setup 1-3) + `\subsection{Análise Dinâmica}` (Setup 4) — 2026-06-22 |
+| 5 — Eficácia do banco de capacitores | ✅ Esqueleto escrito | Setup 3 — ripple DC em acoplamento AC — 2026-06-22 |
+| 6 — Validação da partida sensorless (stall, ZCD) | ✅ Esqueleto escrito | Sub-teste 4.1 (partida trapezoidal) + Sub-teste 4.5 (stall por travamento) — 2026-06-22 |
+| 7 — Validação INA240 + shunt 1 mΩ | ✅ Esqueleto escrito | Setup 1 (calibração de offset e ganho) — 2026-06-22 |
+| 8 — Validação OCP LM339 | ✅ Esqueleto escrito | Setup 3 (OCP trip) — 2026-06-22 |
+| 4 — Comparação correntes simuladas vs medidas | ⏳ Pendente | Lacunas nos Sub-testes 4.1 (correntes de fase com motor) |
+| 9 — Temperatura MOSFETs | ⏳ Pendente | Não coberto nas seções atuais |
+
+*Registro retroativo adicionado em: 2026-06-22 | Auditoria de completude do MEMORIA\_TCC.md*
 
 ---
 
@@ -1266,3 +1323,148 @@ Nesta velocidade, a FCEM é proporcional a \(K_e \cdot \omega_{handover}\), sufi
 ---
 
 *Seção adicionada em: 2026-06-21 | Motor A2212/10T 1400kV adotado como carga de testes em bancada. `MOTOR_POLE_PAIRS = 7U`, `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f`.*
+
+---
+
+## Registro de Escrita — Capítulo 4: Testes Físicos de Bancada (2026-06-22)
+
+> **Fonte:** `Docs/Thesis/capitulos/4_resultados_discussao.tex` — adição de `\section{Testes Físicos de Bancada}` e `\subsection{Validação Estática e Calibração de Hardware}`.
+
+---
+
+### O que foi adicionado
+
+Uma nova seção de resultados experimentais foi redigida seguindo a técnica de "Esqueleto de Artigo": o texto assume que os testes foram executados com sucesso, descreve a física e a lógica de cada procedimento, e demarcar lacunas (`\textbf{[LACUNA BANCADA: ...]}`) onde dados reais ainda precisam ser inseridos.
+
+#### Parágrafo introdutório da seção
+
+Descreve a filosofia de **energização incremental** como protocolo geral dos testes: motor desconectado e limitação de corrente nas fases iniciais, escalando progressivamente após validação de cada subsistema.
+
+#### `\subsection{Validação Estática e Calibração de Hardware}`
+
+Três setups sequenciais com motor desconectado, alimentação 12 V / 100 mA:
+
+| Setup | Bloco validado | Método |
+|-------|---------------|--------|
+| 1 | Offset e ganho do INA240 (calibração de corrente) | Multímetro nas saídas dos 3 canais; verificação cruzada com `ina240_calibrate_offset()` via telemetria; injeção de 1,0 A forçado pelo shunt e medição de ΔV (esperado: 20 mV) |
+| 2 | Sinais lógicos e dead-time de 500 ns | Osciloscópio nos pinos AH e AL; cursores Delta-T; verificação de simetria de bordas e amplitude $V_{GS}$ com bootstrap carregado |
+| 3 | OCP trip do LM339 e ripple do barramento DC | Setup de 4 canais para capturar cadeia de proteção (INA240 → OC Trip → gate AH → IR2110 SD); medição de ripple em acoplamento AC (20 mV/div, 10 µs/div) |
+
+---
+
+### Lacunas demarcadas no texto (a preencher após bancada)
+
+| Nº | Variável | Setup |
+|----|----------|-------|
+| 1 | $V_{off,A}$, $V_{off,B}$, $V_{off,C}$ (offset dos 3 canais INA240) | Setup 1 |
+| 2 | $\Delta V_{out,medido}$ com $I = 1{,}0\,\text{A}$ e erro percentual de ganho | Setup 1 |
+| 3 | $t_{dead,AH \to AL}$ e $t_{dead,AL \to AH}$ (dead-time medido) | Setup 2 |
+| 4 | $V_{GS,HS}$ e $V_{GS,LS}$ com bootstrap carregado | Setup 2 |
+| 5 | $t_{OCP,total}$, $t_{LM339}$, $t_{IR2110,SD}$ (cadeia OCP) | Setup 3 |
+| 6 | $V_{pp,ripple}$ em acoplamento AC; comparação com modelo teórico; $ESR_{ef}$ calculada | Setup 3 |
+
+---
+
+### Figuras previstas (com `% TODO` no LaTeX)
+
+| Label | Conteúdo |
+|-------|----------|
+| `fig:bancada_ina240_offset` | Foto do multímetro na saída do INA240 canal A em repouso |
+| `fig:bancada_deadtime` | Oscilograma dos sinais AH/AL com cursores no dead-time |
+| `fig:bancada_ocp_trip` | Oscilograma 4 canais do evento de disparo OCP |
+| `fig:bancada_ripple_dc` | Oscilograma do ripple do barramento em acoplamento AC |
+
+---
+
+### Consistência com o restante do documento
+
+- Parâmetros do firmware respeitados: dead-time 500 ns, limiar OCP 8 A → $V_{dac} \approx 1{,}81\,\text{V}$, ganho INA240 20 V/V, shunt 1 mΩ, GPIO 26 (OC Trip), DAC1 GPIO 25, calibração runtime por `ina240_calibrate_offset(64)`.
+- A calibração do INA240 **não** usa constante estática em `board_config.h`; é runtime, com o multímetro servindo apenas de verificação cruzada.
+- Equações inseridas: $\Delta V_{out} = G \cdot V_{shunt}$ (Eq. do ganho INA240); $di/dt|_{max} = V_{DC}/L$ (análise de tempo de resposta OCP); $\Delta V_C = I_{ripple} \cdot D / (f_{sw} \cdot C_{bus})$ (ripple teórico do barramento).
+- Novos termos usados no texto: **ESR** e **ESL** — entradas adicionadas ao `GLOSSARIO_TERMOS.md` em 2026-06-22.
+
+---
+
+### Ganchos para Resultados (atualização de itens pendentes)
+
+Os itens 5, 7 e 8 da lista de pendências registrada em 2026-06-21 agora possuem **esqueleto textual** no arquivo LaTeX, aguardando dados experimentais:
+
+- **Item 5** — "Eficácia real do banco de capacitores (940 µF)": coberto pelo Setup 3, parágrafo de ripple DC.
+- **Item 7** — "Validação da cadeia de sensoriamento de corrente (INA240 + shunt 1 mΩ)": coberto pelo Setup 1.
+- **Item 8** — "Validação do circuito OCP (LM339 Wired-OR)": coberto pelo Setup 3, parágrafo de OCP trip.
+
+---
+
+*Seção adicionada em: 2026-06-22 | Fonte: `capitulos/4_resultados_discussao.tex` (adição de `\section{Testes Físicos de Bancada}` e `\subsection{Validação Estática e Calibração de Hardware}`).*
+
+---
+
+## Registro de Escrita — Capítulo 4: Análise Dinâmica e Controle do Motor A2212 (2026-06-22)
+
+> **Fonte:** `Docs/Thesis/capitulos/4_resultados_discussao.tex` — adição de `\subsection{Análise Dinâmica e Controle do Motor A2212}`.
+
+---
+
+### O que foi adicionado
+
+Subseção de testes dinâmicos com o motor A2212/10T conectado, alimentação 12 V / 3 A. Cinco sub-testes em ordem crescente de severidade:
+
+| Sub-teste | Fenômeno físico validado | Lacunas |
+|-----------|--------------------------|---------|
+| 4.1 — Partida e 6-Step | Sequência ALIGN → RUN\_OPEN → RUN\_SPEED; correntes de fase trapezoidais; verificação do alinhamento magnético | Corrente de alinhamento; oscilograma de partida; frequência no handover |
+| 4.2 — Estresse FreeRTOS | Determinismo do MCPWM (hardware autônomo) sob carga assíncrona de Bluetooth | Histograma de período do PWM; σ\_T medido |
+| 4.3 — Resposta ao Degrau | Slew limiter a 2 A/s; rastreamento do PI de corrente; anti-windup | Gráfico I\_target vs I\_measured; Kp, Ki finais; t\_s e overshoot |
+| 4.4 — Limite Inferior | Frequência elétrica mínima em malha aberta (stall por dessincronismo); motiva ZCD | f\_el,min e RPM correspondente |
+| 4.5 — Proteção de Stall | Travamento mecânico; saturação do PI; detecção por ausência de passo; enter\_fault\_state() | Tempo total de resposta ao stall; verificação do zero do integrador pós-disarm |
+
+### Equações inseridas
+
+- $I_{align} \approx D_{align} \cdot V_{DC} / R_{eq}$ (corrente de alinhamento estático)
+- $\Delta I_{max} = 2\,\text{A/s} \times 1\,\text{ms} = 2\,\text{mA}$ (slew limiter por ciclo)
+- Equações PI com anti-windup (Euler + clamping)
+
+### Figuras previstas (com `% TODO` no LaTeX)
+
+| Label | Conteúdo |
+|-------|----------|
+| `fig:bancada_partida_correntes` | Oscilograma 3 canais: correntes de fase durante ALIGN → RUN\_OPEN → RUN\_SPEED |
+| `fig:bancada_resposta_degrau` | Gráfico I\_target vs I\_measured na resposta ao degrau do R2 |
+| `fig:bancada_stall` | Gráfico I\_measured + duty cycle + estado FSM durante o travamento mecânico |
+
+### Consistência com firmware
+
+- Todos os parâmetros referenciados existem em `board_config.h`: `MOTOR_TARGET_SLEW_AMPS_PER_S = 2`, `MOTOR_STALL_STEP_TIMEOUT_MULT = 4`, `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f`, `MOTOR_POLE_PAIRS = 7U`
+- Sequência `enter_fault_state()` descrita na Seção 6.8 da DOCUMENTACAO\_PROGRAMACAO.md
+- Telemetria via Serial 115200 baud conforme Seção 5.4 da DOCUMENTACAO\_PROGRAMACAO.md
+
+*Seção adicionada em: 2026-06-22 | Fonte: `capitulos/4_resultados_discussao.tex` (adição de `\subsection{Análise Dinâmica e Controle do Motor A2212}`).*
+
+---
+
+## Registro de Escrita — Capítulo 4: Métricas de Desempenho e Escalabilidade de Software (2026-06-22)
+
+> **Fonte:** `Docs/Thesis/capitulos/4_resultados_discussao.tex` — adição de `\subsection{Métricas de Desempenho e Escalabilidade de Software}`.
+
+---
+
+### O que foi adicionado
+
+Subseção de instrumentação do próprio microcontrolador (Setup 5 — bancada local, apenas USB). Dois sub-testes:
+
+| Sub-teste | Grandeza medida | API usada | Lacunas |
+|-----------|----------------|-----------|---------|
+| 5.1 — Latência da Malha | $t_{tick}$ (µs) e $t_{idle}$ por ciclo de 1 ms | `esp_timer_get_time()` | $t_{tick,min}$, $t_{tick,max}$, $\bar{t}_{tick}$; $\rho_{CPU}$ calculado; correlação com eventos BT |
+| 5.2 — Recursos de Memória | Heap livre e uso de Flash/RAM | `esp_get_free_heap_size()` + relatório PlatformIO | $H_{livre,IDLE}$, $H_{livre,RUNNING}$, $\eta_{heap}$; tabela de segmentos ELF (.text, .rodata, .data, .bss) |
+
+### Equações inseridas
+
+- $t_{tick} = t_{saída} - t_{entrada}$ (latência medida)
+- $t_{idle} = 1000\,\mu\text{s} - t_{tick}$ (tempo ocioso por ciclo)
+- $\rho_{CPU,controle} = t_{tick}/1000 \times 100\,\%$ (carga de CPU da malha)
+- $\eta_{heap} = (H_{total} - H_{livre})/H_{total} \times 100\,\%$ (utilização de heap)
+
+### Análise de escalabilidade inserida (sem lacuna — texto analítico)
+
+Estimativas de custo computacional por operação de ponto flutuante na FPU Xtensa LX6 a 240 MHz (~15 ns/op), com custo aproximado de algoritmos futuros: Observador de Luenberger (<1 µs), ZCD por software (2–4 µs), EKF simplificado (<5 µs). Confirma margem para evolução sem degradar o determinismo de 1 kHz.
+
+*Seção adicionada em: 2026-06-22 | Fonte: `capitulos/4_resultados_discussao.tex` (adição de `\subsection{Métricas de Desempenho e Escalabilidade de Software}`).*

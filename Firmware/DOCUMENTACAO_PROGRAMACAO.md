@@ -263,8 +263,8 @@ O firmware opera com **duas cadências temporais** distintas:
 
 | Cadência | Contexto | Período | Responsabilidades |
 |----------|----------|---------|-------------------|
-| **Loop principal** | `loop()` Arduino | ~20 ms (PS4), 500 ms (telemetria) | Polling do gamepad, UVLO debounce, `fsm_system_tick()`, impressão serial |
-| **Malha de controle** | `esp_timer` → task FreeRTOS | 1 ms (1 kHz) | PI, comutação 6-step, leitura de corrente, detecção de stall |
+| **Loop principal** | `loop()` Arduino | ~20 ms (PS4), 100 ms telemetria em `RUNNING` / 500 ms nos demais estados | Polling do gamepad, UVLO debounce, `fsm_system_tick()`, impressão serial |
+| **Malha de controle** | `esp_timer` → task FreeRTOS | 1 ms (1 kHz) | PI, comutação 6-step, leitura de corrente, detecção de stall, medição de latência do tick |
 
 A malha de controle **não** reside no `loop()` porque este acumula jitter variável, operações de Bluetooth, `Serial.printf()` e `battery_monitor_tick()`, incompatível com a integração numérica do termo integral do PI e com a temporização da comutação trapezoidal. O `esp_timer` garante período estável de 1 ms, alinhado ao campo `dt` do controlador PI.
 
@@ -447,6 +447,8 @@ Firmware/
 - Detecção de stall e sobrecorrente em software.
 
 API principal: `motor_control_init()`, `motor_control_on_arm()` / `on_disarm()`, `motor_control_tick()`, `motor_control_set_target_amps()` / `set_target_rpm()`, `motor_control_set_direction()`.
+
+Getters de instrumentação de latência (adicionados para Sub-teste 5.1 — bancada): `motor_control_get_tick_latency_us()` (último tick completo), `motor_control_get_tick_latency_min_us()` (mínimo histórico), `motor_control_get_tick_latency_max_us()` (máximo histórico). A medição cobre as Etapas 2–11 do tick (caminho ativo, após a guarda `s_active`). Impressos na telemetria serial em `main.cpp` a cada 100 ms durante `RUNNING`.
 
 #### 4.3.4 Drivers
 

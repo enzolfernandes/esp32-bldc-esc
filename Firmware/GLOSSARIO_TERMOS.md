@@ -20,7 +20,7 @@ As entradas estão em ordem alfabética. Cada termo inclui o nome por extenso, u
 
 [A](#a) · [B](#b) · [C](#c) · [D](#d) · [E](#e) · [F](#f) · [G](#g) · [H](#h) · [I](#i) · [J](#j) · [K](#k) · [L](#l) · [M](#m) · [N](#n) · [O](#o) · [P](#p) · [R](#r) · [S](#s) · [T](#t) · [U](#u) · [V](#v) · [W](#w) · [Z](#z)
 
-[6-step](#6-step) · [A2212](#a2212) · [ADC](#adc) · [ADC1](#adc1) · [ADC2](#adc2) · [AH / AL](#ah--al) · [ALIGN](#align) · [anti-windup](#anti-windup) · [API](#api) · [arm](#arm) · [baud](#baud) · [BEMF](#bemf) · [BH / BL](#bh--bl) · [BLDC](#bldc) · [Bluepad32](#bluepad32) · [bootstrap](#bootstrap) · [BT](#bt) · [cascata](#cascata) · [CH / CL](#ch--cl) · [clear fault](#clear-fault) · [CURRENT](#current) · [CW / CCW](#cw--ccw) · [DAC](#dac) · [DAC1](#dac1) · [dB](#db) · [dead-time](#dead-time) · [debounce](#debounce) · [disarm](#disarm) · [DMA](#dma) · [duty cycle](#duty-cycle) · [ESC](#esc) · [ESP-IDF](#esp-idf) · [ESP32](#esp32) · [ESP-Prog](#esp-prog) · [ESP_TIMER_TASK](#esp_timer_task) · [EXTI](#exti) · [fail-safe](#fail-safe) · [FAULT](#fault) · [feedforward](#feedforward) · [FOC](#foc) · [frequência elétrica](#frequência-elétrica) · [FreeRTOS](#freertos) · [FSM](#fsm) · [fsm_system](#fsm_system) · [GPIO](#gpio) · [HAL](#hal) · [handover](#handover) · [HID](#hid) · [high-side / low-side](#high-side--low-side) · [Hz / kHz](#hz--khz) · [IDLE](#idle) · [INA240](#ina240) · [INIT](#init) · [IR2110](#ir2110) · [IRAM_ATTR](#iram_attr) · [Isense](#isense) · [ISR](#isr) · [jitter](#jitter) · [JTAG](#jtag) · [Kconfig](#kconfig) · [L2](#l2) · [LDF](#ldf) · [LEDC](#ledc) · [LiPo](#lipo) · [LM339](#lm339) · [malha aberta / fechada](#malha-aberta--fechada) · [MCPWM](#mcpwm) · [MCU](#mcu) · [MOTOR_OPEN_LOOP_COMM_HZ_MAX](#motor_open_loop_comm_hz_max) · [MOTOR_POLE_PAIRS](#motor_pole_pairs) · [motor_control](#motor_control) · [ms / ns](#ms--ns) · [mutex](#mutex) · [OC](#oc) · [OC Trip](#oc-trip) · [OCP](#ocp) · [OFF / SOURCE / SINK](#off--source--sink) · [OPEN_LOOP](#open_loop) · [outrunner](#outrunner) · [overshoot](#overshoot) · [pares de polos](#pares-de-polos) · [PCB](#pcb) · [PI](#pi) · [pid_regulator](#pid_regulator) · [PlatformIO](#platformio) · [polling](#polling) · [power-cycle](#power-cycle) · [PS4](#ps4) · [PWM](#pwm) · [R2](#r2) · [RC](#rc) · [RGB](#rgb) · [RPM](#rpm) · [RUN / RUN_OPEN / RUN_SPEED](#run--run_open--run_speed) · [RUNNING](#running) · [SD](#sd) · [SDK](#sdk) · [sensorless](#sensorless) · [setpoint](#setpoint) · [SPEED](#speed) · [SPI](#spi) · [stall](#stall) · [TCC](#tcc) · [trapezoidal](#trapezoidal) · [UART](#uart) · [UVLO](#uvlo) · [VBAT](#vbat) · [Vdac](#vdac) · [volatile](#volatile) · [Wi-Fi](#wi-fi) · [wired-OR](#wired-or) · [ZCD](#zcd) · [ZCD_CLOSED](#zcd_closed)
+[6-step](#6-step) · [A2212](#a2212) · [ADC](#adc) · [ADC1](#adc1) · [ADC2](#adc2) · [AH / AL](#ah--al) · [ALIGN](#align) · [anti-windup](#anti-windup) · [API](#api) · [arm](#arm) · [baud](#baud) · [BEMF](#bemf) · [BH / BL](#bh--bl) · [BLDC](#bldc) · [Bluepad32](#bluepad32) · [bootstrap](#bootstrap) · [BT](#bt) · [cascata](#cascata) · [CH / CL](#ch--cl) · [clear fault](#clear-fault) · [coast-down](#coast-down) · [CURRENT](#current) · [CW / CCW](#cw--ccw) · [DAC](#dac) · [DAC1](#dac1) · [dB](#db) · [dead-time](#dead-time) · [debounce](#debounce) · [disarm](#disarm) · [DMA](#dma) · [duty cycle](#duty-cycle) · [ESC](#esc) · [ESP-IDF](#esp-idf) · [ESP32](#esp32) · [ESP-Prog](#esp-prog) · [ESP_TIMER_TASK](#esp_timer_task) · [ESR](#esr) · [ESL](#esl) · [EXTI](#exti) · [fail-safe](#fail-safe) · [FAULT](#fault) · [feedforward](#feedforward) · [FOC](#foc) · [frequência elétrica](#frequência-elétrica) · [FreeRTOS](#freertos) · [FSM](#fsm) · [fsm_system](#fsm_system) · [GPIO](#gpio) · [HAL](#hal) · [handover](#handover) · [HID](#hid) · [high-side / low-side](#high-side--low-side) · [Hz / kHz](#hz--khz) · [IDLE](#idle) · [INA240](#ina240) · [INIT](#init) · [IR2110](#ir2110) · [IRAM_ATTR](#iram_attr) · [Isense](#isense) · [ISR](#isr) · [jitter](#jitter) · [JTAG](#jtag) · [Kconfig](#kconfig) · [L2](#l2) · [LDF](#ldf) · [LEDC](#ledc) · [LiPo](#lipo) · [LM339](#lm339) · [malha aberta / fechada](#malha-aberta--fechada) · [MCPWM](#mcpwm) · [MCU](#mcu) · [MOTOR_OPEN_LOOP_COMM_HZ_MAX](#motor_open_loop_comm_hz_max) · [MOTOR_POLE_PAIRS](#motor_pole_pairs) · [motor_control](#motor_control) · [ms / ns](#ms--ns) · [mutex](#mutex) · [OC](#oc) · [OC Trip](#oc-trip) · [OCP](#ocp) · [OFF / SOURCE / SINK](#off--source--sink) · [OPEN_LOOP](#open_loop) · [outrunner](#outrunner) · [overshoot](#overshoot) · [pares de polos](#pares-de-polos) · [PCB](#pcb) · [PI](#pi) · [pid_regulator](#pid_regulator) · [PlatformIO](#platformio) · [polling](#polling) · [power-cycle](#power-cycle) · [PS4](#ps4) · [PWM](#pwm) · [R2](#r2) · [RC](#rc) · [RGB](#rgb) · [RPM](#rpm) · [RUN / RUN_OPEN / RUN_SPEED](#run--run_open--run_speed) · [RUNNING](#running) · [SD](#sd) · [SDK](#sdk) · [sensorless](#sensorless) · [setpoint](#setpoint) · [slew rate](#slew-rate) · [SPEED](#speed) · [SPI](#spi) · [stall](#stall) · [TCC](#tcc) · [trapezoidal](#trapezoidal) · [UART](#uart) · [UVLO](#uvlo) · [VBAT](#vbat) · [Vdac](#vdac) · [volatile](#volatile) · [Wi-Fi](#wi-fi) · [wired-OR](#wired-or) · [ZCD](#zcd) · [ZCD_CLOSED](#zcd_closed)
 
 ---
 
@@ -206,6 +206,14 @@ Estrutura de controle em que a saída de um controlador serve de referência par
 
 No firmware, acionada pelo botão Options do PS4, após o hardware de sobrecorrente estar liberado e sem UVLO ativo.
 
+<a id="coast-down"></a>
+
+### coast-down
+
+**Desaceleração por inércia**, período em que o motor desacelera livremente após o PWM ser cortado (disarm), sem frenagem ativa nem energia aplicada ao estator.
+
+Durante o coast-down, a FCEM decai proporcionalmente à velocidade residual do rotor. O firmware não possui estimativa de velocidade neste estado (o `s_measured_rpm` é zerado em `motor_control_on_disarm()`), o que impossibilita condicionar o re-arme ao RPM real do eixo. Esta ausência de medição no coast-down é a razão pela qual a inversão automática de sentido com motor em movimento apresenta risco: o novo ciclo de ALIGN é iniciado sem conhecimento da velocidade residual. Ver também: [arm](#arm), [disarm](#disarm), [ALIGN](#align).
+
 <a id="current"></a>
 
 ### CURRENT
@@ -339,6 +347,26 @@ Os pinos GPIO 12–15 estão reservados para essa interface.
 Modo de despacho do `esp_timer` em que o callback é executado em uma task FreeRTOS, não em uma ISR de hardware.
 
 Permite operações mais complexas (ADC, PI, comutação) no callback da malha de controle.
+
+<a id="esr"></a>
+
+### ESR
+
+**E**quivalent **S**eries **R**esistance (Resistência Série Equivalente).
+
+Resistência parasita presente em todo capacitor real, modelada como um resistor em série com a capacitância ideal. Limita a eficácia do capacitor como filtro de alta frequência, pois a queda de tensão $V_{ESR} = ESR \times I_{ripple}$ se soma à ondulação capacitiva ideal.
+
+**No projeto:** o banco do \textit{Link DC} ($940\,\mu\text{F}$) utiliza capacitores \textit{Low-ESR} para minimizar o aquecimento e a ondulação de tensão no barramento DC durante a comutação de alta corrente. Ver também: [ESL](#esl).
+
+<a id="esl"></a>
+
+### ESL
+
+**E**quivalent **S**eries **I**nductance (Indutância Série Equivalente).
+
+Indutância parasita presente em todo capacitor real, devida às geometrias dos terminais e das trilhas internas. Em altas frequências, a ESL faz o capacitor comportar-se como indutor, limitando sua capacidade de absorver transientes rápidos de corrente ($di/dt$).
+
+**No projeto:** os capacitores cerâmicos de $1\,\mu\text{F}$ do barramento compensam a ESL dos capacitores eletrolíticos de $220\,\mu\text{F}$, fornecendo caminho de baixíssima impedância para harmônicos de alta frequência da comutação. Ver também: [ESR](#esr).
 
 <a id="exti"></a>
 
@@ -927,7 +955,7 @@ Usado nos sensores BEMF para filtrar harmônicas do PWM antes dos comparadores.
 
 **R**evolutions **P**er **M**inute (Rotações por Minuto).
 
-Unidade de velocidade mecânica do motor. Faixa de comando: 0–3600 RPM no modo SPEED.
+Unidade de velocidade mecânica do motor. Faixa de comando no modo SPEED: **0–2571 RPM** com o motor A2212/10T 1400kV (`MOTOR_POLE_PAIRS = 7U`, `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f` Hz). O valor máximo é recalculado automaticamente pelo firmware com base nesses parâmetros. Ver também: [SPEED](#speed), [MOTOR_OPEN_LOOP_COMM_HZ_MAX](#motor_open_loop_comm_hz_max), [A2212](#a2212).
 
 <a id="run--run_open--run_speed"></a>
 
@@ -985,11 +1013,23 @@ A posição do rotor é inferida pela BEMF ou por sequência de partida em malha
 
 Definido pelo gatilho R2 ou zerado ao desarmar.
 
+<a id="slew-rate"></a>
+
+### slew rate
+
+**Taxa de variação**, limite imposto à velocidade de mudança de uma referência ou sinal ao longo do tempo, expresso em unidade por segundo (A/s ou RPM/s).
+
+No firmware, o slew rate limiter é aplicado à referência de corrente e à referência de velocidade antes de alimentar o controlador PI, prevenindo variações abruptas que causariam sobrecorrente transitória ou disparo da proteção OCP. A cada ciclo da malha de controle ($\Delta t = 1\,\text{ms}$), o incremento máximo permitido é $\Delta I_{max} = \text{MOTOR\_TARGET\_SLEW\_AMPS\_PER\_S} \times \Delta t$. Um degrau de comando do R2 converte-se, portanto, em uma rampa de referência de duração $\Delta I_{cmd} / \text{slew}$ segundos.
+
+**No firmware:** `MOTOR_TARGET_SLEW_AMPS_PER_S = 2 A/s` (corrente); `MOTOR_SPEED_SLEW_RPM_PER_S = 1500 RPM/s` (velocidade). Ver também: [PI](#pi), [anti-windup](#anti-windup), [setpoint](#setpoint).
+
 <a id="speed"></a>
 
 ### SPEED
 
-Modo de controle em que o gatilho R2 define a **velocidade alvo** em RPM (0–3600). Também referido como **modo velocidade**. Usa malha cascata: PI velocidade → PI corrente; a corrente é adaptada automaticamente à carga (até 5 A).
+Modo de controle em que o gatilho R2 define a **velocidade alvo** em RPM. Também referido como **modo velocidade**. Usa malha cascata: PI velocidade → PI corrente; a corrente é adaptada automaticamente à carga (até 5 A).
+
+Faixa de comando: **0–2571 RPM** (motor A2212/10T 1400kV, `MOTOR_POLE_PAIRS = 7U`, `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f` Hz). Para o motor nominal Turnigy XK3674-2200KV (`MOTOR_POLE_PAIRS = 2U`), a faixa correspondente seria 0–3600 RPM (120 Hz × 60/2). O valor efetivo depende dos parâmetros de `board_config.h`.
 
 Padrão do projeto (`MOTOR_CONTROL_USE_SPEED_MODE 1`). Detalhes comparativos na [Seção 5.5](DOCUMENTACAO_PROGRAMACAO.md#55-modos-de-controle-current-e-speed) da documentação de programação.
 

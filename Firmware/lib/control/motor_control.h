@@ -123,6 +123,11 @@ bool motor_control_set_align_duty_percent(float duty_percent);
 bool motor_control_set_align_duration_ms(uint32_t duration_ms);
 bool motor_control_set_target_slew_amps_per_s(float amps_per_s);
 
+/** Latência do caminho completo do motor_control_tick() em microssegundos (Sub-teste 5.1). */
+uint32_t motor_control_get_tick_latency_us(void);
+uint32_t motor_control_get_tick_latency_min_us(void);
+uint32_t motor_control_get_tick_latency_max_us(void);
+
 #ifdef __cplusplus
 }
 #endif
