@@ -209,9 +209,9 @@ Embora chamadas de "constantes", $K_T$ e $K_e$ são afetadas pela temperatura. O
   \label{Sequência de acionamento para um BLDC trifásico} 
  \end{figure} 
 
-Esse algoritmo de acionamento dos transistores, também chamado de Controle Trapezoidal, é a base para o funcionamento do motor BLDC. Embora seja possível operá-lo em malha aberta (sequência fixa), esta abordagem é ineficiente e propensa a perda de sincronismo sob variações de carga. Portanto, neste trabalho, projeta-se e implementa-se a infraestrutura de hardware e firmware para o \textbf{Controle de Malha Fechada \textit{Sensorless}}, incluindo os circuitos de reconstrução de neutro virtual, filtragem RC e comparadores LM339 para detecção de cruzamento por zero (ZCD). A ativação da malha fechada em software (\texttt{BOARD\_ENABLE\_BEMF\_ZCD}) é tratada como etapa subsequente, após a validação completa da sequência de partida em malha aberta, conforme detalhado no Capítulo 4.
+Esse algoritmo de acionamento dos transistores, também chamado de Controle Trapezoidal, é a base para o funcionamento do motor BLDC. Embora seja possível operá-lo em malha aberta (sequência fixa), esta abordagem é ineficiente e propensa a perda de sincronismo sob variações de carga. Portanto, neste trabalho, projeta-se e implementa-se a infraestrutura de \textit{hardware} e \textit{firmware} para um \textbf{ESC trapezoidal \textit{sensorless}}, incluindo os circuitos de reconstrução de neutro virtual, filtragem RC e comparadores LM339 destinados à detecção de cruzamento por zero (ZCD) da FCEM. Nesta etapa de validação, a comutação opera em \textbf{malha aberta} (alinhamento e rampa forçada); a \textbf{transição para comutação em malha fechada orientada por ZCD} permanece como passo subsequente, após a confirmação da sequência 6-step e do condicionamento do sinal, conforme detalhado no Capítulo 4.
 
-Nesta topologia, a sequência de comutação não é fixa no tempo, mas sincronizada dinamicamente com a posição do rotor. A detecção da posição é realizada monitorando-se a Força Contraeletromotriz (FCEM) na fase não energizada. Assim, o microcontrolador detecta o momento exato em que o rotor cruzou uma posição angular específica e dispara a próxima comutação, garantindo que o ângulo entre os campos magnéticos permaneça próximo de $90^\circ$ elétricos (torque máximo).
+Nesta topologia de comutação em malha fechada, a sequência de comutação não é fixa no tempo, mas sincronizada dinamicamente com a posição do rotor. A detecção da posição é realizada monitorando-se a Força Contraeletromotriz (FCEM) na fase não energizada. Assim, o microcontrolador detecta o momento exato em que o rotor cruzou uma posição angular específica e dispara a próxima comutação, garantindo que o ângulo entre os campos magnéticos permaneça próximo de $90^\circ$ elétricos (torque máximo).
 
  Quando a aplicação necessita que o motor possua apenas uma velocidade, a fonte de alimentação de tensão fixa é suficiente. Para casos onde é necessário variar a velocidade do motor, a técnica de Modulação por Largura de Pulso (PWM) é normalmente empregada. Um ESC, por exemplo, utiliza PWM para ajustar a tensão média aplicada ao motor, controlando assim sua velocidade. Essa técnica, no entanto, pode demandar a utilização de controladores que comparem a velocidade desejada com a medida no rotor para um controle preciso. 
 
@@ -357,7 +357,7 @@ O fluxo de dependência resultante é \textbf{unidirecional}: camadas superiores
 
 \subsection{Máquinas de Estado Finito (FSM) em Sistemas Críticos}
 
-O controle de um ESC envolve condições operacionais mutuamente exclusivas: o motor não pode estar simultaneamente em aceleração e em estado de falha; o PWM não deve ser armado quando a tensão da bateria está abaixo do mínimo seguro; a sequência de comutação trapezoidal só pode começar após o alinhamento estático do rotor. Gerenciar essas restrições por meio de combinações de variáveis booleanas dispersas pelo código (\texttt{motor\_on}, \texttt{fault\_active}, \texttt{armed}) torna o sistema propenso a inconsistências: um único caminho de execução imprevisto pode resultar em duas dessas variáveis assumindo valores contraditórios simultaneamente, com consequências potencialmente catastróficas para a eletrônica de potência.
+O controle de um ESC envolve condições operacionais mutuamente exclusivas: o motor não pode estar simultaneamente em aceleração e em estado de falha; o PWM não deve ser armado quando a tensão da bateria está abaixo do mínimo seguro; a sequência de comutação trapezoidal só pode começar após o alinhamento estático do rotor. Gerenciar essas restrições por meio de combinações de variáveis booleanas dispersas pelo código torna o sistema propenso a inconsistências: um único caminho de execução imprevisto pode resultar em duas dessas variáveis assumindo valores contraditórios simultaneamente, com consequências potencialmente catastróficas para a eletrônica de potência.
 
 A solução formal para esse problema é a \textbf{Máquina de Estados Finita} (\textit{Finite State Machine} FSM), um modelo computacional em que o sistema ocupa, em qualquer instante, exatamente um entre um conjunto discreto e pré-definido de estados, e transita entre eles por regras explícitas e condicionadas. A FSM elimina estados ilegais por construção: se os estados definidos são \texttt{IDLE}, \texttt{RUNNING} e \texttt{FAULT}, é estruturalmente impossível para o sistema estar em \texttt{RUNNING} e \texttt{FAULT} simultaneamente. A saída é sempre determinística, não há estado intermediário ou flutuante entre 0 e 1. Uma FSM de software estende esse conceito para múltiplos estados e múltiplas condições de transição, com a mesma propriedade de determinismo. Assim o projetista de firmware garante que transições de estado proibidas jamais sejam ativadas, por meio das condições de guarda programadas nas funções de transição.
 
@@ -414,7 +414,7 @@ Existem métodos que exploram as não-linearidades e características construtiv
 \section{Parâmetros Críticos para Modelagem Dinâmica}
 \label{sec:parametros_modelagem}
 
-A implementação de algoritmos avançados, como o FOC e os Observadores de Estado, exige um conhecimento preciso dos parâmetros intrínsecos do motor. A precisão do modelo matemático — e consequentemente a qualidade do controle — depende diretamente da caracterização das seguintes grandezas:
+A implementação de algoritmos avançados, como o FOC e os Observadores de Estado, exige um conhecimento preciso dos parâmetros intrínsecos do motor. A precisão do modelo matemático, e consequentemente a qualidade do controle, depende diretamente da caracterização das seguintes grandezas:
 
 \begin{description}
     \item[Resistência de Estator ($R_s$):] Determina a queda de tensão ôhmica nos enrolamentos. Erros na identificação de $R_s$ causam desvios na estimativa de fluxo em baixas velocidades.
@@ -428,7 +428,7 @@ A implementação de algoritmos avançados, como o FOC e os Observadores de Esta
     \item[Número de Polos ($P$):] Define a relação entre a frequência elétrica e a velocidade mecânica. Um erro neste parâmetro inviabiliza qualquer algoritmo de estimação de velocidade.
 \end{description}
 
-O levantamento desses parâmetros geralmente requer equipamentos de precisão ou rotinas de auto-comissionamento implementadas no próprio inversor, destacando a complexidade superior dessas técnicas em comparação ao método trapezoidal via ZCD adotado neste projeto.
+O levantamento desses parâmetros geralmente requer equipamentos de precisão ou rotinas de auto-comissionamento implementadas no próprio inversor, destacando a complexidade superior dessas técnicas em comparação à comutação trapezoidal \textit{sensorless} por ZCD prevista neste projeto.
 
  \pagebreak 
 

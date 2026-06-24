@@ -1109,6 +1109,43 @@ Quando o PS4 está desconectado (`ps4c=false`), `r2` e `circle` são forçados a
 
 O ESP32 compartilha o rádio entre Bluetooth Classic (PS4) e Wi-Fi AP via time-sharing do ESP-IDF. O **ADC1** (GPIO 34–36, 39) permanece seguro para leitura contínua; apenas o **ADC2** é afetado pelo rádio ativo. A escolha de HTTP polling em vez de WebSocket reduz pressão sobre o heap (~55 KB livres típicos com BT+AP ativos).
 
+### 8.7 Protocolo de validação em bancada (TCC)
+
+Procedimentos espelhados no Capítulo 4 (`4_resultados_discussao.tex`) para validar a dashboard como instrumentação de ensaio, sem cabo USB.
+
+#### 8.7.1 Validação cruzada dashboard × referência física
+
+| Item | Detalhe |
+|------|---------|
+| **Condição** | Motor A2212, modo SPEED, 12 V, 3 A limitados, vazio |
+| **Referências** | 1500 RPM e 2000 RPM em regime estável |
+| **Dashboard** | `im` (validação principal); `rpm` para cruzamento com serial |
+| **Referência física** | Multímetro em série na alimentação DC (`I_DC,ref`) |
+| **Métrica corrente** | $\varepsilon_I = \|I_{dashboard} - I_{DC,ref}\| / I_{DC,ref} \times 100\%$ |
+| **Métrica RPM** | $\varepsilon_{RPM,serial}$ dashboard vs UART (não vs tacômetro) |
+| **Limitação** | Bancada sem tacômetro/encoder; RPM não confrontado com velocidade mecânica real |
+| **Nota** | `im` e `rpm` no JSON usam as mesmas APIs da telemetria serial |
+
+#### 8.7.2 Impacto do Wi-Fi na latência da malha (Sub-teste 5.1)
+
+| Cenário | Configuração |
+|---------|--------------|
+| **A** | BT ativo + telemetria serial UART; sem cliente Wi-Fi |
+| **B** | BT + AP `ESC-Dashboard` + browser com polling 1 Hz (sem USB) |
+
+Registrar durante 30 s em `RUNNING`: `t_tick,min`, `t_tick,max`, `t_tick` médio via `esp_timer_get_time()`; no Cenário B, cruzar picos de `lmax` do JSON com eventos de `GET /data` (1 Hz) e polling PS4 (20 ms). Critério: `t_tick,max` do Cenário B não deve exceder significativamente o Cenário A.
+
+#### 8.7.3 Ensaio de estabilidade e exportação CSV
+
+| Item | Detalhe |
+|------|---------|
+| **Duração** | ≥ 5 min em `RUNNING`, sem cabo USB |
+| **Conexão** | Notebook apenas no AP Wi-Fi |
+| **Exportação** | Botão CSV em `index.html` → `exportCSV()` |
+| **Colunas** | `ts,ia,ib,ic,im,it,d,v,rpm,rpmt,fel,kp,ki,lat,lmin,lmax,heap,state,phase,fault` |
+| **Critérios** | Zero quedas de *Dashboard online*; N ≈ 300 amostras; `state`/`phase` coerentes |
+| **Figura TCC** | Plot RPM × tempo a partir do CSV → `fig:dashboard_csv_ramp` |
+
 ---
 
 ## 9. Referências

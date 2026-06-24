@@ -1199,7 +1199,7 @@ Seção de validação arquitetural do firmware, independente dos ensaios físic
 - Oscilograma do evento OCP (4 canais)
 - Gráfico de tensão de barramento durante UVLO
 - Ganhos Kp e Ki finais do PI (corrente e velocidade)
-- Comparação RPM estimado vs tacômetro óptico
+- Comparação coerência `rpm` dashboard × serial; $\varepsilon_I$ vs multímetro DC em série
 - Oscilograma da BEMF a 2571 RPM (preparação para ZCD)
 
 ---
@@ -1501,8 +1501,12 @@ A dashboard não é recurso estético: elimina o cabo USB durante ensaios de pot
 
 ### Lacunas pendentes
 
-- **Figura `fig:dashboard_wifi_telemetry`:** screenshot da dashboard com motor A2212 em operação
-- **Sub-teste 5.2:** heap com Wi-Fi AP + BT ativos (valor típico observado em bancada: ~55 KB livres)
+- **Figura `fig:dashboard_wifi_telemetry`:** screenshot da dashboard com motor A2212 em operação (`Docs/Thesis/imagens/dashboard_wifi_telemetry.png`)
+- **Figura `fig:dashboard_csv_ramp`:** gráfico RPM × tempo plotado a partir do CSV exportado (`Docs/Thesis/imagens/dashboard_csv_ramp.png`)
+- **Validação cruzada:** $\varepsilon_I$ (multímetro DC em série) e $\varepsilon_{RPM,serial}$ (dashboard × UART)
+- **Ensaio CSV 5 min:** $T_{ensaio}$, $N$ amostras, quedas de conexão, estabilidade de `heap`/`lat`
+- **Sub-teste 5.1:** $t_{tick}$ Cenário A (BT+serial) vs Cenário B (BT+Wi-Fi+dashboard); correlação `lmax` com GET /data
+- **Sub-teste 5.2:** $H_{livre,IDLE}$ e $H_{livre,RUNNING}$ com Wi-Fi AP + dashboard (ordem de grandeza ~55 KB livres)
 
 ### Arquivos de firmware envolvidos
 
@@ -1513,3 +1517,36 @@ A dashboard não é recurso estético: elimina o cabo USB durante ensaios de pot
 - `platformio.ini` (LittleFS, ESPAsyncWebServer, AsyncTCP)
 
 *Seção adicionada em: 2026-06-22.*
+
+---
+
+## Registro de Escrita — Complementos Dashboard Cap. 4 (2026-06-23)
+
+> **Fonte:** `Docs/Thesis/capitulos/4_resultados_discussao.tex`, `Firmware/DOCUMENTACAO_PROGRAMACAO.md` §8.7.
+
+### O que foi adicionado
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `4_resultados_discussao.tex` | `\subsubsection*{Validação Cruzada entre Telemetria Wi-Fi e Medição de Corrente}` — $\varepsilon_I$ vs multímetro DC; $\varepsilon_{RPM,serial}$ dashboard × UART; limitação sem tacômetro/encoder |
+| `4_resultados_discussao.tex` | `\subsubsection*{Ensaio de Estabilidade Contínua e Exportação de Dados}` — ensaio ≥5 min sem USB; critérios CSV (300 amostras); figura `fig:dashboard_csv_ramp` |
+| `4_resultados_discussao.tex` | Sub-teste 5.1 expandido — Cenários A (BT+serial) e B (BT+Wi-Fi+dashboard); lacunas separadas; conclusão sobre $t_{tick,max}$ |
+| `4_resultados_discussao.tex` | Sub-teste 5.2 expandido — heap com AP ativo e dashboard; $\Delta H$; ordem de grandeza ~55 KB |
+| `4_resultados_discussao.tex` | Lacunas 331 e 357 — referência cruzada à dashboard/CSV |
+| `4_resultados_discussao.tex` | `\subsubsection*{Síntese do Impacto da Telemetria Wi-Fi no Desempenho Global}` (`subsec:sintese_wifi_desempenho`) — consolida CPU/RAM/estabilidade; lacuna quantitativa única; encaminhamento desde Sub-teste 5.1 |
+| `DOCUMENTACAO_PROGRAMACAO.md` | §8.7 Protocolo de validação em bancada (TCC) |
+
+### Eixo dos complementos
+
+Três validações quantitativas embutidas nas seções existentes (sem Sub-teste 6 dedicado):
+
+1. **Coerência metrológica** — dashboard reproduz `push_wifi_telemetry()` sem processamento adicional no browser
+2. **Impacto na malha 1 kHz** — comparação latência Cenário A vs B
+3. **Documentação experimental** — ensaio longo + exportação CSV como substituto da captura serial
+4. **Síntese de desempenho global** — subsubsection final em Métricas de Software; lacuna consolidada (Δt_tick,max, η_heap, estabilidade CSV)
+
+### Lacunas pendentes (síntese)
+
+- **LACUNA síntese Wi-Fi:** Δt_tick,max Cenário B−A; ρ_CPU; H_livre,RUNNING; η_heap; T_ensaio, N CSV, quedas HTTP
+
+*Seção adicionada em: 2026-06-23.*

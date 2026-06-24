@@ -59,12 +59,14 @@ Uma bateria comercial que atende as especificações do projeto é o modelo Turn
 
 Dada a baixa resistência interna das baterias de Lítio-Polímero (LiPo) e a alta capacidade de corrente do sistema ($>90 \text{ A}$), um eventual curto-circuito no estágio de potência resultaria em correntes de falha de magnitude catastrófica, com risco real de incêndio e explosão da fonte de energia.
 
-Para mitigar este risco, projetou-se um sistema de proteção passiva composto por um fusível do tipo \textbf{MIDI} de $100 A$, instalado em série com o cabo positivo da bateria, externo à placa de circuito impresso (PCB). Esta topologia foi escolhida baseada em dois critérios:
+Para mitigar este risco, projetou-se um sistema de proteção passiva composto por um fusível do tipo \textbf{MIDI} de $100 A$, instalado em série com o polo positivo da bateria, imediatamente a jusante do conector de entrada na própria placa de circuito impresso (PCB). A seleção do tipo de fusível e da topologia de montagem baseou-se nos seguintes critérios:
 
 \begin{itemize}
     \item \textbf{Tipo de Fusível (MIDI):} Diferente dos fusíveis de lâmina automotivos comuns (ATO/ATC), o padrão MIDI possui terminais para fixação por parafusos (M5 ou M6). Isso garante uma pressão de contato elevada, minimizando a resistência de contato ($R_{contato}$) e, consequentemente, o aquecimento indesejado no ponto de conexão sob altas correntes.
     
-    \item \textbf{Instalação Externa (Off-Board):} A alocação do fusível no cabo, ao invés da PCB, preserva a integridade das trilhas de cobre em caso de fusão violenta do elemento condutor. Além disso, facilita a manutenção em campo e remove uma fonte de calor concentrada de perto dos transistores de potência.
+    \item \textbf{Instalação na PCB (On-Board):} Na implementação adotada, o fusível é fixado por parafusos diretamente na PCB, logo após o conector de bateria, e conectado ao barramento DC por trilhas de cobre de largura substancial. Essa topologia concentra a proteção na entrada de energia do ESC, reduz o comprimento de fiação de alta corrente entre o fusível e o \textit{link} capacitivo e permite reforçar mecanicamente o condutor por deposição adicional de estanho (\textit{solder reinforcement}) sobre as áreas de potência, diminuindo a resistência ôhmica e o aquecimento local sob correntes elevadas.
+    
+    \item \textbf{Alternativa: Instalação Externa (Off-Board):} Como alternativa de projeto frequentemente empregada em ESCs de alta potência, a alocação do fusível no cabo de alimentação, externalizada à PCB, preserva a integridade das trilhas de cobre em caso de fusão violenta do elemento condutor. Além disso, facilita a manutenção em campo e remove uma fonte de calor concentrada de perto dos transistores de potência.
 \end{itemize}
 
 O dimensionamento de $100 A$ oferece uma margem de segurança de aproximadamente $10\%$ sobre a corrente de pico estimada do motor ($90 A$), garantindo que o dispositivo atue apenas em casos de falha real (curto-circuito ou travamento mecânico do rotor), sem interrupções espúrias durante a operação nominal.
@@ -90,13 +92,13 @@ Esta escolha assegura que o banco de capacitores suporte a corrente $I_{RMS}$ es
 \subsection{Dimensionamento do Inversor (MOSFETs)}
 Para o estágio de comutação da ponte inversora trifásica, a escolha do MOSFET foi governada por dois parâmetros críticos: a tensão de ruptura dreno-fonte ($V_{DSS}$), representa o limite máximo de tensão que o dispositivo suporta em seus terminais principais enquanto está em estado de não-condução e a capacidade de dissipação térmica. Considerando que a bateria 6S carregada atinge $25,2V$, e prevendo picos de tensão indutiva ($V_{spike}$) durante o chaveamento, selecionou-se o modelo \textbf{IRFS7530TRL7PP}. Este componente possui um $V_{DSS}$ de $60V$, oferecendo uma margem de segurança superior a 100\% em relação à tensão do barramento DC.
 
-A validação térmica foi realizada considerando a resistência em condução ($R_{DS(on)}$) máxima do componente, que é de aproximadamente $1,4 m\Omega$. Para a corrente de pico projetada de $91A$, a potência dissipada estimada ($P_{diss}$) é dada por:
+A validação térmica foi realizada considerando a resistência em condução ($R_{DS(on)}$) máxima do componente, que é de aproximadamente $1,4 m\Omega$. Para a corrente de pico projetada de $90A$, a potência dissipada estimada ($P_{diss}$) é dada por:
 
 \begin{equation}
-    P_{diss} = I^2 \cdot R_{DS(on)} = 91^2 \cdot 0,0014 \approx 11,6 W
+    P_{diss} = I^2 \cdot R_{DS(on)} = 90^2 \cdot 0,0014 \approx 11,34 W
 \end{equation}
 
-Embora o encapsulamento D2PAK-7 suporte altas correntes, a dissipação de aproximadamente $11,6W$ exige o uso de uma área de cobre estendida na PCB ou acoplamento com dissipador térmico externo para manter a temperatura de junção dentro dos limites operacionais seguros.
+Embora o encapsulamento D2PAK-7 suporte altas correntes, a dissipação de aproximadamente $11,34W$ exige o uso de uma área de cobre estendida na PCB ou acoplamento com dissipador térmico externo para manter a temperatura de junção dentro dos limites operacionais seguros.
 
 
 
@@ -312,9 +314,9 @@ O controle lógico do inversor é centralizado no microcontrolador, responsável
 \subsection{Interface de Entrada: Controle DualShock 4 via Bluetooth}
 % ------------------------------------------------------------
 
-Para a etapa de validação experimental do protótipo em bancada, a definição de uma interface de entrada de dados ágil e ergonômica é um requisito funcional tão relevante quanto a arquitetura do inversor em si. O operador necessita enviar setpoints de aceleração e frenagem ao ESC de forma contínua, graduada e segura, sem impedir o acesso físico ao conjunto motor-placa durante os ensaios.
+Para a etapa de validação experimental do protótipo em bancada, a definição de uma interface de entrada de dados ágil e ergonômica é um requisito funcional tão relevante quanto a arquitetura do inversor em si. O operador necessita enviar setpoints de comando ao ESC de forma contínua, graduada e segura, sem impedir o acesso físico ao conjunto motor-placa durante os ensaios.
 
-Nesse contexto, foi adotado o controle \textit{DualShock 4} (PS4) como dispositivo de entrada principal do sistema. A escolha fundamenta-se em três critérios de engenharia de sistemas: (1) o controle disponibiliza dois gatilhos analógicos de alta resolução (R2 para aceleração, L2 para frenagem), com curso contínuo que permite mapear linearmente toda a faixa de referência de corrente ou velocidade do ESC sem os degraus discretos de um potenciômetro rotativo; (2) sua interface de comunicação é \textbf{Bluetooth Low Energy (BLE)}, eliminando cabos entre o operador e o banco de ensaios e, consequentemente, removendo qualquer risco de choque elétrico por conexão direta a um circuito de alta tensão em operação; (3) o controle expõe pinos de LED colorido (\textit{lightbar}) e botões de ação nomeados (Circle, Options), os quais foram aproveitados como canal de diagnóstico visual e como comandos de arme/desarme e \textit{clear fault} da Máquina de Estados do ESC, respectivamente, dispensando interface serial durante ensaios de campo.
+Nesse contexto, foi adotado o controle \textit{DualShock 4} (PS4) como dispositivo de entrada principal do sistema. A escolha fundamenta-se em três critérios de engenharia de sistemas: (1) o controle disponibiliza dois gatilhos analógicos de alta resolução (R2 para aceleração), com curso contínuo que permite mapear linearmente toda a faixa de referência de corrente ou velocidade do ESC sem os degraus discretos de um potenciômetro rotativo; (2) sua interface de comunicação é \textbf{Bluetooth Low Energy (BLE)}, eliminando cabos entre o operador e o banco de ensaios e, consequentemente, removendo qualquer risco de choque elétrico por conexão direta a um circuito de alta tensão em operação; (3) o controle expõe pinos de LED colorido (\textit{lightbar}) e botões de ação nomeados (Circle, Options), os quais foram aproveitados como canal de diagnóstico visual e como comandos de arme/desarme e \textit{clear fault} da Máquina de Estados do ESC, respectivamente, dispensando interface serial durante ensaios de campo.
 
 A integração com o microcontrolador ESP32 é viabilizada pela biblioteca de código aberto \textbf{Bluepad32}, que implementa a pilha de protocolo HID Bluetooth para gamepads comerciais diretamente sobre o núcleo Arduino customizado para o ESP32. Os detalhes de implementação desta integração são apresentados na subseção referente à escolha da linguagem de programação.
 
@@ -322,7 +324,7 @@ A integração com o microcontrolador ESP32 é viabilizada pela biblioteca de c�
 \subsection{Dashboard de Telemetria via Wi-Fi}
 % ------------------------------------------------------------
 
-A aquisição de dados em tempo real durante os ensaios de potência constitui requisito indispensável para a validação das malhas de controle, das rotinas de proteção e da máquina de estados do ESC. A abordagem convencional --- conexão do microcontrolador ao computador do operador por cabo USB/UART --- introduz, contudo, um elo condutor entre o domínio de alta energia do inversor e o equipamento de medição. Em bancadas de eletrônica de potência, essa interligação expõe o operador e o hardware de aquisição a riscos elétricos severos:
+A aquisição de dados em tempo real durante os ensaios de potência constitui requisito indispensável para a validação das malhas de controle, das rotinas de proteção e da máquina de estados do ESC. A abordagem convencional, conexão do microcontrolador ao computador do operador por cabo USB/UART introduz, contudo, um elo condutor entre o domínio de alta energia do inversor e o equipamento de medição. Em bancadas de eletrônica de potência, essa interligação expõe o operador e o hardware de aquisição a riscos elétricos severos:
 
 \begin{itemize}
     \item \textbf{Loops de terra (\textit{ground loops}):} quando o referencial de terra do circuito de potência (barramento DC, carcaça do motor, blindagem do cabo de alimentação) não coincide com o terra do computador, circulam correntes parasitas pelo condutor USB, distorcendo medições e elevando a temperatura dos condutores de retorno.
@@ -330,34 +332,21 @@ A aquisição de dados em tempo real durante os ensaios de potência constitui r
     \item \textbf{Restrição ergonômica em bancada:} o cabo USB limita a distância e a liberdade de movimento do operador durante ensaios dinâmicos com o controle Bluetooth, além de constituir obstáculo físico próximo ao eixo em rotação.
 \end{itemize}
 
-Para mitigar esses riscos sem renunciar à visibilidade do estado interno do firmware, foi implementada uma \textbf{Dashboard de Telemetria via Wi-Fi}, que estabelece um \textbf{isolamento galvânico virtual} entre o ESP32 e o equipamento de visualização: o notebook ou smartphone do operador comunica-se com o microcontrolador exclusivamente por ondas de rádio, sem qualquer condutor metálico compartilhado com o circuito de potência.
-
-A arquitetura de software adotada integra-se à camada de aplicação do firmware e opera conforme o fluxo descrito a seguir:
-
-\begin{enumerate}
-    \item \textbf{Modo Access Point (AP):} o ESP32 cria uma rede Wi-Fi local (\texttt{ESC-Dashboard}, IP fixo \texttt{192.168.4.1}), independente de roteador externo e sem necessidade de conexão à internet.
-    \item \textbf{Servidor HTTP assíncrono:} o módulo \texttt{wifi\_telemetry} utiliza a biblioteca ESPAsyncWebServer para servir a interface web (\texttt{index.html}) e o endpoint de dados \texttt{GET /data}, ambos armazenados no sistema de arquivos LittleFS da flash interna.
-    \item \textbf{Telemetria por HTTP \textit{polling}:} o \textit{browser} do operador requisita o JSON de telemetria a cada $1\,\text{s}$; o \texttt{loop()} principal atualiza o \textit{snapshot} a cada $100\,\text{ms}$ via \texttt{push\_wifi\_telemetry()}. Essa estratégia foi preferida à conexão WebSocket persistente para limitar o consumo de \textit{heap} ($\approx 19\,\text{KB}$ por cliente WebSocket), recurso já pressionado pela coexistência de Bluetooth Classic (PS4) e Wi-Fi no mesmo rádio do ESP32.
-    \item \textbf{Visualização local:} a biblioteca Chart.js é servida a partir da flash (arquivo \texttt{chart.min.js}), eliminando dependência de CDN externo --- inacessível quando o operador está conectado exclusivamente ao AP do ESC.
-\end{enumerate}
-
-O \textit{payload} JSON transmitido consolida, em chaves compactas, o estado da FSM, correntes de fase, tensão de barramento, RPM, parâmetros do PI, latência do \texttt{motor\_control\_tick()}, \textit{heap} livre, status do controle PS4 (\texttt{ps4c}, R2, Circle) e código de falha ativo. A telemetria serial por UART ($115200\,\text{baud}$) permanece disponível para depuração em laboratório, porém os ensaios de potência com motor em rotação foram conduzidos preferencialmente sem cabo USB conectado, utilizando exclusivamente a dashboard Wi-Fi como canal de monitoramento.
-
-A inicialização do subsistema Wi-Fi precede a do Bluetooth no \texttt{setup()}, conforme exigência do \textit{scheduler} de coexistência de rádio do ESP-IDF; a inversão dessa ordem impede a subida correta do Access Point. As leituras de corrente e tensão continuam roteadas ao ADC1 (GPIO 34--36 e 39), periférico não afetado pelo compartilhamento de rádio entre Wi-Fi e Bluetooth, preservando a integridade da malha de controle a $1\,\text{kHz}$.
+Para mitigar esses riscos sem renunciar à visibilidade do estado interno do firmware, adotou-se uma \textbf{Dashboard de Telemetria via Wi-Fi}, que estabelece um \textbf{isolamento galvânico virtual} entre o ESP32 e o equipamento de visualização: o notebook ou smartphone do operador comunica-se com o microcontrolador exclusivamente por ondas de rádio, sem qualquer condutor metálico compartilhado com o circuito de potência.
 
 % ------------------------------------------------------------
 \subsection{Escolha da Linguagem e Paradigma de Programação}
 % ------------------------------------------------------------
 
-O ESP32 suporta múltiplos ambientes de desenvolvimento e linguagens de programação. Entre as opções disponíveis, três se destacam na comunidade de sistemas embarcados: \textbf{MicroPython}, \textbf{C puro} e \textbf{C/C++} via framework Arduino com acesso direto ao ESP-IDF.
+O ESP32 suporta múltiplos ambientes de desenvolvimento e linguagens de programação. Entre as opções disponíveis, três se destacam na comunidade de sistemas embarcados: \textbf{MicroPython}, \textbf{C} e \textbf{C/C++} via framework Arduino com acesso direto ao ESP-IDF.
 
 O \textbf{MicroPython} é um interpretador da linguagem Python executado diretamente no microcontrolador. Sua principal vantagem é a rapidez de prototipagem: variáveis são tipadas dinamicamente e não há etapa de compilação. Contudo, para uma aplicação de controle de potência, essa vantagem converte-se em desvantagem crítica. O interpretador introduz latência imprevisível entre a instrução Python e sua execução em silício, um \textit{jitter} que compromete a estabilidade da malha de corrente a 1\,kHz e inviabiliza o controle preciso do \textit{dead-time} de 500\,ns no periférico MCPWM. Adicionalmente, a coleta de lixo automática (\textit{garbage collector}) do Python pode suspender a execução por dezenas de milissegundos em momentos arbitrários, comportamento incompatível com o determinismo exigido por um controlador de potência em tempo real.
 
-O \textbf{C puro} oferece determinismo máximo e controle total sobre a alocação de memória, sendo a linguagem padrão dos SDKs de microcontroladores. Sua limitação, neste projeto, está na integração com a biblioteca Bluepad32 para o controle Bluetooth via DualShock 4: o núcleo Arduino customizado que embute a \textit{stack} Bluetooth exige interfaces em C++, tornando impraticável a restrição estrita ao C.
+O \textbf{C} oferece determinismo máximo e controle total sobre a alocação de memória, sendo a linguagem padrão dos SDKs de microcontroladores. Sua limitação, neste projeto, está na integração com a biblioteca Bluepad32 para o controle Bluetooth via DualShock 4: o núcleo Arduino customizado que embute a \textit{stack} Bluetooth exige interfaces em C++, tornando impraticável a restrição estrita ao C.
 
 O \textbf{C/C++} combina o determinismo e o desempenho do C com os mecanismos de encapsulamento e compatibilidade de biblioteca do C++. No contexto deste projeto, o C++ é utilizado de forma restrita e deliberada: o módulo de ponto de entrada da aplicação e o módulo de interface Bluetooth utilizam C++ para integração com o Bluepad32, enquanto todos os módulos críticos de controle, \textit{drivers} e HAL são implementados em C puro, compilados com convenção de ligação explicitamente declarada por meio do qualificador \texttt{extern~"C"} nos cabeçalhos. Essa abordagem híbrida captura os benefícios de ambas as linguagens: compatibilidade binária e desempenho determinístico do C nos módulos de potência; integração simplificada com bibliotecas de alto nível em C++ na camada de aplicação.
 
-A escolha rejeitou deliberadamente o uso de \textbf{alocação dinâmica de memória} (\texttt{new}/\texttt{delete} em C++, \texttt{malloc}/\texttt{free} em C). Em sistemas de execução prolongada, a alocação e liberação repetidas de blocos de tamanhos variados fragmentam progressivamente o \textit{heap} --- região de memória de uso geral --- degradando o desempenho e podendo levar a falhas de alocação imprevisíveis. O firmware adota alocação estática exclusiva: todas as variáveis de estado são declaradas \texttt{static} no escopo do módulo, e as instâncias dos controladores PI são estruturas globais estáticas, garantindo tempo de acesso e consumo de memória determinísticos em toda a vida útil do sistema.
+A escolha rejeitou deliberadamente o uso de \textbf{alocação dinâmica de memória}, que é a prática de reservar e liberar espaço na memória (geralmente na região heap) durante a execução de um programa, em vez de no momento da compilação. Em sistemas de execução prolongada, a alocação e liberação repetidas de blocos de tamanhos variados fragmentam progressivamente o \textit{heap}, região de memória de uso geral, degradando o desempenho e podendo levar a falhas de alocação imprevisíveis. O firmware adota alocação estática exclusiva: todas as variáveis de estado são declaradas \texttt{static} no escopo do módulo, e as instâncias dos controladores PI são estruturas globais estáticas, garantindo tempo de acesso e consumo de memória determinísticos em toda a vida útil do sistema.
 
 % ------------------------------------------------------------
 \subsection{Ambiente de Desenvolvimento: PlatformIO}
@@ -384,15 +373,15 @@ O \textbf{PlatformIO}, ambiente adotado neste trabalho, endereça essas limitaç
 
 A organização modular do firmware baseia-se em uma convenção fundamental da linguagem C/C++: a separação entre \textbf{declaração} e \textbf{definição} de funções e estruturas de dados, materializada nos dois tipos de arquivo presentes no projeto.
 
-Os \textbf{arquivos de cabeçalho} (\texttt{.h}) funcionam como \textbf{contratos ou índices} de um módulo: declaram quais funções existem, quais tipos de dados elas recebem e quais valores retornam, sem revelar como são implementadas internamente. A analogia de hardware é precisa: um arquivo de cabeçalho é equivalente ao \textit{datasheet} de um componente eletrônico, que descreve os terminais, as tensões de operação e as características elétricas sem expor o circuito interno. O arquivo de cabeçalho do módulo de regulação PI, por exemplo, declara a estrutura de dados do controlador --- com campos para os ganhos $K_p$, $K_i$, o estado do integrador e os limites de saturação --- e a assinatura da função de cálculo do controlador, definindo o ``contrato'' que qualquer módulo pode usar para computar a ação de controle, independentemente de onde o motor ou o sensor estão conectados.
+Os \textbf{arquivos de cabeçalho} (\texttt{.h}) funcionam como \textbf{contratos ou índices} de um módulo: declaram quais funções existem, quais tipos de dados elas recebem e quais valores retornam, sem revelar como são implementadas internamente. A analogia de hardware é precisa: um arquivo de cabeçalho é equivalente ao \textit{datasheet} de um componente eletrônico, que descreve os terminais, as tensões de operação e as características elétricas sem expor o circuito interno. O arquivo de cabeçalho do módulo de regulação PI, por exemplo, declara a estrutura de dados do controlador, com campos para os ganhos $K_p$, $K_i$, o estado do integrador e os limites de saturação, e a assinatura da função de cálculo do controlador, definindo o ``contrato'' que qualquer módulo pode usar para computar a ação de controle, independentemente de onde o motor ou o sensor estão conectados.
 
-Os \textbf{arquivos de implementação} (\texttt{.c} ou \texttt{.cpp}) contêm a \textbf{lógica real} que cumpre o contrato declarado no cabeçalho. Estendendo a analogia, são o \textbf{circuito interno do componente}: a implementação concreta dos transistores e resistores que produzem o ganho prometido no \textit{datasheet}. O arquivo de implementação do módulo de regulação PI, por exemplo, contém as equações de erro, acumulação do integrador com \textit{anti-windup} e saturação da saída --- o código que transforma a declaração em comportamento real.
+Os \textbf{arquivos de implementação} (\texttt{.c} ou \texttt{.cpp}) contêm a \textbf{lógica real} que cumpre o contrato declarado no cabeçalho. Estendendo a analogia, são o \textbf{circuito interno do componente}: a implementação concreta dos transistores e resistores que produzem o ganho prometido no \textit{datasheet}. O arquivo de implementação do módulo de regulação PI, por exemplo, contém as equações de erro, acumulação do integrador com \textit{anti-windup} e saturação da saída, o código que transforma a declaração em comportamento real.
 
 Essa separação produz dois benefícios práticos diretos para um projeto de engenharia:
 
 \begin{itemize}
-    \item \textbf{Modularidade e manutenibilidade:} um módulo que utiliza o controlador PI inclui apenas o cabeçalho correspondente e invoca a função de cálculo do controlador. Se a implementação do algoritmo for aprimorada --- por exemplo, substituindo a integração de Euler pela integração trapezoidal --- todos os módulos que o utilizam se beneficiam automaticamente após recompilação, sem necessidade de modificação. A mudança fica contida em um único arquivo de implementação.
-    \item \textbf{Isolamento de dependências e testabilidade:} ao não incluir cabeçalhos de hardware nos módulos de algoritmo, garante-se que a lógica matemática seja verificável de forma independente do hardware físico. O módulo de controle PI pode ser testado em um computador de desenvolvimento com dados simulados, validando sua resposta dinâmica antes de ser integrado ao firmware completo --- prática que reduz o tempo de depuração em bancada.
+    \item \textbf{Modularidade e manutenibilidade:} Um módulo que utiliza o controlador PI inclui apenas o cabeçalho correspondente e invoca a função de cálculo do controlador. Se a implementação do algoritmo for aprimorada por exemplo, substituindo a integração de Euler pela integração trapezoidal todos os módulos que o utilizam se beneficiam automaticamente após recompilação, sem necessidade de modificação. A mudança fica contida em um único arquivo de implementação.
+    \item \textbf{Isolamento de dependências e testabilidade:} Ao não incluir cabeçalhos de hardware nos módulos de algoritmo, garante-se que a lógica matemática seja verificável de forma independente do hardware físico. O módulo de controle PI pode ser testado em um computador de desenvolvimento com dados simulados, validando sua resposta dinâmica antes de ser integrado ao firmware completo prática que reduz o tempo de depuração em bancada.
 \end{itemize}
 
 A regra de projeto adotada complementa essa estrutura: cada módulo expõe exatamente as funções necessárias para seu papel na arquitetura em camadas e declara \texttt{static} todas as variáveis de estado internas. O qualificador \texttt{static} no escopo do módulo restringe o acesso à variável ao próprio módulo, impedindo que camadas superiores modifiquem diretamente o estado interno de camadas inferiores e eliminando uma classe inteira de erros causados por acesso não intencional a variáveis compartilhadas.
@@ -400,7 +389,7 @@ A regra de projeto adotada complementa essa estrutura: cada módulo expõe exata
 % ------------------------------------------------------------
 \subsection{Lógica de Comutação de Seis Passos}
 % ------------------------------------------------------------
-A lógica de chaveamento constitui o núcleo funcional do ESC. Nesta abordagem, utiliza-se a comutação de seis passos em malha aberta (\textit{Sensorless}). A ponte inversora trifásica é acionada de forma que apenas dois MOSFETs conduzam simultaneamente a cada passo, criando um campo magnético giratório que avança em incrementos de $60^{\circ}$.
+A lógica de chaveamento constitui o núcleo funcional do ESC. Nesta abordagem, utiliza-se a comutação de seis passos em malha aberta, dentro de uma estratégia \textit{sensorless} (sem sensores Hall ou encoder de posição). A ponte inversora trifásica é acionada de forma que apenas dois MOSFETs conduzam simultaneamente a cada passo, criando um campo magnético giratório que avança em incrementos de $60^{\circ}$.
 
 \begin{table}[H]
     \centering
@@ -447,12 +436,26 @@ A configuração segue o mapeamento da Tabela \ref{tab:mcpwm_map}, onde o \texti
 \end{table}
 
 % ------------------------------------------------------------
+\subsection{Sistema de Realimentação por Força Contraeletromotriz}
+% ------------------------------------------------------------
+
+Para viabilizar a operação em malha fechada sem o uso de sensores de posição dedicados (sensores Hall), planeja-se implementar a técnica de detecção de cruzamento por zero (\textit{Zero-Crossing Detection} ZCD) da força contraeletromotriz (FCEM). Esta técnica baseia-se no monitoramento da tensão na fase não energizada do motor durante a sequência de comutação de seis passos. O instante em que a FCEM cruza o nível de tensão do ponto neutro do motor indica uma posição angular conhecida do rotor, permitindo a sincronização precisa da comutação eletrônica.
+
+Como o motor especificado (Turnigy XK3674) possui fechamento interno em triângulo ou estrela sem acesso ao ponto neutro, o sistema de realimentação é concebido em três estágios: reconstrução do neutro virtual, condicionamento de sinal e comparação.
+
+% ------------------------------------------------------------
 \subsection{Estratégia de Partida e Transição para Malha Fechada}
 % ------------------------------------------------------------
 
-A técnica de detecção de cruzamento por zero da FCEM possui uma limitação física intrínseca: a amplitude da FCEM é proporcional à velocidade do rotor ($e = K_e \cdot \omega$). Na partida ($t=0$), a FCEM é nula, impossibilitando a determinação da posição do rotor pelos comparadores. Para contornar isso, projeta-se uma máquina de estados finitos composta por três estágios, conforme ilustrado na Figura~\ref{fig:fsm_estados}:
+A técnica de detecção de cruzamento por zero da FCEM possui uma limitação física intrínseca: a amplitude da FCEM é proporcional à velocidade do rotor ($e = K_e \cdot \omega$). Na partida ($t=0$), a FCEM é nula, impossibilitando a determinação da posição do rotor pelos comparadores. Para contornar isso, projeta-se uma máquina de estados finitos composta por estágios sequenciais de partida, conforme ilustrado na Figura~\ref{fig:fsm_estados}:
 
 \begin{figure}[H]
+\centering
+\caption{M\'aquinas de estados finitas do ESC: (a) com ZCD habilitado; (b) sem ZCD (implementa\c{c}\~ao validada em bancada).}
+\label{fig:fsm_estados}
+
+% --- (a) Com ZCD ---
+\begin{subfigure}[b]{\textwidth}
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
@@ -471,17 +474,13 @@ A técnica de detecção de cruzamento por zero da FCEM possui uma limitação f
     },
     lbl/.style={font=\tiny\sffamily, inner sep=1.5pt}
 ]
-% --- Estados principais (linha horizontal) ---
 \node[state, initial above, initial text={}]         (INIT)    {INIT};
 \node[state, right=of INIT]                          (IDLE)    {IDLE};
 \node[state, right=of IDLE]                          (ALIGN)   {ALIGN};
 \node[state, right=of ALIGN]                         (RUNOPEN) {RUN\\OPEN};
 \node[state, accepting, right=of RUNOPEN]             (CLOSED)  {CLOSED\\LOOP};
-
-% --- Estado de falha (abaixo do centro) ---
 \node[falha, below=2.2cm of ALIGN]                   (FAULT)   {FAULT};
 
-% --- Transicoes normais ---
 \path[->]
     (INIT)    edge node[lbl, above] {inicializa\c{c}\~ao OK}  (IDLE)
     (IDLE)    edge node[lbl, above] {arme}                    (ALIGN)
@@ -489,21 +488,74 @@ A técnica de detecção de cruzamento por zero da FCEM possui uma limitação f
     (RUNOPEN) edge node[lbl, above] {ZCD detectado}           (CLOSED)
     (CLOSED)  edge[bend right=22] node[lbl, below] {desarme}  (IDLE);
 
-% --- Transicoes para FAULT ---
 \path[->]
     (IDLE)    edge[bend right=10] node[lbl, left]  {falha HW}          (FAULT)
     (ALIGN)   edge               node[lbl, right] {OCP / UVLO}         (FAULT)
     (RUNOPEN) edge[bend left=10] node[lbl, right] {stall / OCP / UVLO} (FAULT)
     (CLOSED)  edge[bend left=22] node[lbl, right] {OCP / UVLO}         (FAULT);
 
-% --- Recuperacao de FAULT ---
 \path[->]
     (FAULT) edge[bend right=10] node[lbl, below left] {\textit{clear fault} (Options)} (IDLE);
 \end{tikzpicture}
 }%
-\caption{M\'aquina de estados finita do ESC: estados operacionais e transi\c{c}\~oes de falha.}
+\caption{Com ZCD.}
+\label{fig:fsm_zcd}
+\end{subfigure}
+
+\vspace{1em}
+
+% --- (b) Sem ZCD ---
+\begin{subfigure}[b]{\textwidth}
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+    >=Stealth,
+    shorten >=1pt,
+    auto,
+    node distance=2.7cm,
+    every state/.style={
+        draw, circle, minimum size=1.3cm,
+        align=center, font=\scriptsize\sffamily\bfseries
+    },
+    falha/.style={
+        draw, circle, minimum size=1.3cm,
+        align=center, font=\scriptsize\sffamily\bfseries,
+        fill=gray!30
+    },
+    lbl/.style={font=\tiny\sffamily, inner sep=1.5pt}
+]
+\node[state, initial above, initial text={}]          (INIT)     {INIT};
+\node[state, right=of INIT]                           (IDLE)     {IDLE};
+\node[state, right=of IDLE]                           (ALIGN)    {ALIGN};
+\node[state, right=of ALIGN]                          (RUNOPEN)  {RUN\\OPEN};
+\node[state, accepting, right=of RUNOPEN]              (RUNSPEED) {RUN\\SPEED};
+\node[falha, below=2.2cm of ALIGN]                    (FAULT)    {FAULT};
+
+\path[->]
+    (INIT)     edge node[lbl, above] {inicializa\c{c}\~ao OK}  (IDLE)
+    (IDLE)     edge node[lbl, above] {arme}                    (ALIGN)
+    (ALIGN)    edge node[lbl, above] {500\,ms}                 (RUNOPEN)
+    (RUNOPEN)  edge node[lbl, above] {RPM $\geq$ limiar}        (RUNSPEED)
+    (RUNSPEED) edge[bend right=22] node[lbl, below] {desarme}   (IDLE);
+
+\path[->]
+    (RUNSPEED) edge[bend left=35] node[lbl, below] {dessincronismo} (RUNOPEN);
+
+\path[->]
+    (IDLE)     edge[bend right=10] node[lbl, left]  {falha HW}          (FAULT)
+    (ALIGN)    edge               node[lbl, right] {OCP / UVLO}         (FAULT)
+    (RUNOPEN)  edge[bend left=10] node[lbl, right] {stall / OCP / UVLO} (FAULT)
+    (RUNSPEED) edge[bend left=22] node[lbl, right] {stall / OCP / UVLO} (FAULT);
+
+\path[->]
+    (FAULT) edge[bend right=10] node[lbl, below left] {\textit{clear fault} (Options)} (IDLE);
+\end{tikzpicture}
+}%
+\caption{Sem ZCD.}
+\label{fig:fsm_sem_zcd}
+\end{subfigure}
+
 \caption*{Fonte: Elaborado pelo autor.}
-\label{fig:fsm_estados}
 \end{figure}
 
 \begin{enumerate}
@@ -515,19 +567,15 @@ A técnica de detecção de cruzamento por zero da FCEM possui uma limitação f
     
     Este estágio é mantido pelo menor tempo possível, apenas o suficiente para que o motor atinja cerca de 5\% a 10\% da sua velocidade nominal, ponto em que a amplitude da FCEM supera o limiar de histerese e ruído dos comparadores LM339.
     
-    \item \textbf{Transição e Auto-Comutação (Closed-Loop):} 
-    Assim que o microcontrolador detecta uma sequência válida de cruzamentos por zero (ZCD) nos comparadores, o sistema realiza o \textit{handover}. O temporizador de malha aberta é desativado e o controle passa a ser orientado a eventos: cada detecção de ZCD dispara uma rotina de interrupção que, após um atraso calculado de $30^\circ$ elétricos, executa a próxima comutação de fase. A partir deste momento, o motor opera em malha fechada, auto-sincronizado.
+    \item \textbf{Transição pós-partida:} 
+    O comportamento após \textit{RUN\_OPEN} depende da configuração de compilação (Figura~\ref{fig:fsm_estados}):
+    \begin{itemize}
+        \item \textbf{Com ZCD} (Figura~\ref{fig:fsm_zcd}): assim que o microcontrolador detecta uma sequência válida de cruzamentos por zero nos comparadores, o sistema realiza o \textit{handover}. O temporizador de malha aberta é desativado e o controle passa a ser orientado a eventos: cada ZCD dispara, após um atraso de $30^\circ$ elétricos, a próxima comutação de fase.
+        \item \textbf{Sem ZCD} (Figura~\ref{fig:fsm_sem_zcd}, implementação validada): a comutação permanece em malha aberta por temporizador. Quando o RPM medido supera o limiar de \textit{handover}, o estado evolui para \textit{RUN\_SPEED}, em que um PI de velocidade comanda a corrente. Dessincronismo provoca retorno a \textit{RUN\_OPEN}, sem entrada em falha.
+    \end{itemize}
 \end{enumerate}
 
-Essa abordagem híbrida elimina a necessidade de rampas longas e ineficientes, garantindo uma partida robusta e uma operação contínua otimizada.
-
-% ------------------------------------------------------------
-\subsection{Sistema de Realimentação por Força Contraeletromotriz}
-% ------------------------------------------------------------
-
-Para viabilizar a operação em malha fechada sem o uso de sensores de posição dedicados (sensores Hall), planeja-se implementar a técnica de detecção de cruzamento por zero (\textit{Zero-Crossing Detection} --- ZCD) da força contraeletromotriz (FCEM). Esta técnica baseia-se no monitoramento da tensão na fase não energizada do motor durante a sequência de comutação de seis passos. O instante em que a FCEM cruza o nível de tensão do ponto neutro do motor indica uma posição angular conhecida do rotor, permitindo a sincronização precisa da comutação eletrônica.
-
-Como o motor especificado (Turnigy XK3674) possui fechamento interno em triângulo ou estrela sem acesso ao ponto neutro, o sistema de realimentação é concebido em três estágios: reconstrução do neutro virtual, condicionamento de sinal e comparação.
+Essa abordagem híbrida elimina a necessidade de rampas longas e ineficientes, garantindo uma partida robusta; com ZCD habilitado, a operação contínua é auto-sincronizada por FCEM.
 
 \subsection{Reconstrução do Neutro Virtual e Divisores de Tensão}
 
