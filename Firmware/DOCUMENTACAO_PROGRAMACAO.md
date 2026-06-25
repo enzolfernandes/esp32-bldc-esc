@@ -210,7 +210,8 @@ Não há dependências externas além do core PlatformIO/Arduino. Toda a lógica
 O módulo **MCPWM** do ESP32 gera até seis saídas PWM sincronizadas, organizadas em três timers com dois canais complementares cada. O firmware utiliza MCPWM em [`lib/hal/hal_pwm.c`](lib/hal/hal_pwm.c) em detrimento do periférico **LEDC** pelos seguintes motivos:
 
 - Suporte nativo a **dead-time** programável entre pernas high-side e low-side (500 ns, adequado aos drivers IR2110).
-- Modos de operação **complementares** (AH/AL, BH/BL, CH/CL) com controle independente por fase.
+- Sequência de boot em [`hal_pwm_init()`](lib/hal/hal_pwm.c): (1) seis pinos como GPIO OUTPUT em LOW; (2) timer MCPWM com duty 0 % e dead-time **sem** `mcpwm_gpio_init`; (3) attach MCPWM→GPIO somente em `hal_pwm_set_armed(true)` (IR2110 ainda em shutdown). `setup()` chama `hal_gpio_init()` + `hal_pwm_hold_pins_low()` antes de Wi-Fi/BT.
+- Modos de operação **complementares** (AH/AL, BH/BL, CH/CL) com controle independente por fase; lógica **Active-High** (`MCPWM_ACTIVE_HIGH_COMPLIMENT_MODE`, sem inversão).
 - Frequência de 20 kHz configurável com resolução adequada para minimizar perdas de comutação audíveis e permitir filtragem RC nos sensores BEMF.
 
 A API expõe três modos de condução por fase: **OFF** (ambas as pernas desligadas), **SOURCE** (PWM na perna high-side, low-side como sink complementar) e **SINK** (low-side condutora contínua). Esses modos mapeiam diretamente a tabela de comutação **6-step** trapezoidal.

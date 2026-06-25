@@ -15,6 +15,8 @@
 #include "battery_monitor.h"
 #include "board_config.h"
 #include "fsm_system.h"
+#include "hal_gpio.h"
+#include "hal_pwm.h"
 #include "ina240_current_sensors.h"
 #include "motor_control.h"
 #include "ps4_input.h"
@@ -270,8 +272,14 @@ static void push_wifi_telemetry(const ps4_input_state_t *ps4)
 /** Boot: Serial, PS4, init da FSM (HAL, drivers, timer 1 kHz). */
 void setup()
 {
+    /* Segurança de potência antes de Wi-Fi/BT: SD em shutdown e pinos PWM em GPIO LOW. */
+    (void)hal_gpio_init();
+    (void)hal_pwm_hold_pins_low();
+
     Serial.begin(115200);
     delay(100);
+
+    Serial.println("{\"sessionId\":\"5f7e08\",\"runId\":\"deferred-v2\",\"message\":\"setup-early-safety\"}");
 
     Serial.println("\n--- ESC BLDC: controle PS4 (Bluepad32) ---");
     Serial.println("Serial: telemetria somente leitura.");

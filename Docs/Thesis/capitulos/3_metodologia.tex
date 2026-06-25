@@ -310,6 +310,17 @@ O controle lógico do inversor é centralizado no microcontrolador, responsável
 \label{fig:hal_camadas}
 \end{figure}
 
+\subsubsection{Taxa de Amostragem da Malha de Controle}
+\label{subsec:taxa_amostragem_malha}
+
+A geração do PWM de comutação permanece a cargo do periférico MCPWM, operando de forma autônoma a $f_{sw} = 20\,\text{kHz}$ (Subseção de definição da frequência de chaveamento). A \textbf{malha de controle de software}, reguladores PI de corrente e velocidade, lógica de comutação trapezoidal, detecção de \textit{stall} e supervisão de proteções, foi dimensionada em cadência distinta e deliberadamente inferior: \textbf{$1\,\text{kHz}$}, correspondente a um período de amostragem $T_s = 1\,\text{ms}$.
+
+Essa separação entre frequência de chaveamento e frequência da malha de controle é estrutural em ESCs trapezoidais: o estágio de potência mantém a forma de onda de alta frequência no hardware, enquanto o microcontrolador atua como \textit{loop} externo de baixa frequência, ajustando referência de torque e sequência de comutação. Estratégias de Controle Orientado por Campo (FOC) exigem malhas internas da ordem de dezenas de quilohertz para estimativa contínua do ângulo do rotor; no controle trapezoidal de seis passos adotado neste trabalho, a dinâmica dominante é a da comutação discreta a $60^{\circ}$ elétricos. Em motores BLDC comerciais de aplicações gerais, ferramentas elétricas, ventiladores, aeromodelismo e acionamentos leves, a frequência elétrica de comutação em regime nominal situa-se tipicamente na faixa de dezenas a poucas centenas de hertz, implicando intervalo entre passos da ordem de milissegundos. Nessa escala temporal, $T_s = 1\,\text{ms}$ oferece resolução adequada para supervisão da corrente, atualização dos reguladores PI e lógica de comutação, sem exigir reamostragem na escala do PWM; taxas dessa ordem são recorrentes em ESCs trapezoidais comerciais e mostram-se suficientes para a grande maioria dos motores dessa classe.
+
+Do ponto de vista da dinâmica elétrica do motor, a constante de tempo estimada $\tau = L/R \approx 2\,\text{ms}$ (Subseção de \textit{Ripple} de Corrente e Torque) estabelece a escala temporal da resposta de corrente de fase. Adotando a regra empírica de amostragem de malhas de corrente em sistemas de potência, período de amostragem significativamente inferior à constante de tempo elétrica, tipicamente $T_s \leq \tau/2$, o valor $T_s = 1\,\text{ms}$ situa-se na fronteira conservadora dessa faixa ($T_s = 0{,}5\,\tau$), assegurando que o discretizador PI capture variações de corrente sem subamostrar a planta. Taxas inferiores (por exemplo, $100\,\text{Hz}$) degradariam a integração numérica do termo $I$ do regulador e atrasariam a resposta a degraus de referência e a detecção de sobrecorrente por software; taxas superiores (por exemplo, $10\,\text{kHz}$) não agregariam ganho proporcional à dinâmica mecânica e elétrica do sistema trapezoidal, mas elevariam o custo computacional da aquisição de correntes e competiriam com os subsistemas de comunicação sem fio previstos para a validação em bancada.
+
+A materialização dessa taxa no firmware, temporizador periódico, despacho em \textit{task} FreeRTOS, leitura síncrona do ADC1 e atualização do ciclo de trabalho do MCPWM e a verificação experimental de margem computacional e de coexistência com Bluetooth e Wi-Fi são apresentadas, respectivamente, na Subseção~\ref{subsec:implementacao_malha_1khz} e na Subseção~\ref{subsec:metricas_desempenho_software} do Capítulo de Resultados e Discussão.
+
 % ------------------------------------------------------------
 \subsection{Interface de Entrada: Controle DualShock 4 via Bluetooth}
 % ------------------------------------------------------------
@@ -409,9 +420,10 @@ A lógica de chaveamento constitui o núcleo funcional do ESC. Nesta abordagem, 
 \end{table}
 
 % ------------------------------------------------------------
-\subsection{Implementação Prática com o Periférico MCPWM}
+\subsection{Periférico MCPWM e Sequência de Inicialização Segura}
+\label{subsec:mcpwm_metodo_inicializacao}
 % ------------------------------------------------------------
-A implementação da comutação no firmware utiliza o periférico dedicado \textit{Motor Control Pulse Width Modulator} (MCPWM) do ESP32 \cite{esp32-technical-reference-manual}. Este módulo desonera a CPU da geração de sinais e insere automaticamente o tempo morto (\textit{Dead Time}) necessário para evitar curto-circuitos na ponte H (shoot-through).
+Propõe-se utilizar o periférico dedicado \textit{Motor Control Pulse Width Modulator} (MCPWM) do ESP32 \cite{esp32-technical-reference-manual} para a geração dos seis sinais de comutação. Este módulo desonera a CPU da modulação em alta frequência e permite inserir, por hardware, o tempo morto (\textit{Dead Time}) necessário para evitar curto-circuitos na ponte H (\textit{shoot-through}).
 
 A configuração segue o mapeamento da Tabela \ref{tab:mcpwm_map}, onde o \textit{Duty Cycle} é aplicado ao transistor do lado alto (High-Side) para controle de corrente, enquanto o lado baixo (Low-Side) é mantido em condução plena ou chaveado de forma complementar, dependendo da estratégia de frenagem regenerativa desejada.
 
@@ -434,6 +446,18 @@ A configuração segue o mapeamento da Tabela \ref{tab:mcpwm_map}, onde o \texti
     \flushleft
     \footnotesize{\textit{Nota:} "PWM / LOW" indica modulação. "LOW / ACTIVE" indica condução ao terra. "Hi-Z" alta impedância.} 
 \end{table}
+
+Os \textit{drivers} IR2110 operam com lógica \textit{Active-High}: nível lógico alto no pino de entrada habilita a condução do MOSFET correspondente. A configuração do gerador PWM deve respeitar essa polaridade, qualquer inversão lógica (\textit{Active-Low}) comprometeria a segurança da ponte. Adicionalmente, o ciclo de trabalho inicial de ambas as pernas de cada braço deve ser nulo ($0\,\%$) até que o operador autorize explicitamente a operação do inversor.
+
+Durante o \textit{power-up}, o \textit{reset} ou a reprogramação do microcontrolador, a ordem de ativação dos recursos do MCPWM é crítica. Se os pinos de \textit{gate} forem conectados ao periférico antes que o tempo morto esteja configurado e que ambas as pernas estejam garantidamente em repouso, ambos os sinais complementares de uma mesma fase podem assumir nível lógico alto simultaneamente, condição de curto-circuito direto no barramento DC, independentemente dos resistores de \textit{pull-down} instalados nos \textit{gates}, pois estes não contrabalanceiam correntes de acionamento impostas ativamente pelos \textit{drivers}. Propõe-se, portanto, a seguinte sequência metodológica de inicialização, aplicada antes de qualquer comutação:
+
+\begin{enumerate}
+    \item \textbf{Pull-down lógico:} configurar os seis pinos de controle ($AH$, $AL$, $BH$, $BL$, $CH$, $CL$) como saídas digitais em nível baixo, ainda no modo GPIO genérico, antes de delegar o controle ao periférico MCPWM;
+    \item \textbf{Tempo morto primário:} para cada timer de fase, inicializar o gerador PWM com ciclo de trabalho $0\,\%$ em ambas as pernas, habilitar o \textit{dead-time} de $500\,\text{ns}$ em modo complementar \textit{Active-High} e fixar ambas as saídas em repouso elétrico, tudo isso antes de rotear os sinais do MCPWM para os pinos físicos;
+    \item \textbf{Atrelamento seguro:} somente então conectar cada saída do MCPWM ao GPIO correspondente e verificar imediatamente que ambas as pernas permanecem em nível baixo após o \textit{mux} do microcontrolador.
+\end{enumerate}
+
+Essa sequência constitui a contrapartida de software aos resistores de \textit{pull-down} de $10\,k\Omega$ previstos no estágio de potência: enquanto estes protegem contra estados flutuantes na ausência de sinal ativo, a ordem de inicialização impede que o próprio sistema de controle imponha condução simultânea das duas pernas de um braço durante o arranque. Até a autorização explícita de operação pelo operador, os sinais PWM permanecem desarmados e os pinos de \textit{shutdown} dos IR2110 mantidos em nível baixo.
 
 % ------------------------------------------------------------
 \subsection{Sistema de Realimentação por Força Contraeletromotriz}

@@ -10,7 +10,8 @@
 #include "board_config.h"
 #include "hal_dac.h"
 #include "hal_gpio.h"
-#include "hal_pwm.h"
+
+#include "esp_attr.h"
 
 #include <stddef.h>
 
@@ -35,17 +36,19 @@ static float amps_to_vdac(float amps)
 }
 
 /**
- * @brief Handler de OCP — registrado como ISR no OC Trip (via hal_gpio).
- * Desarma shutdown e PWM imediatamente; sinaliza FSM por callback.
+ * @brief ISR de OCP — apenas latch, shutdown imediato (gpio) e sinalização à FSM.
+ * Proibido: printf, MCPWM ou outras APIs bloqueantes aqui (causam abort()).
  */
-static void oc_trip_handler(void *arg)
+static void IRAM_ATTR oc_trip_handler(void *arg)
 {
     (void)arg;
 
+    if (s_fault_latched) {
+        return;
+    }
+
     s_fault_latched = true;
     hal_shutdown_set_enabled(false);
-    hal_pwm_set_armed(false);
-    hal_pwm_disable_all();
 
     if (s_fault_cb != NULL) {
         s_fault_cb(s_fault_arg);

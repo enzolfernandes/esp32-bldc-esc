@@ -12,6 +12,7 @@
 #include "driver/gpio.h"
 #include "esp_err.h"
 
+#include <stdio.h>
 #include <stddef.h>
 
 static hal_gpio_isr_cb_t s_oc_trip_cb = NULL;
@@ -107,7 +108,13 @@ bool hal_gpio_attach_oc_trip_isr(hal_gpio_isr_cb_t cb, void *arg)
         return false;
     }
 
-    err = gpio_install_isr_service(0);
+    // #region agent log
+    printf("{\"sessionId\":\"5f7e08\",\"runId\":\"deferred-v2\",\"hypothesisId\":\"I\","
+           "\"location\":\"hal_gpio.c:attach\",\"message\":\"oc-trip-before-arm\","
+           "\"data\":{\"OC_TRIP\":%d},\"timestamp\":0}\n", gpio_get_level(PIN_OC_TRIP));
+    // #endregion
+
+    err = gpio_install_isr_service(ESP_INTR_FLAG_IRAM);
     if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
         return false;
     }
@@ -120,7 +127,6 @@ bool hal_gpio_attach_oc_trip_isr(hal_gpio_isr_cb_t cb, void *arg)
     s_oc_trip_cb = cb;
     s_oc_trip_arg = arg;
 
-    // Trip ativo baixo: interrupção na borda de descida
     err = gpio_set_intr_type(PIN_OC_TRIP, GPIO_INTR_NEGEDGE);
     if (err != ESP_OK) {
         return false;
@@ -132,6 +138,13 @@ bool hal_gpio_attach_oc_trip_isr(hal_gpio_isr_cb_t cb, void *arg)
     }
 
     s_isr_attached = true;
+
+    // #region agent log
+    printf("{\"sessionId\":\"5f7e08\",\"runId\":\"deferred-v2\",\"hypothesisId\":\"I\","
+           "\"location\":\"hal_gpio.c:attach\",\"message\":\"oc-trip-armed\","
+           "\"data\":{\"OC_TRIP\":%d},\"timestamp\":0}\n", gpio_get_level(PIN_OC_TRIP));
+    // #endregion
+
     return true;
 }
 

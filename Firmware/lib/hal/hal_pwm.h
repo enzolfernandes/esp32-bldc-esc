@@ -21,6 +21,9 @@ typedef enum {
     HAL_PWM_COND_SINK         /**< Low-side condutando (complementar, duty efetivo 0 %). */
 } hal_pwm_conduction_t;
 
+/** Mantém AH/AL/BH/BL/CH/CL em GPIO OUTPUT LOW (sem mux MCPWM). Chamar no início do boot. */
+bool hal_pwm_hold_pins_low(void);
+
 bool hal_pwm_init(void);
 void hal_pwm_set_armed(bool armed);
 bool hal_pwm_is_armed(void);
