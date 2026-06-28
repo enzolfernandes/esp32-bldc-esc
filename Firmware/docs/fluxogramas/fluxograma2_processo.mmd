@@ -1,0 +1,77 @@
+---
+config:
+  theme: base
+  themeVariables:
+    fontSize: 14px
+    fontFamily: Arial, Helvetica, sans-serif
+  layout: dagre
+---
+flowchart TB
+
+    subgraph PANEL2["Visão operacional resumida · equivalente ao Fluxo A"]
+        direction TB
+
+        START(["▶ INÍCIO<br/>Alimentação / reset"])
+
+        P1["Inicializar hardware, Wi-Fi, BT e FSM"]
+        D1{"Inicialização<br/>OK?"}
+
+        EST["Estado ESC + LED PS4<br/>IDLE · RUNNING · FAULT"]
+
+        LOOP(["Ciclo principal ~20 ms"])
+
+        P4["Ler PS4 e executar ciclo FSM"]
+        D_FAULT{"Estado<br/>FAULT?"}
+        D6{"Options<br/>limpar falha?"}
+        P8["Clear fault → IDLE · LED azul"]
+
+        D_PS4{"PS4<br/>conectado?"}
+        P5["Desarmar motor → IDLE"]
+        D3{"R2 > 10?"}
+        D4{"Pode armar?<br/>IDLE · sem UVLO/OC"}
+        P6["Armar · partida → RUNNING · LED verde"]
+        D_RUN{"Estado<br/>RUNNING?"}
+        P7["Regulação PI e comutação 6-step<br/>malha aberta · padrão ZCD=0"]
+        D5{"Falha crítica?<br/>OCP · UVLO · Stall"}
+        P3["FAULT · desarmar PWM · LED vermelho"]
+        IO["Enviar telemetria serial e Wi-Fi"]
+
+        START --> P1 --> D1
+        D1 -->|Sim · IDLE| EST
+        D1 -->|Não| P3 --> EST
+        EST --> LOOP
+
+        LOOP --> P4 --> D_FAULT
+        D_FAULT -->|Sim| D6
+        D6 -->|Sim| P8 --> IO
+        D6 -->|Não| IO
+        IO --> LOOP
+
+        D_FAULT -->|Não| D_PS4
+        D_PS4 -->|Não| P5 --> D3
+        D_PS4 -->|Sim| D3
+        D3 -->|Sim| D4
+        D4 -->|Sim| P6 --> P7 --> D5
+        D4 -->|Não| D_RUN
+        D3 -->|Não| D_RUN
+        D_RUN -->|Sim| P7 --> D5
+        D_RUN -->|Não| IO
+        D5 -->|Sim| P3 --> IO
+    end
+
+    class START initSt
+    class EST idleSt
+    class LOOP loopSt
+    class P3 faultSt
+    class P6 runSt
+    class P8 idleSt
+    class P1,P4,P5,P7,D1,D_PS4,D3,D4,D5,D6,D_FAULT,D_RUN,IO neutral
+
+    classDef initSt fill:#FFE8CC,stroke:#CC8400,stroke-width:3px,color:#000
+    classDef idleSt fill:#CCE5FF,stroke:#0078FF,stroke-width:2px,color:#000
+    classDef runSt fill:#CCFFCC,stroke:#00AA00,stroke-width:2px,color:#000
+    classDef faultSt fill:#FFCCCC,stroke:#CC0000,stroke-width:2px,color:#000
+    classDef loopSt fill:#EEEEEE,stroke:#555555,stroke-width:2px,color:#000
+    classDef neutral fill:#FFFFFF,stroke:#333,stroke-width:1px,color:#000
+
+    style PANEL2 fill:#E8F4FF,stroke:#0078FF,stroke-width:2px,color:#111111

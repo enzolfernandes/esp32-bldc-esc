@@ -62,6 +62,7 @@ O problema de engenharia central abordado é: **como caracterizar, modelar e con
 #### Eletrônica de Potência
 
 - **MOSFET de Potência:** chave semicondutora que opera entre corte e saturação. Perdas por condução: P_cond = I_D² · R_DS(on). Perdas por comutação: P_sw proporcional à frequência de chaveamento e à carga total de gate (Q_g).
+- **Seleção da Frequência de Chaveamento PWM (`subsec:freq_chaveamento_pwm`):** panorama industrial de f_sw (4–8 kHz legado, 8–12 kHz audível, 16–24 kHz genérico, 20 kHz neste projeto, 32–48 kHz aeromodelismo, 48–96 kHz racing, 10–20 kHz+ FOC). Tabela `tab:panorama_fsw_industria`. Neste trabalho: 20 kHz como compromisso IRFS7530 + IR2110 + dissipação passiva; dimensionamento quantitativo no Cap. 3 (`subsec:determinacao_fsw`).
 - **Barramento DC (Link DC) e Indutância Parasita:** cabos de alimentação introduzem indutância parasita (L_par); durante comutação, o di/dt gera picos de tensão (V_spike = L_par · di/dt) que podem destruir os semicondutores. Solução: banco de capacitores de baixa ESR posicionado próximo aos drenos dos MOSFETs.
 - **Dimensionamento do banco de capacitores do Link DC:** regra prática de ~220µF por 20A de corrente de fase. A ESR total do banco deve ser minimizada via associação paralela para suportar a corrente de ripple RMS.
 - **Técnica de Bootstrap para acionamento High-Side:** o capacitor de bootstrap (C_boot) é carregado quando o transistor Low-Side conduz e atua como "bateria flutuante" para acionar o gate do transistor High-Side acima de V_CC. Limitação: não permite duty cycle de 100% indefinidamente (C_boot precisa ser recarregado periodicamente). Dimensionamento: C_boot ≥ Q_tot / ΔV_boot; recomenda-se capacidade de pelo menos 15×Q_g do MOSFET.
@@ -435,10 +436,17 @@ O problema de engenharia central deste capítulo é duplo:
   - §2.4 Desafios e Limitações da Partida Forçada
     - §2.4.1 Análise do Fenômeno de Perda de Sincronismo (Stall)
     - §2.4.2 Outros Efeitos Adversos (picos de corrente, vibração, ineficiência)
+- **§2.5 Controle Proporcional-Integral em Malhas Fechadas de ESC** (`sec:controle_pi`)
+  - §2.5.0 Distinção entre Malhas de Comutação e Malhas PI (`subsec:distincao_malhas`) — responde: PI é fechada; sistema todo não é; onde cada conceito aparece no texto
+  - §2.5.1 Fundamentos do Controlador PI (equações contínuas e discretas, anti-windup)
+  - §2.5.2 Limitações do Controle Proporcional Puro (erro estacionário, FCEM, carga)
+  - §2.5.3 Exclusão do Termo Derivativo: por que PI e não PID
+  - §2.5.4 Aplicabilidade ao ESC Trifásico Deste Trabalho (malhas corrente/velocidade, cascata, 1 kHz, saturação 95 %)
 - §3 Aspectos de Eletrônica de Potência
   - §3.1 O MOSFET de Potência e Perdas (condução e comutação)
-  - §3.2 O Barramento DC e a Indutância Parasita (Link DC, dimensionamento de C_min)
-  - §3.3 Técnica de Bootstrap para Acionamento High-Side (princípio + dimensionamento de C_boot)
+  - §3.2 Seleção da Frequência de Chaveamento PWM (panorama industrial; tabela `tab:panorama_fsw_industria`; 20 kHz como compromisso do projeto)
+  - §3.3 O Barramento DC e a Indutância Parasita (Link DC, dimensionamento de C_min)
+  - §3.4 Técnica de Bootstrap para Acionamento High-Side (princípio + dimensionamento de C_boot)
 - §4 Estado da Arte em Algoritmos de Controle e Estimação
   - §4.1 Métodos Baseados em FCEM (ZCD, Integração da FCEM)
   - §4.2 Controle Orientado de Campo (FOC) e Observadores (Luenberger, EKF, Adaptativos)
@@ -525,6 +533,7 @@ O problema de engenharia central deste capítulo é duplo:
 - **MOSFET de Potência (Canal-N):** opera em chaveamento (corte ↔ saturação), não em região linear. Dois mecanismos de perda:
   - Perdas por condução: P_cond = I_D² × R_DS(on). R_DS(on) minimizado em componentes modernos para reduzir aquecimento.
   - Perdas por comutação: P_sw proporcional à frequência de chaveamento (f_sw) e à carga total de gate (Q_g). Transição não instantânea entre estados → período com tensão e corrente simultaneamente não nulas.
+- **Seleção da Frequência de Chaveamento PWM:** f_sw acopla P_sw, ripple de corrente e ruído acústico (magnetostrição). Panorama industrial (Tabela `tab:panorama_fsw_industria`): 4–8 kHz (legado), 8–12 kHz (audível), 16–24 kHz (genérico/VANT), **20 kHz (este projeto)**, 32–48 kHz (drones consumo), 48–96 kHz (racing), 10–20 kHz+ (FOC). Escolha de 20 kHz: IRFS7530 (Q_g elevado) + IR2110 + dissipação passiva; faixas racing descartadas por calor. Dimensionamento no Cap. 3 (`subsec:determinacao_fsw`).
 - **Barramento DC — Indutância Parasita:** cabos de alimentação introduzem L_par. Na comutação, di/dt elevado → V_spike = L_par × di/dt → risco de destruição dos semicondutores se V_spike > V_DSS. Solução: banco de capacitores de baixa ESR posicionado próximo aos drenos dos MOSFETs High-Side.
 - **Dimensionamento do C_min do Link DC:**
   - Fórmula analítica clássica: C_min = (I_peak × D × (1-D)) / (f_sw × ΔV). Esforço máximo no capacitor ocorre com D = 0,5.
@@ -554,7 +563,7 @@ O problema de engenharia central deste capítulo é duplo:
 - **R_s (Resistência de Estator):** queda ôhmica nos enrolamentos. Erros em R_s → desvios na estimativa de fluxo em baixas velocidades.
 - **L_s, L_d, L_q (Indutâncias):** L_s para motores SPM (Surface Permanent Magnet); L_d e L_q para IPM (Interior Permanent Magnet). A diferença L_d ≠ L_q (saliência) é o que permite torque de relutância e detecção por injeção de sinal.
 - **λ_m (Fluxo dos imãs permanentes):** crucial para cálculo de T_e e K_e. Varia com temperatura (desmagnetização temporária) → afeta K_T.
-- **J (Momento de Inércia) e B (Atrito Viscoso):** ditam a resposta de velocidade. J é vital para o projeto dos ganhos K_p e K_i do controlador PID de velocidade.
+- **J (Momento de Inércia) e B (Atrito Viscoso):** ditam a resposta de velocidade. J é vital para o projeto dos ganhos K_p e K_i do controlador PI de velocidade (Seção `sec:controle_pi`).
 - **P (Número de Polos):** define a relação entre frequência elétrica e velocidade mecânica. Erro neste parâmetro inviabiliza qualquer algoritmo de estimação.
 - **Observação:** levantamento desses parâmetros exige equipamentos de precisão ou rotinas de auto-comissionamento no inversor — complexidade superior em relação ao método trapezoidal via ZCD adotado neste projeto.
 
@@ -709,6 +718,7 @@ A abordagem é top-down, estruturada em cinco etapas sequenciais:
   - §3.2 Lógica de Comutação de Seis Passos
   - §3.3 Implementação Prática com o Periférico MCPWM
   - §3.4 Estratégia de Partida e Transição para Malha Fechada
+  - **§3.x Arquitetura de Firmware — Estratégia de Controle PI** (`subsec:estrategia_pi`): modos CURRENT (1 PI) vs SPEED (cascata 2 PI); ganhos default (Kp/Ki corrente 8/120, velocidade 0,02/0,5); anti-windup e reset em falha; referência cruzada à teoria do Cap. 1
 - §4 Sistema de Realimentação e Detecção de Cruzamento por Zero
   - §4.1 Reconstrução do Neutro Virtual e Divisores de Tensão
   - §4.2 Filtragem de Ruído PWM
@@ -1189,7 +1199,7 @@ Seção de validação arquitetural do firmware, independente dos ensaios físic
 
 | Subseção | Conteúdo |
 |----------|----------|
-| Arquitetura Modular e Isolamento da HAL | Demonstração por inspeção estrutural da inversão de dependência: `pid_regulator` não referencia `board_config.h`; conversão de tensão→corrente confinada em `ina240_current_sensors`; compilação condicional `BOARD_ENABLE_BEMF_ZCD` e `MOTOR_CONTROL_USE_SPEED_MODE` |
+| Arquitetura Modular e Isolamento da HAL | Demonstração por inspeção estrutural da inversão de dependência: `pid_regulator` não referencia `board_config.h`; conversão de tensão→corrente confinada em `ina240_current_sensors`; compilação condicional `BOARD_ENABLE_BEMF_ZCD` e `MOTOR_CONTROL_USE_SPEED_MODE`. Escolha PI (não P/PID) referenciada à Seção `sec:controle_pi`; implementação detalhada em `subsec:estrategia_pi` |
 | Máquina de Estados e Robustez das Transições | Sequência determinística de inicialização (9 etapas); análise das guardas de transição IDLE→RUNNING (UVLO + fault check); sub-FSM de partida ALIGN→RUN\_OPEN→RUN\_SPEED; inversão de sentido bloqueada com torque ativo |
 | Rotinas de Proteção e Tratamento de Exceções | OCP hardware (LM339 → ISR IRAM\_ATTR → $t_{resp}$ microssegundos); OCP software (`motor_control_tick()`, 1 ms); UVLO (debounce 100 ms, histerese 200 mV/célula); Detecção de Stall (3 critérios independentes); sequência unificada `enter_fault_state()` |
 | Parametrização e Comportamento com A2212/10T | Justificativa de `MOTOR_POLE_PAIRS = 7U` e `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f`; equação de estimativa de RPM; mapeamento R2→setpoint; filtro exponencial de RPM (7/8 + 1/8); interface DualShock 4 e lightbar FSM |
@@ -1429,7 +1439,7 @@ Subseção de testes dinâmicos com o motor A2212/10T conectado, alimentação 1
 
 - $I_{align} \approx D_{align} \cdot V_{DC} / R_{eq}$ (corrente de alinhamento estático)
 - $\Delta I_{max} = 2\,\text{A/s} \times 1\,\text{ms} = 2\,\text{mA}$ (slew limiter por ciclo)
-- Equações PI com anti-windup (Euler + clamping)
+- Equações PI com anti-windup (Euler + clamping); fundamentação teórica no Cap. 1 (`sec:controle_pi`), sem duplicação no Cap. 4
 
 ### Figuras previstas (com `% TODO` no LaTeX)
 

@@ -152,8 +152,11 @@ O valor obtido ($150 \mu C$) é significativamente superior ao mínimo requerido
 Essa queda de apenas $36mV$ (0,24\% da tensão de alimentação) assegura que a tensão $V_{GS}$ aplicada ao MOSFET permaneça estável, garantindo a saturação completa do semicondutor.
 
 \subsection{Determinação da Frequência de Chaveamento}
+\label{subsec:determinacao_fsw}
 
-A definição da frequência de chaveamento ($f_{sw}$) é um parâmetro crítico no projeto de inversores de frequência de alta corrente, pois representa um \textit{trade-off} direto entre eficiência térmica, qualidade da forma de onda e conforto acústico. Para este projeto, optou-se pela frequência de \textbf{20 kHz}.
+A definição da frequência de chaveamento ($f_{sw}$) é um parâmetro crítico no projeto de inversores de frequência de alta corrente, pois representa um \textit{trade-off} direto entre eficiência térmica, qualidade da forma de onda e conforto acústico. O panorama de faixas adotadas pela indústria --- desde ESCs audíveis de 8--12 kHz até conversores \textit{racing} de 48--96 kHz --- encontra-se sintetizado na Tabela~\ref{tab:panorama_fsw_industria} da Introdução Teórica (Subseção~\ref{subsec:freq_chaveamento_pwm}). Dentro desse contexto, a seleção de \textbf{20 kHz} para este protótipo fundamenta-se na compatibilidade com os MOSFETs IRFS7530 (elevado $Q_g$), o driver IR2110 e a dissipação passiva disponível no \textit{layout} da placa, descartando as frequências de aeromodelismo de alta performance em favor de um ponto de operação silencioso e termicamente gerenciável.
+
+Para este projeto, optou-se pela frequência de \textbf{20 kHz}.
 
 Esta escolha fundamenta-se em três critérios de engenharia principais e na validação de compatibilidade dos componentes selecionados:
 
@@ -320,6 +323,39 @@ Essa separação entre frequência de chaveamento e frequência da malha de cont
 Do ponto de vista da dinâmica elétrica do motor, a constante de tempo estimada $\tau = L/R \approx 2\,\text{ms}$ (Subseção de \textit{Ripple} de Corrente e Torque) estabelece a escala temporal da resposta de corrente de fase. Adotando a regra empírica de amostragem de malhas de corrente em sistemas de potência, período de amostragem significativamente inferior à constante de tempo elétrica, tipicamente $T_s \leq \tau/2$, o valor $T_s = 1\,\text{ms}$ situa-se na fronteira conservadora dessa faixa ($T_s = 0{,}5\,\tau$), assegurando que o discretizador PI capture variações de corrente sem subamostrar a planta. Taxas inferiores (por exemplo, $100\,\text{Hz}$) degradariam a integração numérica do termo $I$ do regulador e atrasariam a resposta a degraus de referência e a detecção de sobrecorrente por software; taxas superiores (por exemplo, $10\,\text{kHz}$) não agregariam ganho proporcional à dinâmica mecânica e elétrica do sistema trapezoidal, mas elevariam o custo computacional da aquisição de correntes e competiriam com os subsistemas de comunicação sem fio previstos para a validação em bancada.
 
 A materialização dessa taxa no firmware, temporizador periódico, despacho em \textit{task} FreeRTOS, leitura síncrona do ADC1 e atualização do ciclo de trabalho do MCPWM e a verificação experimental de margem computacional e de coexistência com Bluetooth e Wi-Fi são apresentadas, respectivamente, na Subseção~\ref{subsec:implementacao_malha_1khz} e na Subseção~\ref{subsec:metricas_desempenho_software} do Capítulo de Resultados e Discussão.
+
+\subsubsection{Estratégia de Controle PI}
+\label{subsec:estrategia_pi}
+
+Conforme fundamentado na Seção~\ref{sec:controle_pi}, o firmware adota controladores PI (sem termo derivativo) para as malhas de corrente e, opcionalmente, de velocidade. A implementação concentra-se no módulo \texttt{pid\_regulator}, agnóstico de hardware, invocado a cada ciclo de $1\,\text{ms}$ pelo \texttt{motor\_control\_tick()}.
+
+Dois modos operacionais, selecionados em tempo de compilação pela macro \texttt{MOTOR\_CONTROL\_USE\_SPEED\_MODE}, definem a topologia das malhas:
+
+\begin{itemize}
+    \item \textbf{Modo corrente (\texttt{MOTOR\_CONTROL\_USE\_SPEED\_MODE\,=\,0}):} um único PI de corrente (\texttt{s\_current\_pi}) compara a referência $I_{cmd}$ (mapeada do gatilho R2) com a corrente de fase medida pelo INA240 e produz o \textit{duty cycle} do PWM. A velocidade mecânica resultante depende da carga e da rampa de comutação em malha aberta.
+    \item \textbf{Modo velocidade (\texttt{MOTOR\_CONTROL\_USE\_SPEED\_MODE\,=\,1}):} estrutura \textbf{cascata} em dois níveis. O PI externo de velocidade (\texttt{s\_speed\_pi}) compara $RPM_{cmd}$ com o RPM estimado a partir do intervalo entre passos 6-step e gera a referência de corrente $I_{cmd}$ (limitada a 5\,A). O PI interno de corrente regula o \textit{duty cycle} para atingir $I_{cmd}$. Um \textit{feedforward} de frequência elétrica ($f_{el} = RPM \cdot p / 60$) sincroniza a taxa de comutação com a referência de velocidade.
+\end{itemize}
+
+Os ganhos padrão, definidos em \texttt{board\_config.h} e utilizados na inicialização de \texttt{motor\_control\_init()}, são:
+
+\begin{table}[h!]
+\centering
+\caption{Ganhos PI padrão do firmware}
+\label{tab:pi_ganhos_default}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Malha} & $K_p$ & $K_i$ \\
+\midrule
+Corrente (\texttt{s\_current\_pi}) & 8{,}0 & 120{,}0 \\
+Velocidade (\texttt{s\_speed\_pi}) & 0{,}02 & 0{,}5 \\
+\bottomrule
+\end{tabular}
+\caption*{Fonte: Elaborado pelo autor.}
+\end{table}
+
+A saída do PI de corrente é limitada a 0--95\,\% de \textit{duty cycle} (margem para recarga do \textit{bootstrap} IR2110). O integrador de cada malha possui limites próprios (\texttt{MOTOR\_PI\_INTEG\_MIN/MAX} para corrente; \texttt{MOTOR\_SPEED\_PI\_INTEG\_MIN/MAX} para velocidade), implementando anti-windup por \textit{clamping} conforme a Equação~\ref{eq:pi_saida}. Em eventos de falha ou desarme (\texttt{motor\_control\_on\_disarm()}), os estados integrais são zerados para evitar \textit{windup} residual na re-armagem.
+
+A taxa de variação das referências é limitada por \textit{slew rate limiters} (\texttt{MOTOR\_TARGET\_SLEW\_AMPS\_PER\_S} = 2\,A/s para corrente; \texttt{MOTOR\_SPEED\_SLEW\_RPM\_PER\_S} = 1500\,RPM/s para velocidade), reduzindo transitórios abruptos que poderiam disparar a proteção de sobrecorrente. A validação experimental dos ganhos e da resposta dinâmica das malhas é apresentada no Capítulo de Resultados e Discussão.
 
 % ------------------------------------------------------------
 \subsection{Interface de Entrada: Controle DualShock 4 via Bluetooth}

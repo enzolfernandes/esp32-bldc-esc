@@ -1,0 +1,97 @@
+---
+config:
+  theme: base
+  themeVariables:
+    fontSize: 12px
+    fontFamily: Arial, Helvetica, sans-serif
+  layout: dagre
+---
+flowchart TB
+
+    subgraph FA["FLUXO A · loop Arduino ~20 ms"]
+        direction TB
+
+        START(["▶ INÍCIO<br/>Alimentação / reset"])
+
+        P01["Serial 115200"]
+        P02["GPIO + PWM hold LOW"]
+        P03["Wi-Fi AP + telemetria HTTP"]
+        P04["Bluetooth + PS4"]
+        P05["ADC1"]
+        P06["GPIO shutdown + OC Trip"]
+        P07["DAC referência OCP"]
+        P08["MCPWM 20 kHz desarmado"]
+        P09["Calibrar INA240"]
+        P10["Monitor bateria"]
+        DZCD{"ZCD habilitado?<br/>BOARD_ENABLE_BEMF_ZCD=1"}
+        P11["Init BEMF ZCD"]
+        P12["Armar ISR OC Trip"]
+        P13["motor_control + timer 1 kHz"]
+        D01{"Init OK?"}
+
+        P14["Estado → IDLE · LED azul"]
+        F1["enter_fault_state · FAULT · LED vermelho"]
+
+        P20["battery_monitor_tick"]
+        P21["fsm_system_tick"]
+        IO_IN["Entrada PS4 · R2 · Circle · Options"]
+        D_FAULT{"Estado FAULT?"}
+        D03{"Options?"}
+        D04{"OC liberado · sem UVLO?"}
+        P23["Clear fault → IDLE · LED azul"]
+
+        D02{"PS4 conectado?"}
+        P22["Desarme se RUNNING"]
+        D05{"R2 > 10?"}
+        D06{"Pode armar?<br/>IDLE sem UVLO/OC"}
+        ARM["Armar ESC · RUNNING · LED verde"]
+        D07{"Estado RUNNING?"}
+        P24["Desarme"]
+        D08{"R2 solto + Circle?"}
+        P25["Sentido CW ↔ CCW"]
+        P26["Setpoint com slew"]
+        IO_OUT["Telemetria serial + Wi-Fi"]
+
+        START --> P01 --> P02 --> P03 --> P04 --> P05 --> P06
+        P06 --> P07 --> P08 --> P09 --> P10 --> DZCD
+        DZCD -->|Sim| P11 --> P12
+        DZCD -->|Não| P12
+        P12 --> P13 --> D01
+        D01 -->|Sim| P14 --> P20
+        D01 -->|Não| F1 --> P20
+
+        P20 --> P21 --> IO_IN --> D_FAULT
+
+        D_FAULT -->|Sim| D03
+        D03 -->|Sim| D04
+        D04 -->|Sim| P23 --> IO_OUT
+        D04 -->|Não| IO_OUT
+        D03 -->|Não| IO_OUT
+
+        D_FAULT -->|Não| D02
+        D02 -->|Não| P22 --> D05
+        D02 -->|Sim| D05
+        D05 -->|Sim| D06
+        D06 -->|Sim| ARM --> D07
+        D06 -->|Não| D07
+        D05 -->|Não| D07
+        D07 -->|Sim| P24 --> D08
+        D07 -->|Não| IO_OUT
+        D08 -->|Sim| P25 --> P26 --> IO_OUT
+        D08 -->|Não| P26 --> IO_OUT
+
+        IO_OUT --> P20
+    end
+
+    classDef initSt fill:#FFE8CC,stroke:#CC8400,stroke-width:2px,color:#000
+    classDef idleSt fill:#CCE5FF,stroke:#0078FF,stroke-width:2px,color:#000
+    classDef runSt fill:#CCFFCC,stroke:#00AA00,stroke-width:2px,color:#000
+    classDef faultSt fill:#FFCCCC,stroke:#CC0000,stroke-width:2px,color:#000
+    classDef neutral fill:#FFFFFF,stroke:#333,stroke-width:1px,color:#000
+
+    class START initSt
+    class P14,P23 idleSt
+    class ARM runSt
+    class F1 faultSt
+
+    style FA fill:#E8F4FF,stroke:#0078FF,stroke-width:2px,color:#111111

@@ -214,6 +214,8 @@ O módulo **MCPWM** do ESP32 gera até seis saídas PWM sincronizadas, organizad
 - Modos de operação **complementares** (AH/AL, BH/BL, CH/CL) com controle independente por fase; lógica **Active-High** (`MCPWM_ACTIVE_HIGH_COMPLIMENT_MODE`, sem inversão).
 - Frequência de 20 kHz configurável com resolução adequada para minimizar perdas de comutação audíveis e permitir filtragem RC nos sensores BEMF.
 
+O valor `PWM_FREQUENCY_HZ = 20000` em [`board_config.h`](include/board_config.h) implementa o compromisso de projeto documentado na tese: 20 kHz equilibra perdas de comutação (P_sw ∝ f_sw, relevante para IRFS7530 com Q_g elevado), conforto acústico (próximo ao limiar ultrassônico) e ripple de corrente no estator, descartando faixas de aeromodelismo de alta performance (48/96 kHz) incompatíveis com dissipação passiva. Panorama industrial e dimensionamento quantitativo: Cap. 1 (`subsec:freq_chaveamento_pwm`, Tabela `tab:panorama_fsw_industria`) e Cap. 3 (`subsec:determinacao_fsw`).
+
 A API expõe três modos de condução por fase: **OFF** (ambas as pernas desligadas), **SOURCE** (PWM na perna high-side, low-side como sink complementar) e **SINK** (low-side condutora contínua). Esses modos mapeiam diretamente a tabela de comutação **6-step** trapezoidal.
 
 #### 2.4.2 ADC1 (Analog-to-Digital Converter)
@@ -358,6 +360,12 @@ u_k = \mathrm{clamp}(P_k + I_k,\; u_{min},\, u_{max})
 Onde \(r\) é a referência (*setpoint*), \(y_k\) a medição e \(u_k\) a saída do controlador, duty cycle (%) ou corrente de comando (A), conforme a malha.
 
 O **anti-windup** impede que o integrador acumule valor enquanto a saída está saturada (ex.: duty em 95 %). Sem essa limitação, ao liberar a saturação o sistema apresentaria *overshoot* e resposta lenta. O módulo é **agnóstico de hardware**: não inclui `board_config.h` nem acessa periféricos.
+
+#### Por que PI (e não P ou PID)
+
+- **P puro:** responde ao erro instantâneo, mas deixa **erro estacionário** — o duty necessário para manter uma corrente ou RPM fixos depende da FCEM, da tensão de barramento e da carga; um \(K_p\) fixo não compensa esse offset operacional.
+- **PI (adotado):** o termo integral elimina o erro residual e é o padrão em malhas de corrente/torque de ESCs trapezoidais. Ganhos default: corrente \(K_p=8\), \(K_i=120\); velocidade \(K_p=0{,}02\), \(K_i=0{,}5\) (`board_config.h`).
+- **PID (não usado):** o termo derivativo amplificaria ripple de PWM (20 kHz), transientes de comutação 6-step e ruído do INA240/ADC1 a 1 kHz; a dinâmica dominante do sistema trapezoidal é lenta (ms) e não se beneficia de \(K_d\) na prática deste firmware.
 
 > **Leitura no código:** [`lib/control/pid_regulator.c`](lib/control/pid_regulator.c) contém comentário **linha a linha** em `pi_compute()`; [`lib/control/pid_regulator.h`](lib/control/pid_regulator.h) documenta cada campo de `pi_controller_t`.
 
@@ -610,6 +618,33 @@ sequenceDiagram
 
 O `motor_control_tick()` executa somente quando `s_active == true`, definido por `motor_control_on_arm()` na transição para `RUNNING`. Fora desse estado, o temporizador continua ativo, mas a função retorna sem atuar no PWM.
 
+#### 5.3.1 Fluxogramas formais
+
+Além do diagrama de sequência acima, o firmware possui **fluxogramas Mermaid** em [`docs/fluxogramas/`](docs/fluxogramas/) que detalham os três fluxos concorrentes e a visão operacional resumida:
+
+| Figura | Arquivo fonte | Conteúdo |
+|--------|---------------|----------|
+| Mapa completo | [`fluxograma1_documentacao_fluxo_Completo.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_Completo.mmd) | Fluxos A, B e C no mesmo grafo; acoplamentos ①–⑨ (tracejados) |
+| Fluxo A | [`fluxograma1_documentacao_fluxo_A.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_A.mmd) | `setup()` / `loop()` ~20 ms — FSM, PS4, telemetria, LED |
+| Fluxo B | [`fluxograma1_documentacao_fluxo_B.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_B.mmd) | `esp_timer` 1 kHz — PI, partida 6-step, stall, ZCD opcional |
+| Fluxo C | [`fluxograma1_documentacao_fluxo_C.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_C.mmd) | ISR OC Trip LM339 — desarme imediato + flag para FSM |
+| Visão resumida | [`fluxograma2_processo.mmd`](docs/fluxogramas/fluxograma2_processo.mmd) | Equivalente operacional ao Fluxo A (1× A4) |
+
+Legenda, tabela de acoplamentos e instruções de exportação SVG: [`fluxograma1_legenda.md`](docs/fluxogramas/fluxograma1_legenda.md) e [`docs/fluxogramas/README.md`](docs/fluxogramas/README.md). Referência completa na [Seção 7.3](#73-fluxogramas-mermaid).
+
+**Acoplamentos entre fluxos** (presentes somente no mapa completo):
+
+| ID | Origem → Destino | Mecanismo |
+|----|------------------|-----------|
+| ① | Init timer (A) → disparo 1 ms (B) | `motor_control_init()` |
+| ② | Init ISR (A) → OC Trip (C) | `lm339_protection_arm()` |
+| ③ | Arm (A) → `motor_control` ativo (B) | `motor_control_on_arm()` |
+| ④ | Desarme (A) → ticks inativos (B) | `motor_control_on_disarm()` |
+| ⑤ | Setpoint PS4 (A) → PI (B) | `motor_control_set_target_*()` |
+| ⑥⑦ | Flags OC/STALL (B) → `fsm_system_tick` (A) | `motor_control_consume_software_fault()` |
+| ⑧ | Flag HW OC (C) → `fsm_system_tick` (A) | `s_fault_pending` na ISR |
+| ⑨ | Supervisão (A) → FAULT | `enter_fault_state()` |
+
 ### 5.4 Interface de comando (DualShock 4)
 
 O controle opera exclusivamente via **Bluetooth**; a porta serial (115200 baud) emite apenas telemetria de diagnóstico, sem comandos interativos.
@@ -842,6 +877,8 @@ flowchart LR
     FAULT --> DISARM
 ```
 
+A resposta imediata em hardware (Fluxo C) e a consolidação em FAULT (Fluxo A) estão detalhadas em [`fluxograma1_documentacao_fluxo_C.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_C.mmd) e no mapa completo [`fluxograma1_documentacao_fluxo_Completo.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_Completo.mmd) (acoplamento ⑧).
+
 ### 6.2 Proteção de sobrecorrente em hardware (OCP)
 
 | Aspecto | Detalhe |
@@ -1028,6 +1065,40 @@ Seguir o fluxo de execução (boot → operação → falha):
 | `apply_ps4_to_esc` | `main.cpp` | 7 etapas numeradas |
 | `enter_fault_state` | `fsm_system.c` | Linha a linha (ordem fail-safe) |
 | `oc_trip_isr_handler` | `hal_gpio.c` | ISR mínima + contexto |
+
+### 7.3 Fluxogramas Mermaid
+
+Fluxogramas formais do firmware (três fluxos concorrentes + visão resumida) estão em [`docs/fluxogramas/`](docs/fluxogramas/).  
+Abra cada `.mmd` no [Mermaid Live Editor](https://mermaid.live) para pré-visualização ou exporte para SVG conforme [`docs/fluxogramas/README.md`](docs/fluxogramas/README.md).
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| [`fluxograma1_documentacao_fluxo_Completo.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_Completo.mmd) | Mapa completo A/B/C com acoplamentos ①–⑨ |
+| [`fluxograma1_documentacao_fluxo_A.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_A.mmd) | Fluxo A — `main.cpp` / FSM (~20 ms) |
+| [`fluxograma1_documentacao_fluxo_B.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_B.mmd) | Fluxo B — `motor_control_tick` (1 kHz) |
+| [`fluxograma1_documentacao_fluxo_C.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_C.mmd) | Fluxo C — ISR OC Trip LM339 |
+| [`fluxograma2_processo.mmd`](docs/fluxogramas/fluxograma2_processo.mmd) | Visão operacional resumida (1× A4) |
+| [`fluxograma1_legenda.md`](docs/fluxogramas/fluxograma1_legenda.md) | Legenda, tabela de acoplamentos, exportação LaTeX |
+
+**Convenções visuais** (detalhes em [`fluxograma1_legenda.md`](docs/fluxogramas/fluxograma1_legenda.md)):
+
+| Painel | Cor de fundo | Cadência / LED PS4 |
+|--------|--------------|-------------------|
+| Fluxo A | Azul claro | `loop()` ~20 ms · IDLE |
+| Fluxo B | Verde claro | `esp_timer` 1 kHz · RUNNING |
+| Fluxo C | Vermelho claro | ISR OC Trip · FAULT |
+| Envelope ESC | Cinza claro | Sistema único · fluxos concorrentes |
+
+Setas **sólidas** = sequência interna; **tracejadas numeradas** = acoplamento entre fluxos (somente no mapa completo). Comutação padrão em malha aberta (`BOARD_ENABLE_BEMF_ZCD=0`).
+
+**Relação com a leitura do código** (Seção 7.1):
+
+| Ordem de leitura | Fluxograma correspondente |
+|------------------|---------------------------|
+| `main.cpp`, `fsm_system.c`, `ps4_input.cpp` | Fluxo A · [`fluxograma1_documentacao_fluxo_A.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_A.mmd) |
+| `motor_control.c`, `pid_regulator.c` | Fluxo B · [`fluxograma1_documentacao_fluxo_B.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_B.mmd) |
+| `hal_gpio.c` (`oc_trip_isr_handler`), `lm339_protection.c` | Fluxo C · [`fluxograma1_documentacao_fluxo_C.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_C.mmd) |
+| Visão operacional para o TCC | [`fluxograma2_processo.mmd`](docs/fluxogramas/fluxograma2_processo.mmd) |
 
 ---
 

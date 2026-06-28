@@ -1,0 +1,71 @@
+---
+config:
+  theme: base
+  themeVariables:
+    fontSize: 12px
+    fontFamily: Arial, Helvetica, sans-serif
+  layout: dagre
+---
+flowchart TB
+
+    subgraph FB["FLUXO B · esp_timer 1 kHz"]
+        direction TB
+
+        BSTART(["▶ Disparo timer 1 ms"])
+
+        D10{"motor_control ativo?"}
+        P42["Encerrar tick · sem PWM"]
+        P30["Ler correntes INA240"]
+        D11{"Fase ALIGN?"}
+        P31["ALIGN 500 ms · duty 12%"]
+        D12{"Fase RUN_OPEN?"}
+        P32["Rampa OPEN 5→300 Hz"]
+        D13{"Fase RUN_SPEED?"}
+        P33["Feedforward f_el"]
+        P34["Estimar RPM"]
+        P35["PI velocidade → I"]
+        P36["PI corrente → duty"]
+        D17{"Comutação ZCD fechada?"}
+        P37O["6-step malha aberta · padrão"]
+        P37Z["6-step BEMF ZCD + 30°"]
+        P38["Aplicar duty MCPWM"]
+        D14{"OC software ≥ 8 A?"}
+        P39["Registrar flag OC software"]
+        D15{"Stall?"}
+        P40["Registrar flag STALL"]
+        D16{"Desync RPM?"}
+        P41["Voltar RUN_OPEN"]
+        FIM_B["Fim do tick 1 ms"]
+
+        BSTART --> D10
+        D10 -->|Não| P42 --> FIM_B
+        D10 -->|Sim| P30 --> D11
+        D11 -->|Sim| P31 --> D17
+        D11 -->|Não| D12
+        D12 -->|Sim| P32 --> D17
+        D12 -->|Não| D13
+        D13 -->|Sim| P33 --> P34 --> P35 --> P36 --> D17
+        D13 -->|Não| P36 --> D17
+        D17 -->|Não · ZCD=0| P37O --> P38
+        D17 -->|Sim · ZCD=1| P37Z --> P38
+        P38 --> D14
+        D14 -->|Sim| P39 --> FIM_B
+        D14 -->|Não| D15
+        D15 -->|Sim| P40 --> FIM_B
+        D15 -->|Não| D16
+        D16 -->|Sim| P41 --> FIM_B
+        D16 -->|Não| FIM_B
+
+        FIM_B --> BSTART
+    end
+
+    classDef initSt fill:#FFE8CC,stroke:#CC8400,stroke-width:2px,color:#000
+    classDef faultSt fill:#FFCCCC,stroke:#CC0000,stroke-width:2px,color:#000
+    classDef neutral fill:#FFFFFF,stroke:#333,stroke-width:1px,color:#000
+    classDef warn fill:#FFF8DC,stroke:#CC8400,stroke-width:2px,color:#000
+
+    class BSTART initSt
+    class P39,P40 faultSt
+    class P41 warn
+
+    style FB fill:#E8FFE8,stroke:#00AA00,stroke-width:2px,color:#111111

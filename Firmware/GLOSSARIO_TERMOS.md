@@ -328,7 +328,7 @@ Mecanismo que transfere dados entre periférico e memória sem envolver o proces
 
 Razão entre o tempo em que o sinal PWM permanece ligado e o período total, expressa em porcentagem.
 
-Controla a tensão média aplicada ao motor. Teto do projeto: 95 %.
+Controla a tensão média aplicada ao motor. Teto do projeto: 95 %. O período do PWM de comutação é definido por `PWM_FREQUENCY_HZ = 20000` (20 kHz, T = 50 µs); ver [MCPWM](#mcpwm) e trade-off documentado na tese (Cap. 1 `subsec:freq_chaveamento_pwm`, Cap. 3 `subsec:determinacao_fsw`).
 
 ---
 
@@ -576,7 +576,7 @@ Técnica em que o cliente (browser) requisita periodicamente um endpoint HTTP pa
 
 **H**ert**z** / **k**ilo**h**ert**z**, unidades de frequência (ciclos por segundo).
 
-**No firmware:** PWM de comutação a 20 kHz; malha de controle a 1 kHz; rampa de frequência elétrica de 5 a 120 Hz.
+**No firmware:** PWM de comutação a 20 kHz (`PWM_FREQUENCY_HZ`); malha de controle a 1 kHz; rampa de frequência elétrica de 5 a 120 Hz. A escolha de 20 kHz (vs. 8–12 kHz audíveis ou 48–96 kHz racing) equilibra P_sw, ripple e acústica para IRFS7530 + dissipação passiva — ver tese Cap. 1 e Cap. 3.
 
 <a id="idle"></a>
 
@@ -750,9 +750,11 @@ Comparador analógico quadruplo de baixo custo.
 
 ### malha aberta / fechada
 
-**Malha aberta:** o controlador não usa medição de saída para corrigir o comando (ex.: comutação por temporizador).
+**Malha aberta:** o controlador não usa medição de saída para corrigir o comando (ex.: comutação 6-step por temporizador/rampa).
 
-**Malha fechada:** a medição realimenta o controlador (ex.: PI de corrente, comutação por ZCD).
+**Malha fechada:** a medição realimenta o controlador (ex.: PI de corrente com INA240; PI de velocidade com RPM estimado; comutação por ZCD quando habilitada).
+
+As duas camadas coexistem no firmware: comutação angular pode ser aberta enquanto PI de corrente/velocidade permanece fechado. Ver Seção `sec:controle_pi` / `subsec:distincao_malhas` na tese.
 
 <a id="mcpwm"></a>
 
@@ -760,7 +762,7 @@ Comparador analógico quadruplo de baixo custo.
 
 **M**otor **C**ontrol **P**WM, periférico PWM do ESP32 para controle de motores.
 
-Gera até seis saídas sincronizadas com dead-time programável. Usado em `hal_pwm.c`.
+Gera até seis saídas sincronizadas com dead-time programável. Usado em `hal_pwm.c`. Frequência de comutação: `PWM_FREQUENCY_HZ = 20000` (20 kHz) — compromisso entre perdas térmicas (P_sw ∝ f_sw), conforto acústico (próximo ao limiar ultrassônico) e ripple de corrente; faixas industriais resumidas na tese (4–8 kHz legado até 48–96 kHz racing). Ver [duty cycle](#duty-cycle), [Hz / kHz](#hz--khz).
 
 <a id="mcu"></a>
 
@@ -939,15 +941,17 @@ onde \(f_e\) é a frequência elétrica de comutação (Hz) e \(n\) a velocidade
 
 Controlador **P**roporcional-**I**ntegral, algoritmo de malha fechada que combina resposta proporcional ao erro atual e acumulação integral do erro ao longo do tempo.
 
-**No firmware:** implementado em `pid_regulator`; instâncias `s_current_pi` e `s_speed_pi`.
+- **P (proporcional):** ação imediata \(K_p \cdot e\); sozinho deixa erro estacionário em regulagem de corrente/velocidade.
+- **PI (adotado neste firmware):** P + integral \(K_i \int e\,dt\); elimina erro residual frente a FCEM, queda de \(V_{bat}\) e variação de carga.
+- **PID:** acrescenta derivada \(K_d \cdot de/dt\); **não implementado** — amplificaria ruído de ADC/comutação sem ganho prático nesta arquitetura trapezoidal.
+
+**No firmware:** implementado em `pid_regulator` (nome histórico; algoritmo estritamente PI); instâncias `s_current_pi` e `s_speed_pi`. Ver também: [anti-windup](#anti-windup), [cascata](#cascata), [pid_regulator](#pid_regulator).
 
 <a id="pid_regulator"></a>
 
 ### pid_regulator
 
-Módulo que implementa o controlador PI com anti-windup.
-
-Agnóstico de hardware, processa apenas grandezas `float` (referência, medição, limites).
+Módulo que implementa o controlador PI com anti-windup. O nome do módulo segue convenção genérica de projetos embarcados (`pid_*`), embora **não haja termo derivativo** — a API expõe `pi_controller_t` e `pi_compute()`.
 
 <a id="platformio"></a>
 

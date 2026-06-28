@@ -50,6 +50,30 @@
 \usepackage{ragged2e}
 \usepackage{soul}
 
+% --- QUEBRA DE LINHA E TIPOGRAFIA ---
+\usepackage{microtype}
+\usepackage{xurl}
+\setlength{\emergencystretch}{3em}
+\tolerance=2000
+\pretolerance=1000
+\makeatletter
+\let\breakable@origtexttt\texttt
+\DeclareRobustCommand{\breakabletexttt}[1]{%
+  \ifmmode
+    \breakable@origtexttt{#1}%
+  \else
+    \begingroup
+    \ttfamily
+    \let\breakable@us\_
+    \def\_{\breakable@us\allowbreak}%
+    #1%
+    \endgroup
+  \fi
+}
+\let\texttt\breakabletexttt
+\newcommand{\code}[1]{{\UrlFont\nolinkurl{#1}}}
+\makeatother
+
 % --- CONFIGURAÇÃO DE HIPERLINKS ---
 \hypersetup{
     colorlinks=true,

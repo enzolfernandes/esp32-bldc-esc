@@ -1,0 +1,180 @@
+---
+config:
+  theme: base
+  themeVariables:
+    fontSize: 11px
+    fontFamily: Arial, Helvetica, sans-serif
+  layout: dagre
+---
+flowchart TB
+
+    subgraph ESC["Firmware ESC · três fluxos concorrentes do mesmo sistema"]
+        direction LR
+
+        subgraph FA["FLUXO A · loop Arduino ~20 ms"]
+            direction TB
+
+            START(["▶ INÍCIO<br/>Alimentação / reset"])
+
+            P01["Serial 115200"]
+            P02["GPIO + PWM hold LOW"]
+            P03["Wi-Fi AP + telemetria HTTP"]
+            P04["Bluetooth + PS4"]
+            P05["ADC1"]
+            P06["GPIO shutdown + OC Trip"]
+            P07["DAC referência OCP"]
+            P08["MCPWM 20 kHz desarmado"]
+            P09["Calibrar INA240"]
+            P10["Monitor bateria"]
+            DZCD{"ZCD habilitado?<br/>BOARD_ENABLE_BEMF_ZCD=1"}
+            P11["Init BEMF ZCD"]
+            P12["Armar ISR OC Trip"]
+            P13["motor_control + timer 1 kHz"]
+            D01{"Init OK?"}
+
+            P14["Estado → IDLE · LED azul"]
+            F1["enter_fault_state · FAULT · LED vermelho"]
+
+            P20["battery_monitor_tick"]
+            P21["fsm_system_tick"]
+            IO_IN["Entrada PS4 · R2 · Circle · Options"]
+            D_FAULT{"Estado FAULT?"}
+            D03{"Options?"}
+            D04{"OC liberado · sem UVLO?"}
+            P23["Clear fault → IDLE · LED azul"]
+
+            D02{"PS4 conectado?"}
+            P22["Desarme se RUNNING"]
+            D05{"R2 > 10?"}
+            D06{"Pode armar?<br/>IDLE sem UVLO/OC"}
+            ARM["Armar ESC · RUNNING · LED verde"]
+            D07{"Estado RUNNING?"}
+            P24["Desarme"]
+            D08{"R2 solto + Circle?"}
+            P25["Sentido CW ↔ CCW"]
+            P26["Setpoint com slew"]
+            IO_OUT["Telemetria serial + Wi-Fi"]
+
+            START --> P01 --> P02 --> P03 --> P04 --> P05 --> P06
+            P06 --> P07 --> P08 --> P09 --> P10 --> DZCD
+            DZCD -->|Sim| P11 --> P12
+            DZCD -->|Não| P12
+            P12 --> P13 --> D01
+            D01 -->|Sim| P14 --> P20
+            D01 -->|Não| F1 --> P20
+
+            P20 --> P21 --> IO_IN --> D_FAULT
+
+            D_FAULT -->|Sim| D03
+            D03 -->|Sim| D04
+            D04 -->|Sim| P23 --> IO_OUT
+            D04 -->|Não| IO_OUT
+            D03 -->|Não| IO_OUT
+
+            D_FAULT -->|Não| D02
+            D02 -->|Não| P22 --> D05
+            D02 -->|Sim| D05
+            D05 -->|Sim| D06
+            D06 -->|Sim| ARM --> D07
+            D06 -->|Não| D07
+            D05 -->|Não| D07
+            D07 -->|Sim| P24 --> D08
+            D07 -->|Não| IO_OUT
+            D08 -->|Sim| P25 --> P26 --> IO_OUT
+            D08 -->|Não| P26 --> IO_OUT
+
+            IO_OUT --> P20
+        end
+
+        subgraph FB["FLUXO B · esp_timer 1 kHz"]
+            direction TB
+
+            BSTART(["▶ Disparo timer 1 ms"])
+
+            D10{"motor_control ativo?"}
+            P42["Encerrar tick · sem PWM"]
+            P30["Ler correntes INA240"]
+            D11{"Fase ALIGN?"}
+            P31["ALIGN 500 ms · duty 12%"]
+            D12{"Fase RUN_OPEN?"}
+            P32["Rampa OPEN 5→300 Hz"]
+            D13{"Fase RUN_SPEED?"}
+            P33["Feedforward f_el"]
+            P34["Estimar RPM"]
+            P35["PI velocidade → I"]
+            P36["PI corrente → duty"]
+            D17{"Comutação ZCD fechada?"}
+            P37O["6-step malha aberta · padrão"]
+            P37Z["6-step BEMF ZCD + 30°"]
+            P38["Aplicar duty MCPWM"]
+            D14{"OC software ≥ 8 A?"}
+            P39["Registrar flag OC software"]
+            D15{"Stall?"}
+            P40["Registrar flag STALL"]
+            D16{"Desync RPM?"}
+            P41["Voltar RUN_OPEN"]
+            FIM_B["Fim do tick 1 ms"]
+
+            BSTART --> D10
+            D10 -->|Não| P42 --> FIM_B
+            D10 -->|Sim| P30 --> D11
+            D11 -->|Sim| P31 --> D17
+            D11 -->|Não| D12
+            D12 -->|Sim| P32 --> D17
+            D12 -->|Não| D13
+            D13 -->|Sim| P33 --> P34 --> P35 --> P36 --> D17
+            D13 -->|Não| P36 --> D17
+            D17 -->|Não · ZCD=0| P37O --> P38
+            D17 -->|Sim · ZCD=1| P37Z --> P38
+            P38 --> D14
+            D14 -->|Sim| P39 --> FIM_B
+            D14 -->|Não| D15
+            D15 -->|Sim| P40 --> FIM_B
+            D15 -->|Não| D16
+            D16 -->|Sim| P41 --> FIM_B
+            D16 -->|Não| FIM_B
+
+            FIM_B --> BSTART
+        end
+
+        subgraph FC["FLUXO C · ISR OC Trip · µs"]
+            direction TB
+
+            CSTART(["▶ Interrupção OC Trip"])
+
+            P50["PWM off · shutdown LOW"]
+            P52["Registrar flag falha hardware"]
+            END_ISR(["Retornar da ISR"])
+
+            CSTART --> P50 --> P52 --> END_ISR
+        end
+    end
+
+    P13 -.->|"① init timer"| BSTART
+    P12 -.->|"② init ISR"| CSTART
+    ARM -.->|"③ arm"| D10
+    P24 -.->|"④ disarm"| D10
+    P26 -.->|"⑤ setpoint"| P36
+    P39 -.->|"⑥ flag OC"| P21
+    P40 -.->|"⑦ flag STALL"| P21
+    P52 -.->|"⑧ flag HW OC"| P21
+    P21 -.->|"⑨ enter_fault"| F1
+
+    classDef initSt fill:#FFE8CC,stroke:#CC8400,stroke-width:2px,color:#000
+    classDef idleSt fill:#CCE5FF,stroke:#0078FF,stroke-width:2px,color:#000
+    classDef runSt fill:#CCFFCC,stroke:#00AA00,stroke-width:2px,color:#000
+    classDef faultSt fill:#FFCCCC,stroke:#CC0000,stroke-width:2px,color:#000
+    classDef neutral fill:#FFFFFF,stroke:#333,stroke-width:1px,color:#000
+    classDef warn fill:#FFF8DC,stroke:#CC8400,stroke-width:2px,color:#000
+
+    class START,BSTART initSt
+    class CSTART faultSt
+    class P14,P23 idleSt
+    class ARM runSt
+    class F1,P39,P40,P52 faultSt
+    class P41 warn
+
+    style ESC fill:#F7F7F7,stroke:#666666,stroke-width:2px,color:#111111
+    style FA fill:#E8F4FF,stroke:#0078FF,stroke-width:2px,color:#111111
+    style FB fill:#E8FFE8,stroke:#00AA00,stroke-width:2px,color:#111111
+    style FC fill:#FFE8E8,stroke:#CC0000,stroke-width:2px,color:#111111

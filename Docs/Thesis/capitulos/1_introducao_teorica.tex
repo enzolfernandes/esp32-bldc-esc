@@ -213,7 +213,7 @@ Esse algoritmo de acionamento dos transistores, também chamado de Controle Trap
 
 Nesta topologia de comutação em malha fechada, a sequência de comutação não é fixa no tempo, mas sincronizada dinamicamente com a posição do rotor. A detecção da posição é realizada monitorando-se a Força Contraeletromotriz (FCEM) na fase não energizada. Assim, o microcontrolador detecta o momento exato em que o rotor cruzou uma posição angular específica e dispara a próxima comutação, garantindo que o ângulo entre os campos magnéticos permaneça próximo de $90^\circ$ elétricos (torque máximo).
 
- Quando a aplicação necessita que o motor possua apenas uma velocidade, a fonte de alimentação de tensão fixa é suficiente. Para casos onde é necessário variar a velocidade do motor, a técnica de Modulação por Largura de Pulso (PWM) é normalmente empregada. Um ESC, por exemplo, utiliza PWM para ajustar a tensão média aplicada ao motor, controlando assim sua velocidade. Essa técnica, no entanto, pode demandar a utilização de controladores que comparem a velocidade desejada com a medida no rotor para um controle preciso. 
+ Quando a aplicação necessita que o motor possua apenas uma velocidade, a fonte de alimentação de tensão fixa é suficiente. Para casos onde é necessário variar a velocidade do motor, a técnica de Modulação por Largura de Pulso (PWM) é normalmente empregada. Um ESC, por exemplo, utiliza PWM para ajustar a tensão média aplicada ao motor, controlando assim sua velocidade. Essa técnica, no entanto, pode demandar a utilização de controladores que comparem a velocidade desejada com a medida no rotor para um controle preciso, estratégia desenvolvida teoricamente na Seção~\ref{sec:controle_pi}. 
 
  \subsubsection{Análise da Ondulação de Torque (Torque Ripple)}
 A principal desvantagem intrínseca à comutação forçada de seis passos (malha aberta) é a geração de uma ondulação de torque (\textit{torque ripple}), que se manifesta como pulsações no torque de saída do motor \cite{jahns1984, ali2017implementation}. Essas pulsações podem causar oscilações na velocidade, ruído acústico e vibrações mecânicas, sendo particularmente prejudiciais em aplicações que exigem alta precisão de movimento \cite{jahns1996pulsating}. A frequência desta ondulação é seis vezes a frequência elétrica fundamental do motor, correspondendo a uma pulsação a cada evento de comutação \cite{jahns1984}. Conforme analisado em trabalhos seminais como os de Jahns (1984) e Hendershot \& Miller (1994), este fenômeno é consequência de dois fatores principais \cite{kim2017, hendershot1994design}.
@@ -275,6 +275,102 @@ Além do risco de perda de passo, a partida forçada apresenta outras desvantage
 
 É fundamental reiterar que a partida forçada em malha aberta é uma fase transitória e um meio para um fim. É uma estratégia de \textit{bootstrap} projetada exclusivamente para levar o motor de um estado de repouso para uma velocidade operacional mínima, onde métodos de controle em malha fechada, mais eficientes, precisos e robustos, podem ser ativados para a operação contínua do sistema \cite{ti2022minimizing, nxp2023sensorless}.
 
+\section{Controle Proporcional-Integral em Malhas Fechadas de ESC}
+\label{sec:controle_pi}
+
+Além da comutação trapezoidal e da modulação PWM, a operação precisa de um ESC em regime depende de \textbf{malhas de realimentação} que ajustem continuamente a tensão média aplicada ao motor (ou a corrente de fase) de modo a acompanhar referências de corrente ou velocidade impostas pelo operador. Neste trabalho, essa função é desempenhada por controladores \textbf{proporcional-integral (PI)}, algoritmo amplamente adotado em acionamentos de motores BLDC e PMSM por combinar simplicidade de implementação, robustez frente a perturbações de carga e capacidade de eliminar erro estacionário \cite{krishnan2010permanent, xia2012permanent, kim2017electric}.
+
+\subsection{Distinção entre Malhas de Comutação e Malhas PI}
+\label{subsec:distincao_malhas}
+
+Um ESC trifásico opera com \textbf{duas camadas de controle independentes}, que não devem ser confundidas. A primeira decide \textit{quando} comutar as fases (sincronismo angular com o rotor); a segunda decide \textit{quanto} esforço elétrico aplicar em cada passo (corrente ou velocidade desejada). A nomenclatura ``malha aberta'' e ``malha fechada'' aplica-se separadamente a cada camada, e não ao sistema como um todo.
+
+\begin{table}[h!]
+\centering
+\caption{Duas camadas de controle no ESC deste trabalho}
+\label{tab:camadas_controle}
+\begin{tabular}{p{3.2cm}p{4.8cm}p{3.2cm}p{3.8cm}}
+\toprule
+\textbf{Camada} & \textbf{Grandeza regulada} & \textbf{Realimentação} & \textbf{Estado neste projeto} \\
+\midrule
+Comutação 6-step & Instante de troca de fase (posição do rotor) & FCEM/ZCD ou temporizador & Malha \textbf{aberta} na validação atual (rampa por temporizador; ver Subseções anteriores deste capítulo) \\
+Malha PI & Corrente de fase e/ou velocidade (RPM) & INA240 + ADC1; intervalo entre passos & Malha \textbf{fechada} sempre que o PI está ativo \\
+\bottomrule
+\end{tabular}
+\caption*{Fonte: Elaborado pelo autor.}
+\end{table}
+
+Três esclarecimentos estruturam o uso desses termos ao longo deste trabalho:
+
+\begin{enumerate}
+    \item \textbf{O controlador PI é malha fechada, e não aberta.} Por definição, o PI exige comparar referência $r$ com medição $y$ (Equação~\ref{eq:pi_continuo} adiante). No firmware, a corrente de fase é medida pelos amplificadores INA240 e convertida pelo ADC1; no modo velocidade, o RPM é estimado a partir do intervalo entre passos de comutação. Sem essa realimentação, não haveria erro $e = r - y$ nem termo integral, tratar-se-ia apenas de um \textit{duty cycle} fixo ou de uma rampa pré-programada, o que não caracteriza um regulador PI.
+    \item \textbf{O sistema ESC como um todo não é inteiramente malha fechada.} Na fase de validação descrita neste trabalho, a comutação trapezoidal avança em \textbf{malha aberta}: a sequência 6-step progride por temporizador (rampa de frequência elétrica), sem usar o cruzamento por zero da FCEM para sincronizar o rotor. A infraestrutura de \textit{hardware} para comutação em malha fechada por ZCD (comparadores LM339, neutro virtual) está projetada, mas o \textit{handover} para essa modalidade permanece como etapa subsequente (Subseção anterior sobre comutação \textit{sensorless} e Capítulo de Resultados). Enquanto isso, as malhas PI de corrente e velocidade operam em paralelo, em malha fechada, regulando o esforço elétrico dentro de cada passo comutado.
+    \item \textbf{Onde cada conceito é tratado neste texto.} A comutação e a partida em malha aberta alinhamento, rampa forçada, risco de \textit{stall} e transição futura para ZCD, são desenvolvidas na Seção anterior (Controlador Eletrônico de Velocidade). A presente seção trata exclusivamente das malhas PI em malha fechada (corrente e velocidade). A implementação no firmware, ganhos $K_p$ e $K_i$, e os resultados de bancada encontram-se nos Capítulos de Metodologia e de Resultados e Discussão.
+\end{enumerate}
+
+\subsection{Fundamentos do Controlador PI}
+
+Em uma malha fechada, o controlador recebe uma \textbf{referência} $r$ (por exemplo, corrente ou velocidade desejada) e compara-a com a \textbf{medição} $y$ proveniente dos sensores. O \textbf{erro} instantâneo é definido como:
+\begin{equation}
+    e(t) = r - y(t)
+\end{equation}
+A ação de controle $u(t)$ combina uma resposta proporcional ao erro atual e uma resposta integral que acumula o erro ao longo do tempo:
+\begin{equation}
+    u(t) = K_p \, e(t) + K_i \int_0^t e(\tau) \, d\tau
+    \label{eq:pi_continuo}
+\end{equation}
+onde $K_p$ é o ganho proporcional e $K_i$ o ganho integral. O termo proporcional confere resposta imediata a desvios; o termo integral corrige desvios persistentes, pois continua a agir enquanto $e(t) \neq 0$.
+
+Em sistemas embarcados, a Equação~\ref{eq:pi_continuo} é implementada em tempo discreto com período de amostragem $T_s = \Delta t$. Adotando integração de Euler, a forma recorrente adotada neste projeto é:
+\begin{equation}
+    P_k = K_p \, e_k
+    \label{eq:pi_p_discreto}
+\end{equation}
+\begin{equation}
+    I_k = I_{k-1} + K_i \, e_k \, \Delta t
+    \label{eq:pi_i_discreto}
+\end{equation}
+\begin{equation}
+    u_k = \mathrm{clamp}(P_k + I_k,\; u_{min},\; u_{max})
+    \label{eq:pi_saida}
+\end{equation}
+Quando a saída $u_k$ atinge os limites físicos do atuador (por exemplo, o teto de \textit{duty cycle} do PWM), o integrador pode continuar a acumular erro (\textit{windup}), provocando sobressinal ao sair da saturação. Por isso, impõe-se \textbf{anti-windup} por limitação (\textit{clamping}) do estado integral $I_k$ dentro de intervalos $[I_{min}, I_{max}]$, detalhes de implementação no firmware são apresentados nos Capítulos de Metodologia e de Resultados.
+
+\subsection{Limitações do Controle Proporcional Puro}
+
+Um controlador puramente proporcional ($u = K_p e$) reage instantaneamente ao erro, mas apresenta uma limitação estrutural: na presença de perturbações constantes ou de plantas com comportamento integrador, o sistema estabiliza com \textbf{erro estacionário} não nulo. Intuitivamente, um ganho $K_p$ finito exige um erro residual para produzir a ação de controle necessária ao equilíbrio.
+
+No contexto de um ESC trapezoidal, essa limitação manifesta-se de forma concreta. Para manter uma corrente de fase constante $I_{cmd}$, o \textit{duty cycle} do PWM deve compensar não apenas a queda ôhmica nos enrolamentos, mas também a FCEM, cujo valor cresce linearmente com a velocidade ($e_a = K_e \omega$). À medida que o motor acelera ou a tensão do barramento decai, o duty necessário para o mesmo $I_{cmd}$ aumenta. Um controlador P puro, com ganho fixo, não possui mecanismo para ajustar esse \textit{offset} operacional: a corrente medida estabilizaria abaixo da referência. O termo integral supre exatamente essa lacuna, acumulando a ação necessária até anular o erro residual.
+
+De forma análoga, na regulagem de velocidade, variações de carga mecânica (atrito, inércia da carga) exigem correntes distintas para manter o mesmo RPM. Sem integral, um controlador P de velocidade deixaria um desvio permanente entre a referência e a rotação medida sempre que a carga se alterasse.
+
+\subsection{Exclusão do Termo Derivativo: por que PI e não PID}
+
+O controlador PID acrescenta um termo derivativo $K_d \, de/dt$, sensível à taxa de variação do erro. Embora possa melhorar a resposta transitória em plantas bem modeladas e pouco ruidosas, a inclusão do termo D neste ESC traz desvantagens que superam os benefícios esperados:
+
+\begin{itemize}
+    \item \textbf{Amplificação de ruído:} A corrente de fase é medida por amplificadores INA240 e convertida pelo ADC1 a $1\,\text{kHz}$, em ambiente de comutação PWM a $20\,\text{kHz}$ e de sequência trapezoidal de seis passos. O termo derivativo amplificaria as componentes de alta frequência (ripple de corrente, transientes de comutação), degradando a qualidade do sinal de realimentação e podendo induzir oscilações na saída do controlador.
+    \item \textbf{Dinâmica dominante lenta:} A malha externa de velocidade e a sequência de comutação operam em escala de milissegundos (frequência elétrica de dezenas a centenas de hertz). A dinâmica mecânica e elétrica do sistema trapezoidal não se beneficia de previsão agressiva baseada em derivadas, ao contrário de malhas de corrente de FOC em dezenas de quilohertz.
+    \item \textbf{Derivative kick:} Degraus na referência (comando do operador via gatilho analógico) produzem picos instantâneos em $de/dt$. Embora o firmware limite a taxa de variação da referência (\textit{slew rate limiter}), o termo D permaneceria sensível a saltos residuais de erro.
+    \item \textbf{Prática consolidada:} Malhas de corrente e de velocidade em acionamentos BLDC trapezoidais utilizam PI como padrão industrial \cite{krishnan2010permanent, xia2012permanent, hanselman2003brushless}. A sintonia de três ganhos ($K_p$, $K_i$, $K_d$) com filtragem do termo derivativo agregaria complexidade sem retorno mensurável na arquitetura de controle adotada neste trabalho.
+\end{itemize}
+
+Por essas razões, o firmware deste projeto implementa estritamente controladores PI, sem termo derivativo.
+
+\subsection{Aplicabilidade ao ESC Trifásico Deste Trabalho}
+
+A estratégia de controle PI adapta-se diretamente à topologia do ESC desenvolvido, organizada em uma ou duas malhas conforme o modo operacional:
+
+\begin{itemize}
+    \item \textbf{Malha interna de corrente:} O PI de corrente compara a referência $I_{cmd}$ (limitada pelo operador ou pela malha externa) com a corrente de fase medida e produz o \textit{duty cycle} do PWM (0 a 95\,\%). Essa malha regula o esforço elétrico do motor, aproximando torque $\propto I$, e constitui a primeira linha de defesa contra sobrecorrente antes das proteções analógicas e de software.
+    \item \textbf{Malha externa de velocidade (modo cascata):} Quando habilitado o modo de controle por velocidade, um segundo PI compara $RPM_{cmd}$ com o RPM estimado a partir do intervalo entre passos de comutação 6-step e gera a referência de corrente para o PI interno. A corrente adapta-se automaticamente à carga mecânica, dentro do limite de 5\,A configurado.
+    \item \textbf{Modo corrente direta:} Com apenas o PI de corrente ativo, a velocidade resultante depende da carga e da rampa de comutação em malha aberta, útil para ensaios de bancada com esforço elétrico limitado.
+\end{itemize}
+
+Dois requisitos de implementação derivam diretamente da teoria PI e condicionam o firmware: (1) o período de amostragem $\Delta t = 1\,\text{ms}$ deve ser estável, pois o termo integral da Equação~\ref{eq:pi_i_discreto} depende de $\Delta t$ constante, requisito tratado na Seção~\ref{sec:fundamentos_software}; (2) a saturação da saída em 95\,\% de \textit{duty cycle}, imposta pela recarga do capacitor de \textit{bootstrap} dos drivers IR2110, torna obrigatório o anti-windup para evitar sobressinal ao retornar da saturação.
+
+A materialização dessas malhas no firmware --- arquitetura em cascata, ganhos $K_p$ e $K_i$, temporizador de 1\,kHz e validação em bancada, é descrita no Capítulo de Metodologia e discutida no Capítulo de Resultados e Discussão.
+
 \section{Aspectos de Eletrônica de Potência}
 
 A implementação física do inversor exige a compreensão de componentes e técnicas que viabilizam a comutação em alta frequência e corrente.
@@ -287,6 +383,35 @@ A eficiência do inversor é limitada por dois mecanismos principais de perda no
     \item \textbf{Perdas por Condução ($P_{cond}$):} Quando o transistor está ligado, ele apresenta uma resistência interna residual entre dreno e fonte, denominada $R_{DS(on)}$. A potência dissipada é dada por $P_{cond} = I_{D}^2 \cdot R_{DS(on)}$. Componentes modernos buscam minimizar o $R_{DS(on)}$ para reduzir o aquecimento.
     \item \textbf{Perdas por Comutação ($P_{sw}$):} Ocorrem durante a transição entre ligado e desligado. Como a tensão e a corrente não variam instantaneamente, há um breve período em que ambas são não-nulas, gerando um pico de potência dissipada. Esta perda é diretamente proporcional à frequência de chaveamento ($f_{sw}$) e à carga total de gate ($Q_g$) que o driver deve fornecer \cite{rashid2014power}.
 \end{itemize}
+
+\subsection{Seleção da Frequência de Chaveamento PWM}
+\label{subsec:freq_chaveamento_pwm}
+
+A frequência de chaveamento ($f_{sw}$) do PWM que modula os MOSFETs da ponte inversora é um parâmetro de projeto que acopla diretamente os mecanismos de perda descritos acima --- em particular, $P_{sw} \propto f_{sw}$ --- à ondulação de corrente (\textit{ripple}) nas bobinas do motor e ao ruído acústico gerado por magnetostrição no estator \cite{mohan2003, hanselman2003brushless}. Não existe um valor universalmente ótimo: a indústria opera em faixas distintas conforme a aplicação, a dissipação térmica disponível no inversor e a carga de gate ($Q_g$) dos semicondutores selecionados \cite{rashid2014power}.
+
+\begin{table}[h!]
+\centering
+\caption{Panorama de frequências de chaveamento PWM em acionamentos BLDC e afins}
+\label{tab:panorama_fsw_industria}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lll}
+\toprule
+\textbf{Faixa típica} & \textbf{Segmento / aplicação} & \textbf{Característica principal} \\
+\midrule
+4--8 kHz & Drives industriais legados, ESCs de baixo custo & Audível; menores perdas de comutação \\
+8--12 kHz & Ferramentas elétricas, ESCs \textit{entry-level} & Zumbido perceptível ao operador \\
+16--24 kHz & ESCs BLDC genéricos, VANTs & Próximo ao limiar ultrassônico ($\approx 20\,\text{kHz}$) \\
+\textbf{20 kHz} & \textbf{Este projeto} & Equilíbrio térmico, silêncio e \textit{ripple} (Cap.~Metodologia) \\
+32--48 kHz & Aeromodelismo, \textit{drones} de consumo & Menor \textit{ripple}; $P_{sw}$ maior \\
+48--96 kHz & ESCs \textit{racing} (ex.: BLHeli, SimonK) & Alta resposta; exige baixo $Q_g$ e dissipação agressiva \\
+10--20 kHz+ & FOC industrial & Malha de corrente rápida; escopo distinto do trapezoidal 6-step \\
+\bottomrule
+\end{tabular}%
+}
+\caption*{Fonte: Elaborado pelo autor, com base em \cite{rashid2014power, hanselman2003brushless, mohan2003}.}
+\end{table}
+
+Neste trabalho adota-se \textbf{20 kHz} como compromisso de engenharia para o par MOSFET/driver IRFS7530--IR2110: a carga de gate elevada dos transistores automotivos selecionados torna inviável, com dissipação passiva no volume da placa, as faixas de alta performance do aeromodelismo (48 kHz ou 96 kHz, comuns em ESCs \textit{racing}), enquanto valores inferiores a 16 kHz reintroduziriam ruído audível. O dimensionamento quantitativo, perdas de comutação, \textit{ripple} de corrente e corrente média de \textit{gate} do driver, encontra-se na Subseção de Determinação da Frequência de Chaveamento do Capítulo de Metodologia.
 
 \subsection{O Barramento DC e a Indutância Parasita}
 
@@ -378,7 +503,7 @@ Um ESC opera com múltiplas cadências temporais simultâneas e de magnitudes mu
 
 A solução combina dois mecanismos complementares. O primeiro é a \textbf{rotina de serviço de interrupção} (\textit{Interrupt Service Routine} ISR), uma função que o hardware dispara automaticamente em resposta a um evento externo, a borda de descida de um sinal de falha, o cruzamento por zero de uma tensão, interrompendo o programa principal e executando com latência mínima. Por analogia com circuitos analógicos, a ISR é o equivalente funcional de um \textbf{comparador de janela}: quando o sinal monitorado cruza o limiar, uma ação imediata é disparada, independentemente de qualquer outra atividade do sistema. Para garantir baixa latência e segurança, ISRs devem executar apenas o mínimo indispensável: desarmar o PWM, sinalizar o evento por uma variável de estado e retornar ao fluxo principal. Operações mais elaboradas, como imprimir diagnóstico na serial ou calcular médias de corrente, são executadas no contexto do programa principal, que consulta a variável de sinalização periodicamente, padrão denominado \textit{deferred processing} (processamento diferido).
 
-O segundo mecanismo é o \textbf{temporizador periódico de hardware}, que dispara um \textit{callback} em intervalos fixos e precisos, independentemente da duração de outras operações em andamento. A malha de controle de um ESC deve ser amostrada a período exatamente constante para que a equação do integrador $I_k = I_{k-1} + K_i \cdot e_k \cdot \Delta t$ produza resultados matematicamente corretos: qualquer variação em $\Delta t$ introduz erro sistemático na integral e pode desestabilizar a malha fechada. Temporizadores de \textit{software} que dependem do loop principal acumulam variação de tempo (\textit{jitter}) inevitável, causada por operações de duração variável como transmissão Bluetooth e formatação de \textit{strings}; o temporizador de hardware garante período estável e determinístico, requisito essencial para a integridade da malha de controle.
+O segundo mecanismo é o \textbf{temporizador periódico de hardware}, que dispara um \textit{callback} em intervalos fixos e precisos, independentemente da duração de outras operações em andamento. A malha de controle de um ESC deve ser amostrada a período exatamente constante para que a equação do integrador $I_k = I_{k-1} + K_i \cdot e_k \cdot \Delta t$ (Equação~\ref{eq:pi_i_discreto}, Seção~\ref{sec:controle_pi}) produza resultados matematicamente corretos: qualquer variação em $\Delta t$ introduz erro sistemático na integral e pode desestabilizar a malha fechada. Temporizadores de \textit{software} que dependem do loop principal acumulam variação de tempo (\textit{jitter}) inevitável, causada por operações de duração variável como transmissão Bluetooth e formatação de \textit{strings}; o temporizador de hardware garante período estável e determinístico, requisito essencial para a integridade da malha de controle.
 
 A coexistência de ISRs, temporizadores e loop principal introduz o problema de \textbf{concorrência}: uma variável escrita pela ISR pode ser lida pelo loop principal em estado inconsistente se o compilador, em sua otimização, armazenar o valor em um registrador da CPU em vez de na memória. O qualificador \textbf{\texttt{volatile}}, aplicado a essas variáveis compartilhadas, instrui o compilador a sempre ler o valor diretamente da memória, garantindo a coerência dos dados entre contextos de execução concorrentes.
 
@@ -423,7 +548,7 @@ A implementação de algoritmos avançados, como o FOC e os Observadores de Esta
     
     \item[Fluxo do Rotor ($\lambda_m$):] Representa o fluxo magnético gerado pelos ímãs permanentes. É crucial para o cálculo do torque eletromagnético ($T_e$) e da constante de FCEM ($K_e$). Variações de temperatura podem alterar $\lambda_m$ (desmagnetização temporária), afetando a constante $K_T$ do motor.
     
-    \item[Momento de Inércia ($J$) e Atrito ($B$):] Parâmetros mecânicos que ditam a resposta de velocidade do sistema. O conhecimento de $J$ é vital para o projeto das malhas de controle de velocidade, influenciando os ganhos $K_p$ e $K_i$ do controlador PID.
+    \item[Momento de Inércia ($J$) e Atrito ($B$):] Parâmetros mecânicos que ditam a resposta de velocidade do sistema. O conhecimento de $J$ é vital para o projeto das malhas de controle de velocidade, influenciando os ganhos $K_p$ e $K_i$ do controlador PI (Seção~\ref{sec:controle_pi}).
     
     \item[Número de Polos ($P$):] Define a relação entre a frequência elétrica e a velocidade mecânica. Um erro neste parâmetro inviabiliza qualquer algoritmo de estimação de velocidade.
 \end{description}

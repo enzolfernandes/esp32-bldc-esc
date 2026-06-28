@@ -1,0 +1,27 @@
+---
+config:
+  theme: base
+  themeVariables:
+    fontSize: 12px
+    fontFamily: Arial, Helvetica, sans-serif
+  layout: dagre
+---
+flowchart TB
+
+    subgraph FC["FLUXO C · ISR OC Trip · µs"]
+        direction TB
+
+        CSTART(["▶ Interrupção OC Trip"])
+
+        P50["PWM off · shutdown LOW"]
+        P52["Registrar flag falha hardware"]
+        END_ISR(["Retornar da ISR"])
+
+        CSTART --> P50 --> P52 --> END_ISR
+    end
+
+    classDef faultSt fill:#FFCCCC,stroke:#CC0000,stroke-width:2px,color:#000
+
+    class CSTART,P50,P52 faultSt
+
+    style FC fill:#FFE8E8,stroke:#CC0000,stroke-width:2px,color:#111111
