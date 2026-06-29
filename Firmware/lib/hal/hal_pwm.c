@@ -13,9 +13,7 @@
 
 #include "driver/gpio.h"
 #include "driver/mcpwm.h"
-#include "esp_timer.h"
 
-#include <stdio.h>
 #include <stddef.h>
 
 static bool s_armed = false;
@@ -69,24 +67,6 @@ static float clamp_duty(float duty_percent)
 
     return duty_percent;
 }
-
-// #region agent log
-static void agent_log_boot_state(const char *step, const char *hypothesis_id, int phase)
-{
-    printf("{\"sessionId\":\"5f7e08\",\"runId\":\"deferred-v2\",\"hypothesisId\":\"%s\","
-           "\"location\":\"hal_pwm.c\",\"message\":\"%s\",\"data\":{\"phase\":%d,"
-           "\"AH\":%d,\"AL\":%d,\"BH\":%d,\"BL\":%d,\"CH\":%d,\"CL\":%d,"
-           "\"SD_A\":%d,\"SD_B\":%d,\"SD_C\":%d,\"gpio_attached\":%d,\"armed\":%d},"
-           "\"timestamp\":%lld}\n",
-           hypothesis_id, step, phase,
-           gpio_get_level(PIN_PWM_AH), gpio_get_level(PIN_PWM_AL),
-           gpio_get_level(PIN_PWM_BH), gpio_get_level(PIN_PWM_BL),
-           gpio_get_level(PIN_PWM_CH), gpio_get_level(PIN_PWM_CL),
-           gpio_get_level(PIN_SD_A), gpio_get_level(PIN_SD_B), gpio_get_level(PIN_SD_C),
-           s_gpio_attached ? 1 : 0, s_armed ? 1 : 0,
-           (long long)(esp_timer_get_time() / 1000LL));
-}
-// #endregion
 
 /** Força os seis pinos MCPWM como saída GPIO digital LOW (sem mux para MCPWM). */
 bool hal_pwm_hold_pins_low(void)
@@ -169,10 +149,6 @@ static bool attach_pwm_gpios(void)
 
         force_phase_outputs_low(timer);
 
-        // #region agent log
-        agent_log_boot_state("before-mcpwm_gpio_init", "F", phase);
-        // #endregion
-
         esp_err_t err_a = mcpwm_gpio_init(MCPWM_UNIT_0, s_phase_signals[phase][0],
                                           s_phase_pins[phase][0]);
         if (err_a != ESP_OK) {
@@ -181,10 +157,6 @@ static bool attach_pwm_gpios(void)
 
         force_phase_outputs_low(timer);
 
-        // #region agent log
-        agent_log_boot_state("after-mcpwm_gpio_init-AH", "F", phase);
-        // #endregion
-
         esp_err_t err_b = mcpwm_gpio_init(MCPWM_UNIT_0, s_phase_signals[phase][1],
                                           s_phase_pins[phase][1]);
         if (err_b != ESP_OK) {
@@ -192,17 +164,9 @@ static bool attach_pwm_gpios(void)
         }
 
         force_phase_outputs_low(timer);
-
-        // #region agent log
-        agent_log_boot_state("after-mcpwm_gpio_init-AL", "F", phase);
-        // #endregion
     }
 
     s_gpio_attached = true;
-
-    // #region agent log
-    agent_log_boot_state("gpio-attach-complete", "F", -1);
-    // #endregion
 
     return true;
 }
@@ -224,10 +188,6 @@ static void detach_pwm_gpios(void)
 
     (void)hal_pwm_hold_pins_low();
     s_gpio_attached = false;
-
-    // #region agent log
-    agent_log_boot_state("gpio-detach-complete", "G", -1);
-    // #endregion
 }
 
 /**
@@ -236,10 +196,6 @@ static void detach_pwm_gpios(void)
 bool hal_pwm_init(void)
 {
     const uint32_t dead_ticks = dead_time_ticks();
-
-    // #region agent log
-    agent_log_boot_state("hal_pwm_init-start", "G", -1);
-    // #endregion
 
     if (!hal_pwm_hold_pins_low()) {
         return false;
@@ -258,10 +214,6 @@ bool hal_pwm_init(void)
         s_phase_mode[phase] = HAL_PWM_COND_OFF;
     }
 
-    // #region agent log
-    agent_log_boot_state("hal_pwm_init-complete-no-gpio-attach", "G", -1);
-    // #endregion
-
     return true;
 }
 
@@ -274,20 +226,12 @@ void hal_pwm_set_armed(bool armed)
             return;
         }
         s_armed = true;
-
-        // #region agent log
-        agent_log_boot_state("hal_pwm_set_armed-true", "F", -1);
-        // #endregion
         return;
     }
 
     s_armed = false;
     hal_pwm_disable_all();
     detach_pwm_gpios();
-
-    // #region agent log
-    agent_log_boot_state("hal_pwm_set_armed-false", "G", -1);
-    // #endregion
 }
 
 bool hal_pwm_is_armed(void)

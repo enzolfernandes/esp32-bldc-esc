@@ -15,7 +15,7 @@ flowchart TB
 
         D10{"motor_control ativo?"}
         P42["Encerrar tick · sem PWM"]
-        P30["Ler correntes INA240"]
+        P30["Ler correntes INA240<br/>mediana 8× fase A · EMA α=0,05/0,25"]
         D11{"Fase ALIGN?"}
         P31["ALIGN 500 ms · duty 12%"]
         D12{"Fase RUN_OPEN?"}

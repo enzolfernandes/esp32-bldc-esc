@@ -149,7 +149,11 @@ extern "C" bool ps4_input_init(void)
     s_last_led_status = PS4_LED_OFF;
 
     BP32.setup(&on_connected_controller, &on_disconnected_controller);
+#if PS4_ENABLE_VIRTUAL_DEVICE
+    BP32.enableVirtualDevice(true);
+#else
     BP32.enableVirtualDevice(false);
+#endif
     BP32.enableBLEService(false);
 
     return true;

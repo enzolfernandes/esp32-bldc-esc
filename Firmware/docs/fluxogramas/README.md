@@ -40,8 +40,10 @@ npx @mermaid-js/mermaid-cli -i fluxograma2_processo.mmd -o fluxograma2_processo.
 
 Copiar SVGs exportados para `Docs/Thesis/imagens/` antes de `\includesvg` no LaTeX.
 
+**Após editar `.mmd`:** reexportar SVGs e substituir os arquivos em `Docs/Thesis/imagens/` — os SVGs não são atualizados automaticamente pelo repositório.
+
 Detalhes, tabela de acoplamentos e texto de `\caption` pronto: [`fluxograma1_legenda.md`](fluxograma1_legenda.md).
 
 ## Manutenção
 
-Ao alterar `setup`/`loop`, FSM, `motor_control_tick` ou ISR de OC, atualizar os `.mmd` correspondentes e a [Seção 7.3](../../DOCUMENTACAO_PROGRAMACAO.md#73-fluxogramas-mermaid) da documentação.
+Ao alterar `initVariant`, sequência de boot INA240 (`esc_boot_sensors`, recals pós-Wi-Fi/PS4), `setup`/`loop`, FSM, `motor_control_tick` ou ISR de OC, atualizar os `.mmd` correspondentes e a [Seção 7.3](../../DOCUMENTACAO_PROGRAMACAO.md#73-fluxogramas-mermaid) da documentação.

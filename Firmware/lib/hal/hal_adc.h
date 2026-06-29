@@ -17,6 +17,11 @@ typedef enum {
 } hal_adc_channel_t;
 
 bool hal_adc_init(void);
+bool hal_adc_is_calibrated(void);
+const char *hal_adc_cal_scheme_name(void);
+int hal_adc_read_raw(hal_adc_channel_t channel);
+uint32_t hal_adc_raw_to_mv_linear(int raw);
+uint32_t hal_adc_raw_to_mv(int raw);
 uint32_t hal_adc_read_mv(hal_adc_channel_t channel);
 
 #ifdef __cplusplus

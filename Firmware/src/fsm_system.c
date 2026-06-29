@@ -10,6 +10,7 @@
 
 #include "battery_monitor.h"
 #include "bemf_zcd.h"
+#include "board_config.h"
 #include "hal_adc.h"
 #include "hal_gpio.h"
 #include "hal_pwm.h"
@@ -20,17 +21,6 @@
 #include "esp_attr.h"
 
 #include <stddef.h>
-#include <stdio.h>
-
-// #region agent log
-static void fsm_agent_log(const char *step)
-{
-    printf("{\"sessionId\":\"5f7e08\",\"runId\":\"deferred-v2\",\"hypothesisId\":\"H\","
-           "\"location\":\"fsm_system.c:init\",\"message\":\"%s\",\"timestamp\":0}\n", step);
-}
-// #endregion
-
-#define INA240_CALIBRATION_SAMPLES 64U
 
 static esc_state_t s_state = ESC_STATE_INIT;
 static volatile bool s_fault_pending = false;
@@ -61,50 +51,42 @@ static void enter_fault_state(void)
  */
 static bool run_init_sequence(void)
 {
-    fsm_agent_log("init-gpio");
     if (!hal_gpio_init()) {
         return false;
     }
 
-    fsm_agent_log("init-pwm-hold");
     if (!hal_pwm_hold_pins_low()) {
         return false;
     }
 
-    fsm_agent_log("init-adc");
     if (!hal_adc_init()) {
         return false;
     }
 
-    fsm_agent_log("init-lm339");
     if (!lm339_protection_init()) {
         return false;
     }
 
-    fsm_agent_log("init-hal-pwm");
     if (!hal_pwm_init()) {
         return false;
     }
 
-    fsm_agent_log("init-shutdown-off");
     hal_shutdown_set_enabled(false);
 
-    fsm_agent_log("init-ina240");
     ina240_init();
 
-    fsm_agent_log("init-ina240-cal");
-    if (!ina240_calibrate_offset(INA240_CALIBRATION_SAMPLES)) {
-        return false;
+    if (!ina240_is_offset_calibrated()) {
+        if (!ina240_calibrate_offset(INA240_CALIBRATION_SAMPLES)) {
+            return false;
+        }
     }
 
-    fsm_agent_log("init-battery");
     battery_monitor_init();
 
 #if BOARD_ENABLE_BEMF_ZCD
     (void)bemf_zcd_init();
 #endif
 
-    fsm_agent_log("init-sequence-done");
     return true;
 }
 
@@ -119,19 +101,15 @@ bool fsm_system_init(void)
         return false;
     }
 
-    fsm_agent_log("init-lm339-arm");
     if (!lm339_protection_arm(on_overcurrent_isr, NULL)) {
         enter_fault_state();
         return false;
     }
 
-    fsm_agent_log("init-motor-control");
     if (!motor_control_init()) {
         enter_fault_state();
         return false;
     }
-
-    fsm_agent_log("init-fsm-idle");
 
     s_state = ESC_STATE_IDLE;
     return true;
@@ -216,9 +194,11 @@ bool fsm_system_request_arm(void)
     }
 
     hal_pwm_set_armed(true);
+
     hal_shutdown_set_enabled(true);
     motor_control_on_arm();
     s_state = ESC_STATE_RUNNING;
+
     return true;
 }
 

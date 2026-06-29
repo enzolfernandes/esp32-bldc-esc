@@ -34,6 +34,33 @@
 #define PIN_ADC_IC    36   // ADC1_CH0 / SENSOR_VP (input-only)
 #define PIN_ADC_VBAT  39   // ADC1_CH3 / SENSOR_VN (input-only)
 
+/** Calibração de offset INA240 no boot (128 amostras por fase). */
+#define INA240_CALIBRATION_SAMPLES  128U
+/** Filtro EMA em runtime (1 ADC/leitura): A mais lento (GPIO 34 ruidoso); B/C inalterados. */
+#define INA240_MV_EMA_ALPHA_A       0.05f
+#define INA240_MV_EMA_ALPHA_BC      0.25f
+#define INA240_NOMINAL_OFFSET_MV    1650.0f
+
+/** Vref interno do ADC ESP32 (mV) para esp_adc_cal quando eFuse ausente — NÃO é 3300 mV. */
+#define ADC_DEFAULT_VREF_MV         1100U
+
+/** Override de offset INA240 medido na bancada (Setup 1); 0 = offset = média ADC. */
+#define INA240_USE_MANUAL_OFFSET    1
+#define INA240_MANUAL_OFFSET_A_MV   1670.0f
+#define INA240_MANUAL_OFFSET_B_MV   1480.0f
+#define INA240_MANUAL_OFFSET_C_MV   1510.0f
+
+/** Mediana de N leituras ADC só fase A (GPIO 34); 0 = desligado. */
+#define INA240_A_MEDIAN_SAMPLES         16U
+
+/** 2ª calibração INA240 após softAP (atualiza adc_zero/bench_corr com RF ativo). */
+#define INA240_RECAL_AFTER_WIFI         1
+#define INA240_RECAL_AFTER_WIFI_DELAY_MS 300U
+
+/** 3ª calibração INA240 após ps4_input_init (regime BT scan ativo). */
+#define INA240_RECAL_AFTER_PS4          0
+#define INA240_RECAL_AFTER_PS4_DELAY_MS 500U
+
 /* --- Proteção OCP: DAC1 gera Vdac; LM339 dispara OC Trip (GPIO26, ativo baixo) --- */
 #define PIN_VDAC_REF  25   // DAC1, referência comparadores OCP (+)
 #define PIN_OC_TRIP   26   // Entrada digital, ativo baixo + pull-up
@@ -114,6 +141,10 @@
 #define PS4_R2_DEADZONE       5U
 /** Período de polling do controle no loop principal (ms). */
 #define PS4_INPUT_POLL_MS     20U
+/** 0 = desabilita filtro clone; lightbar sempre via setColorLED. */
+#define PS4_SKIP_LIGHTBAR_ON_CLONE  0
+/** 1 = touchpad virtual DS4 (evita log "Failed to create virtual device"). */
+#define PS4_ENABLE_VIRTUAL_DEVICE 1
 
 /* --- UVLO: subtensão do pack LiPo; detecção automática de 4S–6S no boot --- */
 /** Faixa de packs suportados (células em série). */
@@ -155,7 +186,11 @@
  * Conectar ao SSID abaixo e abrir http://192.168.4.1 no browser.
  * Coexistência BT Classic (DualShock 4) + Wi-Fi gerenciada pelo ESP-IDF.
  * ADC1 (pinos 34/35/36/39) não é afetado — apenas ADC2 tem conflito com rádio.
+ *
+ * Para ensaios de bancada (ex.: ID 16 dead-time): defina 0 para desligar AP/HTTP
+ * e reduzir contenção de rádio com o PS4. Telemetria serial (115200) permanece.
  */
+#define BOARD_ENABLE_WIFI_TELEMETRY  0
 #define WIFI_AP_SSID        "ESC-Dashboard"
 #define WIFI_AP_PASSWORD    "esc12345"
 #define WIFI_AP_CHANNEL     6

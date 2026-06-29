@@ -16,9 +16,13 @@ typedef enum {
 } ina240_phase_t;
 
 bool ina240_init(void);
+bool ina240_is_offset_calibrated(void);
 bool ina240_calibrate_offset(uint16_t sample_count);
+bool ina240_recalibrate_runtime(uint16_t sample_count);
+bool ina240_recalibrate_after_wifi(uint16_t sample_count);
 float ina240_read_amps(ina240_phase_t phase);
 float ina240_get_offset_mv(ina240_phase_t phase);
+void ina240_log_boot_diagnostics(void);
 
 #ifdef __cplusplus
 }

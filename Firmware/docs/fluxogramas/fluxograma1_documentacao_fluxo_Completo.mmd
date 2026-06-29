@@ -16,20 +16,14 @@ flowchart TB
 
             START(["▶ INÍCIO<br/>Alimentação / reset"])
 
-            P01["Serial 115200"]
+            P00["initVariant · cal INA240 128×"]
+            P01["Serial 115200 + diag INA240"]
             P02["GPIO + PWM hold LOW"]
-            P03["Wi-Fi AP + telemetria HTTP"]
-            P04["Bluetooth + PS4"]
-            P05["ADC1"]
-            P06["GPIO shutdown + OC Trip"]
-            P07["DAC referência OCP"]
-            P08["MCPWM 20 kHz desarmado"]
-            P09["Calibrar INA240"]
-            P10["Monitor bateria"]
-            DZCD{"ZCD habilitado?<br/>BOARD_ENABLE_BEMF_ZCD=1"}
-            P11["Init BEMF ZCD"]
-            P12["Armar ISR OC Trip"]
-            P13["motor_control + timer 1 kHz"]
+            P03["fsm_system_init<br/>ADC · LM339 · MCPWM · INA240 skip · bateria · ISR OC · timer 1 kHz"]
+            P04["Wi-Fi AP + telemetria HTTP"]
+            P05["Post-WiFi recal INA240"]
+            P06["Bluetooth + PS4"]
+            P07["Post-PS4 recal INA240"]
             D01{"Init OK?"}
 
             P14["Estado → IDLE · LED azul"]
@@ -55,12 +49,8 @@ flowchart TB
             P26["Setpoint com slew"]
             IO_OUT["Telemetria serial + Wi-Fi"]
 
-            START --> P01 --> P02 --> P03 --> P04 --> P05 --> P06
-            P06 --> P07 --> P08 --> P09 --> P10 --> DZCD
-            DZCD -->|Sim| P11 --> P12
-            DZCD -->|Não| P12
-            P12 --> P13 --> D01
-            D01 -->|Sim| P14 --> P20
+            START --> P00 --> P01 --> P02 --> P03 --> D01
+            D01 -->|Sim| P04 --> P05 --> P06 --> P07 --> P14 --> P20
             D01 -->|Não| F1 --> P20
 
             P20 --> P21 --> IO_IN --> D_FAULT
@@ -93,7 +83,7 @@ flowchart TB
 
             D10{"motor_control ativo?"}
             P42["Encerrar tick · sem PWM"]
-            P30["Ler correntes INA240"]
+            P30["Ler correntes INA240<br/>mediana 8× fase A · EMA α=0,05/0,25"]
             D11{"Fase ALIGN?"}
             P31["ALIGN 500 ms · duty 12%"]
             D12{"Fase RUN_OPEN?"}
@@ -150,8 +140,8 @@ flowchart TB
         end
     end
 
-    P13 -.->|"① init timer"| BSTART
-    P12 -.->|"② init ISR"| CSTART
+    P03 -.->|"① init timer"| BSTART
+    P03 -.->|"② init ISR"| CSTART
     ARM -.->|"③ arm"| D10
     P24 -.->|"④ disarm"| D10
     P26 -.->|"⑤ setpoint"| P36

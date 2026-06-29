@@ -13,20 +13,14 @@ flowchart TB
 
         START(["▶ INÍCIO<br/>Alimentação / reset"])
 
-        P01["Serial 115200"]
+        P00["initVariant · cal INA240 128×<br/>esc_boot_early_calibrate"]
+        P01["Serial 115200 + diag INA240 pré-Wi-Fi"]
         P02["GPIO + PWM hold LOW"]
-        P03["Wi-Fi AP + telemetria HTTP"]
-        P04["Bluetooth + PS4"]
-        P05["ADC1"]
-        P06["GPIO shutdown + OC Trip"]
-        P07["DAC referência OCP"]
-        P08["MCPWM 20 kHz desarmado"]
-        P09["Calibrar INA240"]
-        P10["Monitor bateria"]
-        DZCD{"ZCD habilitado?<br/>BOARD_ENABLE_BEMF_ZCD=1"}
-        P11["Init BEMF ZCD"]
-        P12["Armar ISR OC Trip"]
-        P13["motor_control + timer 1 kHz"]
+        P03["fsm_system_init<br/>ADC · LM339 · MCPWM · INA240 skip · bateria · ISR OC · timer 1 kHz"]
+        P04["Wi-Fi AP + telemetria HTTP"]
+        P05["Post-WiFi recal INA240 128×"]
+        P06["Bluetooth + PS4"]
+        P07["Post-PS4 recal INA240 128×"]
         D01{"Init OK?"}
 
         P14["Estado → IDLE · LED azul"]
@@ -52,12 +46,8 @@ flowchart TB
         P26["Setpoint com slew"]
         IO_OUT["Telemetria serial + Wi-Fi"]
 
-        START --> P01 --> P02 --> P03 --> P04 --> P05 --> P06
-        P06 --> P07 --> P08 --> P09 --> P10 --> DZCD
-        DZCD -->|Sim| P11 --> P12
-        DZCD -->|Não| P12
-        P12 --> P13 --> D01
-        D01 -->|Sim| P14 --> P20
+        START --> P00 --> P01 --> P02 --> P03 --> D01
+        D01 -->|Sim| P04 --> P05 --> P06 --> P07 --> P14 --> P20
         D01 -->|Não| F1 --> P20
 
         P20 --> P21 --> IO_IN --> D_FAULT
@@ -89,7 +79,7 @@ flowchart TB
     classDef faultSt fill:#FFCCCC,stroke:#CC0000,stroke-width:2px,color:#000
     classDef neutral fill:#FFFFFF,stroke:#333,stroke-width:1px,color:#000
 
-    class START initSt
+    class START,P00 initSt
     class P14,P23 idleSt
     class ARM runSt
     class F1 faultSt

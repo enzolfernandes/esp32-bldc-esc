@@ -279,8 +279,6 @@ void setup()
     Serial.begin(115200);
     delay(100);
 
-    Serial.println("{\"sessionId\":\"5f7e08\",\"runId\":\"deferred-v2\",\"message\":\"setup-early-safety\"}");
-
     Serial.println("\n--- ESC BLDC: controle PS4 (Bluepad32) ---");
     Serial.println("Serial: telemetria somente leitura.");
     Serial.println("Pairing PS4: Share + PS ate LED piscar; ESP32 escaneia automaticamente.");
@@ -298,11 +296,14 @@ void setup()
 #endif
 
     /* Wi-Fi ANTES do Bluetooth: o ESP-IDF exige que o modo Wi-Fi seja configurado
-     * antes de o stack BT (Bluepad32) alocar o coexistence scheduler de rádio.
-     * Inverter a ordem faz o softAP falhar silenciosamente. */
+     * antes de o stack BT (Bluepad32) alocar o coexistence scheduler de rádio. */
+#if BOARD_ENABLE_WIFI_TELEMETRY
     if (!wifi_telemetry_init()) {
         Serial.println("[WiFi] Dashboard desabilitado.");
     }
+#else
+    Serial.println("[WiFi] Dashboard desligado (BOARD_ENABLE_WIFI_TELEMETRY=0).");
+#endif
 
     if (!ps4_input_init()) {
         Serial.println("ps4_input_init: FALHA");
@@ -354,16 +355,20 @@ void loop()
         }
     }
 
-    /* Em RUNNING ou com cliente Wi-Fi conectado: 100 ms (melhor resolução para
-     * gráficos e evita timeout do WebSocket).
-     * Em IDLE/FAULT sem cliente Wi-Fi: 500 ms para não saturar o terminal. */
+    /* Telemetria serial 500 ms (IDLE e RUNNING). Wi-Fi push só com dashboard ativo. */
+#if BOARD_ENABLE_WIFI_TELEMETRY
     const uint32_t telem_interval_ms =
         (fsm_system_get_state() == ESC_STATE_RUNNING ||
          wifi_telemetry_client_count() > 0) ? 100U : 500U;
+#else
+    const uint32_t telem_interval_ms = 500U;
+#endif
 
     if ((now_ms - s_last_telemetry_ms) >= telem_interval_ms) {
         s_last_telemetry_ms = now_ms;
         print_telemetry(&ps4);
+#if BOARD_ENABLE_WIFI_TELEMETRY
         push_wifi_telemetry(&ps4);
+#endif
     }
 }

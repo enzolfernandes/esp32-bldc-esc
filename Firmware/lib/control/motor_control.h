@@ -104,6 +104,9 @@ bool motor_control_set_pi_ki(float ki);
 void motor_control_reset_pi_integral(void);
 
 float motor_control_get_measured_amps(void);
+float motor_control_get_phase_amps_a(void);
+float motor_control_get_phase_amps_b(void);
+float motor_control_get_phase_amps_c(void);
 float motor_control_get_duty_percent(void);
 uint8_t motor_control_get_commutation_step(void);
 float motor_control_get_open_loop_comm_hz(void);

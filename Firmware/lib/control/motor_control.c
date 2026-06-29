@@ -1,7 +1,7 @@
 /*
  * motor_control.c — Núcleo do controle de motor BLDC (comutação 6-step + malhas PI).
  *
- * Camada: controle. Cadência: esp_timer a 1 kHz (motor_control_tick).
+ * Camada: controle. Cadência: task FreeRTOS 1 kHz no Core 1 (motor_control_tick).
  * Chamadores: fsm_system (init, arm/disarm), main/ps4 (setpoints), timer interno (tick).
  *
  * Fluxo do tick (1 ms): medição → slew → proteções → partida (ALIGN→RUN) → PI → comutação.
@@ -13,6 +13,8 @@
 #include "bemf_zcd.h"
 #include "board_config.h"
 #include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "hal_pwm.h"
 #include "ina240_current_sensors.h"
 #include "pid_regulator.h"
@@ -60,6 +62,9 @@ static float s_target_rpm = 0.0f;
 static float s_measured_rpm = 0.0f;
 static float s_target_slew_rpm_per_s = MOTOR_SPEED_SLEW_RPM_PER_S;
 static float s_measured_amps = 0.0f;
+static float s_phase_amps_a = 0.0f;
+static float s_phase_amps_b = 0.0f;
+static float s_phase_amps_c = 0.0f;
 static float s_duty_percent = 0.0f;
 static uint8_t s_comm_step = 0U;
 static uint32_t s_open_loop_tick_counter = 0U;
@@ -90,15 +95,26 @@ static uint64_t s_last_step_change_us = 0U;
 static uint64_t s_handover_begin_us = 0U;
 static uint64_t s_desync_begin_us = 0U;
 static bool s_active = false;
-static esp_timer_handle_t s_control_timer = NULL;
+static TaskHandle_t s_control_task = NULL;
+
+#define MOTOR_CONTROL_TASK_STACK 4096U
+#define MOTOR_CONTROL_TASK_PRIO  2
+#define MOTOR_CONTROL_TASK_CORE  1
 
 static const float s_control_dt_s = 1.0f / MOTOR_CONTROL_LOOP_HZ;
 
-/** Callback do esp_timer — despachado em task FreeRTOS (ESP_TIMER_TASK), não em ISR. */
-static void control_timer_cb(void *arg)
+/** Loop 1 kHz no Core 1, prio 2 — Core 0 reservado ao stack BT/Wi-Fi (rwbt). loopTask prio 1. */
+static void motor_control_task_fn(void *arg)
 {
     (void)arg;
-    motor_control_tick();
+
+    TickType_t last_wake = xTaskGetTickCount();
+    const TickType_t period_ticks = pdMS_TO_TICKS(1);
+
+    for (;;) {
+        motor_control_tick();
+        vTaskDelayUntil(&last_wake, period_ticks);
+    }
 }
 
 static float clamp_target_amps(float amps)
@@ -216,17 +232,21 @@ static float clamp_pi_ki(float ki)
 /** Lê INA240 nas três fases e retorna o valor absoluto máximo (proxy de corrente de barramento). */
 static float read_bus_current_amps(void)
 {
-    const float ia = fabsf(ina240_read_amps(INA240_PHASE_A));
-    const float ib = fabsf(ina240_read_amps(INA240_PHASE_B));
-    const float ic = fabsf(ina240_read_amps(INA240_PHASE_C));
+    const float ia = ina240_read_amps(INA240_PHASE_A);
+    const float ib = ina240_read_amps(INA240_PHASE_B);
+    const float ic = ina240_read_amps(INA240_PHASE_C);
 
-    float max_phase = ia;
+    s_phase_amps_a = ia;
+    s_phase_amps_b = ib;
+    s_phase_amps_c = ic;
 
-    if (ib > max_phase) {
-        max_phase = ib;
+    float max_phase = fabsf(ia);
+
+    if (fabsf(ib) > max_phase) {
+        max_phase = fabsf(ib);
     }
-    if (ic > max_phase) {
-        max_phase = ic;
+    if (fabsf(ic) > max_phase) {
+        max_phase = fabsf(ic);
     }
 
     return max_phase;
@@ -720,30 +740,20 @@ bool motor_control_init(void)
     s_low_rpm_stall_begin_us = 0U;
     s_active = false;
 
-    if (s_control_timer != NULL) {
-        esp_timer_stop(s_control_timer);
-        esp_timer_delete(s_control_timer);
-        s_control_timer = NULL;
-    }
+    if (s_control_task == NULL) {
+        const BaseType_t ok = xTaskCreatePinnedToCore(
+            motor_control_task_fn,
+            "motor_ctrl",
+            MOTOR_CONTROL_TASK_STACK,
+            NULL,
+            MOTOR_CONTROL_TASK_PRIO,
+            &s_control_task,
+            MOTOR_CONTROL_TASK_CORE);
 
-    // ESP_TIMER_TASK: callback em task FreeRTOS (permite ADC, PI e comutação)
-    const esp_timer_create_args_t timer_args = {
-        .callback = control_timer_cb,
-        .arg = NULL,
-        .dispatch_method = ESP_TIMER_TASK,
-        .name = "motor_ctrl",
-    };
-
-    if (esp_timer_create(&timer_args, &s_control_timer) != ESP_OK) {
-        return false;
-    }
-
-    const uint64_t period_us = (uint64_t)(1000000.0f / MOTOR_CONTROL_LOOP_HZ);
-
-    if (esp_timer_start_periodic(s_control_timer, period_us) != ESP_OK) {
-        esp_timer_delete(s_control_timer);
-        s_control_timer = NULL;
-        return false;
+        if (ok != pdPASS) {
+            s_control_task = NULL;
+            return false;
+        }
     }
 
     return true;
@@ -774,8 +784,8 @@ void motor_control_on_arm(void)
     s_handover_begin_us = 0U;
     s_desync_begin_us = 0U;
     s_low_rpm_stall_begin_us = 0U;
-    s_active = true;
     apply_commutation_step(0.0f);
+    s_active = true;
 }
 
 /** Desarma: para referências, zera duty e desliga todas as pernas PWM via HAL. */
@@ -869,7 +879,7 @@ const char *motor_control_fault_reason_name(motor_fault_reason_t reason)
 }
 
 /**
- * @brief Malha de controle periódica (1 kHz, esp_timer → control_timer_cb).
+ * @brief Malha de controle periódica (1 kHz, task FreeRTOS no Core 1).
  * Executa somente com s_active == true (após motor_control_on_arm).
  */
 void motor_control_tick(void)
@@ -1074,6 +1084,21 @@ void motor_control_reset_pi_integral(void)
 float motor_control_get_measured_amps(void)
 {
     return s_measured_amps;
+}
+
+float motor_control_get_phase_amps_a(void)
+{
+    return s_phase_amps_a;
+}
+
+float motor_control_get_phase_amps_b(void)
+{
+    return s_phase_amps_b;
+}
+
+float motor_control_get_phase_amps_c(void)
+{
+    return s_phase_amps_c;
 }
 
 float motor_control_get_duty_percent(void)

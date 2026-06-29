@@ -23,7 +23,7 @@ extern "C" {
 
 /**
  * @brief Inicializa o Access Point Wi-Fi, monta o LittleFS e sobe o servidor HTTP/WebSocket.
- * @return true se tudo inicializou com sucesso; false se LittleFS ou AP falharam.
+ * @return true se AP e servidor HTTP subiram; false apenas se softAP falhar.
  */
 bool wifi_telemetry_init(void);
 
@@ -36,7 +36,7 @@ bool wifi_telemetry_init(void);
 void wifi_telemetry_push(const char *json);
 
 /**
- * @brief Retorna o número de clientes WebSocket atualmente conectados.
+ * @brief Estações conectadas ao softAP (0 = nenhum browser ativo).
  */
 int wifi_telemetry_client_count(void);
 

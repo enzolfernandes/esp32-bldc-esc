@@ -222,7 +222,7 @@ A API expõe três modos de condução por fase: **OFF** (ambas as pernas deslig
 
 As leituras de corrente de fase (INA240) e de tensão do barramento utilizam o **ADC1** em [`lib/hal/hal_adc.c`](lib/hal/hal_adc.c), canais associados aos GPIO **34, 35, 36 e 39** (pinos input-only). A escolha do ADC1 em detrimento do ADC2 fundamenta-se em uma restrição documentada do ESP32: o **ADC2** compartilha recursos com o subsistema **Wi-Fi/Bluetooth** e torna-se indisponível ou não confiável quando o rádio está ativo. Como o firmware mantém Bluetooth (PS4) e Wi-Fi AP (dashboard) ativos, o ADC1 é o único conversor seguro para aquisição contínua.
 
-Configuração: resolução de 12 bits, atenuação de 12 dB (faixa até ~3,3 V). A leitura é **síncrona** via `adc1_get_raw()`, sem DMA —, suficiente para a taxa de 1 kHz da malha de controle.
+Configuração: resolução de 12 bits, atenuação de 12 dB (faixa até ~3,3 V). A leitura é **síncrona** via `adc1_get_raw()`, sem DMA —, suficiente para a taxa de 1 kHz da malha de controle. **`esp_adc_cal_characterize()`** é sempre invocado com `ADC_DEFAULT_VREF_MV` (1100 mV, Vref **interno** do chip) em [`board_config.h`](include/board_config.h); se eFuse estiver queimado, usa parâmetros de fábrica; senão, esquema `DEFAULT_VREF`. Fallback linear apenas se characterize retornar `NOT_SUPPORTED`. Em `hal_adc_read_raw()`, descarta-se uma amostra após troca de canal ADC1 (mitiga transientes de *settling* entre correntes de fase e VBAT). A conversão calibrada centraliza-se em `hal_adc_raw_to_mv(raw)`; `hal_adc_read_mv()` compõe leitura + conversão. APIs: `hal_adc_is_calibrated()`, `hal_adc_cal_scheme_name()`, `hal_adc_read_raw()`, `hal_adc_raw_to_mv()`, `hal_adc_raw_to_mv_linear()`.
 
 #### 2.4.3 DAC1 (Digital-to-Analog Converter)
 
@@ -449,7 +449,9 @@ Firmware/
 
 #### 4.3.1 Aplicação
 
-**[`src/main.cpp`](src/main.cpp)**, Ponto de entrada Arduino. Responsabilidades: inicialização serial; **`wifi_telemetry_init()` antes de `ps4_input_init()`** (ordem exigida pelo coexistence scheduler BT+Wi-Fi do ESP-IDF); chamada a `fsm_system_init()`; loop com `battery_monitor_tick()`, `fsm_system_tick()`, polling do PS4 a cada `PS4_INPUT_POLL_MS` (20 ms) e telemetria serial + Wi-Fi a cada 100 ms (`RUNNING` ou dashboard ativo) ou 500 ms (demais estados). A função `apply_ps4_to_esc()` traduz o estado do gamepad em requisições de arm/disarm, setpoints e troca de sentido. Após cada poll do PS4, `ps4_input_set_led_status()` atualiza a lightbar do controle conforme conexão e estado da FSM. `push_wifi_telemetry()` monta o JSON compacto e chama `wifi_telemetry_push()`.
+**[`src/main.cpp`](src/main.cpp)**, Ponto de entrada Arduino. **`initVariant()`** chama `esc_boot_early_calibrate()` (GPIO hold → ADC → `ina240_calibrate_offset(128)`) **antes** do corpo de `setup()`, Wi-Fi AP e `ps4_input_init()`. Em `setup()`: Serial → `ina240_log_boot_diagnostics()` → banners → **`fsm_system_init()`** (sem recalibrar se offset já válido) → **`wifi_telemetry_init()`** →, se AP ativo e `INA240_RECAL_AFTER_WIFI=1`, **`ina240_recalibrate_after_wifi(128)`** após `delay(300 ms)` + log `[Post-WiFi]` → **`ps4_input_init()`** →, se `INA240_RECAL_AFTER_PS4=1`, **`ina240_recalibrate_runtime(128)`** após `delay(500 ms)` + log `[Post-PS4]` (ordem Wi-Fi antes de PS4 exigida pelo coexistence scheduler BT+Wi-Fi do ESP-IDF). Loop com `battery_monitor_tick()`, `fsm_system_tick()`, polling do PS4 a cada `PS4_INPUT_POLL_MS` (20 ms) e telemetria serial + Wi-Fi a cada 100 ms (`RUNNING` ou dashboard ativo) ou 500 ms (demais estados). A função `apply_ps4_to_esc()` traduz o estado do gamepad em requisições de arm/disarm, setpoints e troca de sentido. Após cada poll do PS4, `ps4_input_set_led_status()` atualiza a lightbar do controle conforme conexão e estado da FSM. `push_wifi_telemetry()` monta o JSON compacto e chama `wifi_telemetry_push()`.
+
+**[`src/esc_boot_sensors.c`](src/esc_boot_sensors.c)**, Calibração prioritária INA240 no boot (sem Serial). Invocado em `initVariant()` para maximizar isolamento de RF antes do softAP e de `BP32.setup()`. Limitação: o core Bluepad32 pode inicializar o BTstack antes de `initVariant()`; a calibração explícita e o diagnóstico serial ocorrem antes de Wi-Fi e PS4. Com `INA240_RECAL_AFTER_WIFI=1` e `INA240_RECAL_AFTER_PS4=1`, passadas adicionais (`ina240_recalibrate_runtime`) após softAP e após `ps4_input_init()` atualizam `adc_zero` e `bench_corr` para o regime RF de runtime, preservando `ina240_get_offset_mv()` (valores manuais do multímetro quando `INA240_USE_MANUAL_OFFSET=1`). A calibração usa uma única leitura ADC por amostra (`hal_adc_raw_to_mv(raw)`); leitura dupla anterior contaminava `mV_cal` vs `mV_linear` no canal A.
 
 **[`src/fsm_system.c`](src/fsm_system.c)**, FSM de alto nível do ESC. Estados: `INIT`, `IDLE`, `RUNNING`, `FAULT`. Orquestra a sequência de inicialização dos periféricos e drivers, autoriza ou bloqueia a operação do motor e centraliza a resposta a falhas. Não executa comutação nem cálculo de PI.
 
@@ -480,17 +482,48 @@ Getters de instrumentação de latência (adicionados para Sub-teste 5.1 — ban
 
 | Módulo | Função | API principal |
 |--------|--------|---------------|
-| **`ina240_current_sensors`** | Converte mV do ADC em ampères: \((V_{ADC} - V_{offset}) / (20 \times 0{,}001)\) | `ina240_init()`, `ina240_calibrate_offset()`, `ina240_read_amps()` |
+| **`ina240_current_sensors`** | Converte mV do ADC em ampères; EMA por fase (`INA240_MV_EMA_ALPHA_A`=0,05 / `INA240_MV_EMA_ALPHA_BC`=0,25); mediana 8× só fase A (`INA240_A_MEDIAN_SAMPLES`); cal 128 amostras; manual offset + `bench_corr`; recal pós-Wi-Fi e pós-PS4 | `ina240_init()`, `ina240_calibrate_offset()`, `ina240_recalibrate_runtime()`, `ina240_read_amps()`, `ina240_log_boot_diagnostics()` |
 | **`battery_monitor`** | Escala divisor 39 kΩ/4,7 kΩ para tensão do barramento; UVLO com histerese | `battery_monitor_tick()`, `battery_monitor_read_volts()`, `battery_monitor_uvlo_active()` |
 | **`lm339_protection`** | Programa Vdac; arma EXTI no OC Trip; latch de falha | `lm339_protection_init()`, `lm339_protection_arm()`, `lm339_protection_fault_active()` |
 | **`bemf_zcd`** | EXTI nos comparadores BEMF; valida fase flutuante por passo | `bemf_zcd_init()`, `bemf_zcd_consume_edge()` (opcional) |
+
+##### 4.3.4.1 INA240 — canal A (GPIO 34)
+
+O canal A (GPIO 34, ADC1_CH6) apresentou em bancada **deriva pós-RF** distinta dos canais B/C: com motor desconectado, `OUT` do INA240 estável em ~1670 mV no multímetro, mas o ADC1 oscilava após softAP Wi-Fi e scan Bluetooth, traduzindo-se em correntes espúrias em `IDLE`. O fenômeno não indica falha analógica do INA240 (Setup 0c da tese); trata-se de acoplamento residual ou ruído na entrada ADC1_CH6, **distinto** do bloqueio documentado do ADC2.
+
+**Macros relevantes** ([`include/board_config.h`](include/board_config.h)):
+
+| Macro | Valor / função |
+|-------|----------------|
+| `INA240_USE_MANUAL_OFFSET` | 1 — offset serial = multímetro (1670/1480/1510 mV) |
+| `INA240_RECAL_AFTER_WIFI` | Recal após `wifi_telemetry_init()` |
+| `INA240_RECAL_AFTER_PS4` | Recal após `ps4_input_init()` |
+| `INA240_CALIBRATION_SAMPLES` | 128 amostras por passada |
+| `INA240_A_MEDIAN_SAMPLES` | 8 — mediana só fase A em runtime |
+| `INA240_MV_EMA_ALPHA_A` | 0,05 — EMA fase A (B/C: 0,25) |
+
+**Modelo de compensação:** `ina240_get_offset_mv()` retorna a referência manual (multímetro). `adc_zero` e `bench_corr` são recalculados em cada regime RF (pré-Wi-Fi, pós-AP, pós-BT) para alinhar a média ADC à referência física sem alterar o offset serial quando `INA240_USE_MANUAL_OFFSET=1`.
+
+**Sequência de boot (3 etapas):**
+
+1. `initVariant()` → `esc_boot_early_calibrate()` — cal early, 128 amostras, RF mínimo
+2. Após `wifi_telemetry_init()` → `ina240_recalibrate_after_wifi(128)` — log `[Post-WiFi]`
+3. Após `ps4_input_init()` → `ina240_recalibrate_runtime(128)` — log `[Post-PS4]`
+
+**Runtime (1 kHz):** fase A aplica mediana de 8 leituras consecutivas + EMA (α=0,05); B/C leitura simples + EMA (α=0,25).
+
+**APIs de diagnóstico:** `ina240_log_boot_diagnostics()`, `ina240_recalibrate_after_wifi()`, `ina240_recalibrate_runtime()`.
+
+**Resultado ID 14 (bancada):** offset aprovado; zero em IDLE aprovado com reserva (~90 % dentro de ±0,5 A em A; picos ~1 A). Ensaio de ganho (ID 15): preferir fase B. Melhoria hardware sugerida: capacitor 100–470 nF entre `OUT` A e SGND.
+
+**Correção de bug:** calibração anterior usava dupla leitura ADC por amostra, contaminando `mV_linear` vs `mV_cal` no canal A; corrigido para uma única conversão via `hal_adc_raw_to_mv()`.
 
 #### 4.3.5 HAL
 
 | Módulo | Função | API principal |
 |--------|--------|---------------|
 | **`hal_pwm`** | MCPWM 6 canais, dead-time, modos OFF/SOURCE/SINK | `hal_pwm_init()`, `hal_pwm_set_armed()`, `hal_pwm_set_phase_conduction()`, `hal_pwm_disable_all()` |
-| **`hal_adc`** | ADC1, leitura em mV | `hal_adc_init()`, `hal_adc_read_mv()` |
+| **`hal_adc`** | ADC1, leitura em mV (`esp_adc_cal` + descarte pós-mux + fallback linear) | `hal_adc_init()`, `hal_adc_read_mv()`, `hal_adc_raw_to_mv()`, `hal_adc_is_calibrated()`, `hal_adc_cal_scheme_name()`, `hal_adc_read_raw()` |
 | **`hal_gpio`** | SD IR2110; EXTI OC Trip | `hal_shutdown_set_enabled()`, `hal_gpio_attach_oc_trip_isr()`, `hal_gpio_oc_trip_asserted()` |
 | **`hal_dac`** | DAC1 em GPIO 25 | `hal_dac_init()`, `hal_dac_set_voltage()` |
 
@@ -523,11 +556,11 @@ INIT ──(init OK)──► IDLE ──(arm)──► RUNNING ──(disarm)�
 
 **Sequência de inicialização** (`fsm_system_init()`):
 
-1. `hal_adc_init()`, configura ADC1.
+1. `hal_adc_init()`, configura ADC1 (idempotente; cal eFuse já feita em `initVariant` se aplicável).
 2. `hal_gpio_init()`, saídas SD em LOW; entrada OC Trip com pull-up.
 3. `lm339_protection_init()`, DAC1 com tensão de referência OCP.
 4. `hal_pwm_init()`, MCPWM 20 kHz; PWM desarmado.
-5. `ina240_calibrate_offset(64)`, média de offset com corrente zero.
+5. `ina240_calibrate_offset(INA240_CALIBRATION_SAMPLES)` **somente se** `ina240_is_offset_calibrated()` for falso (boot normal: já calibrado em `esc_boot_early_calibrate()`).
 6. `battery_monitor_init()`, detecção automática de células LiPo (4S–6S).
 7. `bemf_zcd_init()`, somente se `BOARD_ENABLE_BEMF_ZCD == 1`.
 8. `lm339_protection_arm()`, habilita ISR no OC Trip.
@@ -617,6 +650,13 @@ sequenceDiagram
 ```
 
 O `motor_control_tick()` executa somente quando `s_active == true`, definido por `motor_control_on_arm()` na transição para `RUNNING`. Fora desse estado, o temporizador continua ativo, mas a função retorna sem atuar no PWM.
+
+**Sequência de boot INA240** (complementa Fluxo A nos fluxogramas `.mmd`):
+
+1. `initVariant()` → `esc_boot_early_calibrate()` (128 amostras, sem Serial)
+2. `setup()`: Serial → diagnóstico pré-Wi-Fi → `fsm_system_init()` (cal INA240 condicional)
+3. `wifi_telemetry_init()` → `ina240_recalibrate_after_wifi()` — `[Post-WiFi]`
+4. `ps4_input_init()` → `ina240_recalibrate_runtime()` — `[Post-PS4]`
 
 #### 5.3.1 Fluxogramas formais
 
@@ -1126,7 +1166,7 @@ A implementação prioriza **baixo uso de RAM** e **ausência de internet**: Cha
 
 Após alterar `data/index.html` ou `chart.min.js`, é obrigatório `pio run -t uploadfs`. O browser pode cachear HTML antigo; use **Ctrl+Shift+R** (hard refresh) após o upload.
 
-**Ordem de inicialização no `setup()`:** `wifi_telemetry_init()` **antes** de `ps4_input_init()`. Inverter a ordem faz o `softAP` falhar silenciosamente por conflito no scheduler de coexistência BT+Wi-Fi do ESP-IDF.
+**Ordem de inicialização no boot:** **`initVariant()`** → `esc_boot_early_calibrate()` (INA240 offset, 128 amostras, sem Serial) → **`setup()`**: early safety → Serial → diagnóstico INA240 (pré-Wi-Fi) → banners → **`fsm_system_init()`** → **`wifi_telemetry_init()`** → **`ina240_recalibrate_after_wifi(128)`** (opcional, delay 300 ms, log `[Post-WiFi]`) → **`ps4_input_init()`** → **`ina240_recalibrate_runtime(128)`** (opcional, `INA240_RECAL_AFTER_PS4=1`, delay 500 ms, log `[Post-PS4]`). Cal early antes do softAP; recals complementam `adc_zero`/`bench_corr` sem alterar offset serial manual. Canal A: mediana 8× em runtime (`INA240_A_MEDIAN_SAMPLES=8`), EMA α=0,05 (`INA240_MV_EMA_ALPHA_A`). `wifi_telemetry_init()` continua **antes** de `ps4_input_init()` — inverter Wi-Fi vs PS4 faz o `softAP` falhar silenciosamente por conflito no scheduler de coexistência BT+Wi-Fi do ESP-IDF.
 
 ### 8.3 Arquitetura HTTP polling
 
@@ -1179,7 +1219,9 @@ Quando o PS4 está desconectado (`ps4c=false`), `r2` e `circle` são forçados a
 
 ### 8.6 Coexistência BT + Wi-Fi e ADC1
 
-O ESP32 compartilha o rádio entre Bluetooth Classic (PS4) e Wi-Fi AP via time-sharing do ESP-IDF. O **ADC1** (GPIO 34–36, 39) permanece seguro para leitura contínua; apenas o **ADC2** é afetado pelo rádio ativo. A escolha de HTTP polling em vez de WebSocket reduz pressão sobre o heap (~55 KB livres típicos com BT+AP ativos).
+O ESP32 compartilha o rádio entre Bluetooth Classic (PS4) e Wi-Fi AP via time-sharing do ESP-IDF. O **ADC2** torna-se indisponível ou não confiável com o rádio ativo; o **ADC1** (GPIO 34–36, 39) permanece operacional e sustenta leitura contínua a 1 kHz. A escolha de HTTP polling em vez de WebSocket reduz pressão sobre o heap (~55 KB livres típicos com BT+AP ativos).
+
+**Distinção importante:** ADC1 *funciona* com Wi-Fi/BT ativos (diferente do ADC2), porém o **GPIO 34** (fase A) pode apresentar deriva residual ou impulsos de RF nas leituras em repouso após boot completo. Mitigações firmware: calibração em 3 etapas (`initVariant`, pós-Wi-Fi, pós-PS4), `bench_corr`, mediana 8× e EMA α=0,05 só na fase A. Detalhes: [§4.3.4.1](#4341-ina240--canal-a-gpio-34).
 
 ### 8.7 Protocolo de validação em bancada (TCC)
 

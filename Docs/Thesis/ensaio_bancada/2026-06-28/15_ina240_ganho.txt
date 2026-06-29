@@ -1,0 +1,23 @@
+ID 15 — Ganho INA240 (Fase B)
+Status: CANCELADO
+Data: 2026-06-28
+Firmware: build atual (Tier 1 INA240)
+
+--- Motivo ---
+Limitacao de instrumentacao de bancada: injecao segura de corrente continua
+no shunt 1 mOhm exige resistor limitador >= 1 W (ou cadeia de resistores em
+serie). Disponivel: fonte unica 12 V, sem protoboard, resistores 1/4 W
+(10 Ohm, 4.7k, 10k, 39k) inadequados para ~1 A.
+
+--- Procedimento previsto (nao executado) ---
+Canal B (fase B). Motor off, IDLE, boot completo.
+V_out_B medido em repouso e com I_inj ~ 1,0 A via Vbus+ -> R limitador ->
+Isense B+. Delta_V_out esperado = 20 mV (G = 20 V/V).
+Criterio: |epsilon_G| <= 5%.
+
+--- Ensaios substitutos ---
+- ID 10: validacao cruzada dashboard x multimetro (epsilon_I)
+- ID 02/18: disparo OCP (opcional)
+
+--- Resultados ---
+N/A — ensaio nao realizado.

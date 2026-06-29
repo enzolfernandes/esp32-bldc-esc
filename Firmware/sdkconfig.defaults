@@ -1,2 +1,11 @@
 # Bluepad32 interactive console conflicts with Arduino Serial.
 CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE=n
+
+# Clones DS4: pairing seguro (GAP) costuma cair após ~3 s; desliga para bancada.
+CONFIG_BLUEPAD32_GAP_SECURITY=n
+CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT=n
+CONFIG_BLUEPAD32_ENABLE_VIRTUAL_DEVICE_BY_DEFAULT=y
+
+# Malha 1 kHz (esp_timer) no Core 1 — Wi-Fi/BT/IDLE0 ficam no Core 0.
+CONFIG_ESP_TIMER_SHOW_EXPERIMENTAL=y
+CONFIG_ESP_TIMER_TASK_AFFINITY_CPU1=y
