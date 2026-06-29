@@ -1,6 +1,7 @@
 # 💽 GIG: Teste de Bancada ESC (Upload 4.1)
 
 > **Contrato Principal:** Coletar 31 evidências experimentais para o TCC.
+> **Versão 1 dia (REDUX):** [`checklist_redux.md`](checklist_redux.md) — 6 ensaios críticos + 1 opcional.
 > **Drop Point (Pasta de Saída):** `Docs/Thesis/ensaio_bancada/AAAA-MM-DD/` *(Crie no início do dia!)*
 >
 
@@ -96,6 +97,8 @@ Motor Desconectado. Configurações iniciais.
 
 Motor conectado. Testes de aceleração e estabilidade.
 
+**Build de teste Wi-Fi (defer):** `BOARD_ENABLE_WIFI_TELEMETRY=1`, `WIFI_TELEMETRY_DEFER_IN_RUNNING=1` + `pio run -t uploadfs`. **Build de bancada padrão:** Wi-Fi off (`BOARD_ENABLE_WIFI_TELEMETRY=0`).
+
 ### ID 21: Corrente de Alinhamento
 
 - [ ] **Pendente**
@@ -134,13 +137,13 @@ Motor conectado. Testes de aceleração e estabilidade.
 ### ID 09: Screenshot Dashboard
 
 - [ ] **Pendente**
-**Ação:** Motor RUNNING. Navegador em 192.168.4.1. Print Screen.
+**Ação:** Com defer ativo: motor RUNNING ≥30 s, soltar R2. Verificar banner *Última corrida: N amostras* e gráficos preenchidos pelo batch. Print Screen em 192.168.4.1.
 **Datashard (Arquivo):** `09_dashboard_screenshot.png`
 
 ### ID 10: Validação Corrente Dash vs Multímetro
 
 - [ ] **Pendente**
-**Ação:** Multímetro em série. Ler $I_{DC}$ no multímetro, `im` e `rpm`.
+**Ação:** Multímetro em série. Em regime estável, ler `im` via `GET /data` em IDLE ou amostra de `GET /data/batch` após corrida (modo defer). Comparar com multímetro e UART.
 **Extrato (1500 RPM):** Multímetro = ___ A | Dash = ___ A | $\varepsilon_I$ = ___ %
 **Extrato (2000 RPM):** Multímetro = ___ A | Dash = ___ A | $\varepsilon_I$ = ___ %
 **Datashard (Arquivo):** `10_validacao_corrente.txt`
@@ -152,12 +155,14 @@ Motor conectado. Testes de aceleração e estabilidade.
 **Extrato (Valores):** $\varepsilon$ (1500 RPM) = ___ % | $\varepsilon$ (2000 RPM) = ___ %
 **Datashard (Arquivo):** `07_coerencia_rpm.txt`
 
-### ID 11 & 12: Estabilidade Contínua Wi-Fi
+### ID 11 & 12: Estabilidade Contínua Wi-Fi (modo defer)
 
 - [ ] **Pendente**
-**Ação:** Motor RUNNING $\geq$ 6 min. Exportar CSV da dash. Anotar métricas.
-**Extrato (Valores):** $T_{ensaio}$ = ___ min | $N$ amostras = ___ | Quedas HTTP = ___ | Heap/Lat estáveis? [S / N]
+**Ação:** Build defer (`BOARD_ENABLE_WIFI_TELEMETRY=1`). Motor RUNNING ≥30 s com label *Gravando corrida…* e `buf_n` crescente. Soltar R2; confirmar `/data/batch` com `ready:true` e `n>0`. Exportar CSV em IDLE. Anotar BT estável? [S/N]
+**Extrato (Valores):** $T_{RUNNING}$ = ___ s | `buf_n` máx = ___ | `n` batch = ___ | Quedas BT/HTTP = ___ | Replay gráficos OK? [S/N]
 **Datashard (Arquivo):** `11_csv_estabilidade.png`, `11_ensaio_estabilidade.csv`, `12_estabilidade_notas.txt`
+
+*Ensaio legado (JSON denso live em RUNNING ≥6 min): substituído — instável; ver Cap. 4 regressões.*
 
 ---
 
@@ -230,22 +235,22 @@ Ensaios de proteção, sinal e processamento.
 ### ID 28: Latência Cenário B
 
 - [ ] **Pendente**
-**Ação:** BT + Wi-Fi AP + Dashboard polling 1 Hz. Motor RUNNING 30 s. Log `lat` e `lmax`.
+**Ação:** BT + Wi-Fi AP + defer (`WIFI_TELEMETRY_DEFER_IN_RUNNING=1`) + Dashboard polling 1 Hz. Motor RUNNING 30 s. Log `lat` e `lmax` via serial (500 ms).
 **Extrato (Valores):** $t_{tick,min,max,\bar{t}}$ = ___ / ___ / ___ $\mu$s | `lmax` = ___ $\mu$s
 **Datashard (Arquivo):** `28_ttick_cenario_B.csv`
 
 ### ID 29: Heap Livre (Parte 2 — RUNNING)
 
 - [ ] **Pendente**
-**Ação:** Ler heap via JSON com motor rodando e dash atualizando.
+**Ação:** Ler `heap` via JSON completo em IDLE (não durante `buffering:true`). Motor parado vs após corrida.
 **Extrato (Valores):** $H_{livre,RUNNING}$ = ___ bytes | $\Delta H$ = ___ | $\eta_{heap}$ = ___ %
 **Datashard (Arquivo):** `29_heap.txt`
 
 ### ID 31: Síntese Impacto Wi-Fi
 
 - [ ] **Pendente**
-**Ação:** Compilar IDs 12, 27, 28 e 29. Calcular diferença máxima.
-**Extrato (Valores):** $\Delta t_{tick,max}$ = ___ $\mu$s | $\bar{t}_{tick,B}$ = ___ $\mu$s | Quedas = ___
+**Ação:** Compilar IDs 12, 27, 28 e 29. Comparar Cenário A vs B (defer). Documentar se defer restaurou estabilidade BT — **não assumir sucesso sem dados**.
+**Extrato (Valores):** $\Delta t_{tick,max}$ = ___ $\mu$s | $\bar{t}_{tick,B}$ = ___ $\mu$s | Quedas BT = ___ | Batch OK? [S/N]
 **Datashard (Arquivo):** `31_sintese_wifi.txt`
 
 ---

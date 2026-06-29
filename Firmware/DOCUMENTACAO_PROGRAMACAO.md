@@ -455,7 +455,7 @@ Firmware/
 
 **[`src/fsm_system.c`](src/fsm_system.c)**, FSM de alto nível do ESC. Estados: `INIT`, `IDLE`, `RUNNING`, `FAULT`. Orquestra a sequência de inicialização dos periféricos e drivers, autoriza ou bloqueia a operação do motor e centraliza a resposta a falhas. Não executa comutação nem cálculo de PI.
 
-**[`src/wifi_telemetry.cpp`](src/wifi_telemetry.cpp)**, Módulo de dashboard Wi-Fi. Sobe o ESP32 em modo **Access Point** (`WIFI_AP_SSID`, `WIFI_AP_PASSWORD` em `board_config.h`), monta o **LittleFS**, inicia o **ESPAsyncWebServer** e expõe `GET /data` (JSON da telemetria) e `GET /` (`index.html`). Estratégia de **HTTP polling** (browser requisita `/data` a cada 1 s) em vez de WebSocket persistente, para evitar sobrecarga de heap (~19 KB por conexão WebSocket) com BT Classic + Wi-Fi coexistindo. `wifi_telemetry_push()` atualiza um buffer estático `s_last_json`; `wifi_telemetry_client_count()` retorna 1 quando o servidor está ativo (mantém intervalo de 100 ms no loop).
+**[`src/wifi_telemetry.cpp`](src/wifi_telemetry.cpp)**, Módulo de dashboard Wi-Fi. Sobe o ESP32 em modo **Access Point** (`WIFI_AP_SSID`, `WIFI_AP_PASSWORD` em `board_config.h`), monta o **LittleFS**, inicia o **ESPAsyncWebServer** e expõe `GET /data` (JSON da telemetria), `GET /data/batch` (lote compacto pós-RUNNING, modo defer) e `GET /` (`index.html`). Estratégia de **HTTP polling** (browser requisita `/data` a cada 1 s) em vez de WebSocket persistente, para evitar sobrecarga de heap (~19 KB por conexão WebSocket) com BT Classic + Wi-Fi coexistindo. `wifi_telemetry_push()` atualiza um buffer estático `s_last_json`; em RUNNING com defer, amostras vão para ring buffer RAM e o JSON denso só é publicado em IDLE/FAULT.
 
 #### 4.3.2 Entrada
 
@@ -1160,7 +1160,8 @@ A implementação prioriza **baixo uso de RAM** e **ausência de internet**: Cha
 | Senha | `esc12345` (`WIFI_AP_PASSWORD`) |
 | Canal | 6 (`WIFI_AP_CHANNEL`) |
 | URL | `http://192.168.4.1` |
-| Endpoint JSON | `GET http://192.168.4.1/data` |
+| Endpoint JSON live | `GET http://192.168.4.1/data` |
+| Endpoint lote RUNNING | `GET http://192.168.4.1/data/batch` (modo defer) |
 | Upload firmware | `pio run -t upload` |
 | Upload filesystem | `pio run -t uploadfs` |
 
@@ -1175,17 +1176,39 @@ Browser (1 s)          ESP32 loop (100 ms)           LittleFS
     │                        │                          │
     ├── GET /data ──────────►│ s_last_json ◄── push ────┤
     │◄── JSON 200 ───────────┤                          │
+    ├── GET /data/batch ────►│ ring buffer RUNNING ─────┤  (modo defer)
     ├── GET / ──────────────►│ index.html ─────────────►│
     └── GET /chart.min.js ──►│ chart.min.js ───────────►│
 ```
 
-O browser faz **polling** a cada 1 s (`fetch('/data', { cache: 'no-store' })`). O firmware atualiza `s_last_json` a cada 100 ms (quando o servidor está ativo). Não há conexão WebSocket persistente.
+O browser faz **polling** a cada 1 s (`fetch('/data', { cache: 'no-store' })`). Fora de RUNNING (ou com `WIFI_TELEMETRY_DEFER_IN_RUNNING=0`), o firmware atualiza `s_last_json` a cada 100 ms quando há estação no AP. Não há conexão WebSocket persistente.
 
-O indicador **"Dashboard online"** no header da página reflete sucesso do `fetch` HTTP (comunicação com o ESP32), **não** o pareamento Bluetooth do PS4. O status do controle aparece no card **Controle PS4 → Bluetooth**.
+#### 8.3.1 Modo defer em RUNNING (`WIFI_TELEMETRY_DEFER_IN_RUNNING`)
 
-### 8.4 Formato JSON (`push_wifi_telemetry`)
+Para reduzir contenção BT+Wi-Fi durante operação com motor em rotação, o firmware pode **não** publicar JSON denso em `GET /data` a cada 100 ms enquanto `state=RUNNING`:
 
-Chaves curtas para minimizar bytes over-the-air (~380 bytes):
+| Flag (`board_config.h`) | Default | Efeito |
+|-------------------------|---------|--------|
+| `BOARD_ENABLE_WIFI_TELEMETRY` | `0` | AP/HTTP desligados (bancada estável; telemetria serial apenas) |
+| `WIFI_TELEMETRY_DEFER_IN_RUNNING` | `1` | Só efetivo com Wi-Fi ligado: grava amostras compactas em RAM |
+| `WIFI_TELEM_RUN_BUF_SAMPLES` | `80` | Capacidade do ring buffer (~8 s a 100 ms/amostra) |
+| `WIFI_TELEM_RUN_SAMPLE_MS` | `100` | Intervalo de amostragem alinhado ao loop em RUNNING |
+
+**Fluxo:**
+
+1. **Entrada em RUNNING** — `wifi_telemetry_clear_running_batch()` zera o buffer.
+2. **Durante RUNNING** — a cada 100 ms: `wifi_telemetry_record_running_sample(t, rpm, im, duty, fel)` (~12 B/amostra). `GET /data` recebe snapshot leve ≤ 1 Hz: `{"state":2,"buffering":true,"buf_n":N,...}`.
+3. **Saída RUNNING → IDLE/FAULT** — `wifi_telemetry_finalize_running_batch()`; `GET /data/batch` passa a servir o lote; `GET /data` volta ao JSON completo com `"batch_ready":true`.
+
+**Struct compacta** (`wifi_telem_run_sample_t`): `t_ms`, `rpm`, `im_cA` (centiampères), `duty` (%), `fel` (Hz saturado 0–255).
+
+Com `WIFI_TELEMETRY_DEFER_IN_RUNNING=0`, o comportamento legado é restaurado: push JSON completo em RUNNING.
+
+O indicador **"Dashboard online"** no header da página reflete sucesso do `fetch` HTTP (comunicação com o ESP32), **não** o pareamento Bluetooth do PS4. Durante buffering, o label exibe **"Gravando corrida… (N)"**. O status do controle aparece no card **Controle PS4 → Bluetooth**.
+
+### 8.4 Formato JSON (`push_wifi_telemetry_full`)
+
+Chaves curtas para minimizar bytes over-the-air (~380 bytes no modo live completo):
 
 | Chave | Tipo | Significado |
 |-------|------|-------------|
@@ -1208,13 +1231,21 @@ Chaves curtas para minimizar bytes over-the-air (~380 bytes):
 | `r2` | uint | Gatilho R2 (0–100 %); 0 se `ps4c=false` |
 | `circle` | bool | Botão Circle (CCW); `false` se `ps4c=false` |
 | `fault` | string | Motivo da falha (vazio se não em FAULT) |
+| `buffering` | bool | *(defer)* `true` em RUNNING — snapshot leve, sem grandezas elétricas |
+| `buf_n` | uint | *(defer)* amostras gravadas no ring buffer |
+| `batch_ready` | bool | *(defer)* `true` após flush do lote em IDLE/FAULT |
+
+**Snapshot leve em RUNNING (defer):** `{"state":2,"buffering":true,"buf_n":12,"t":...,"ps4c":true,"r2":85}`.
+
+**Lote `GET /data/batch`:** `{"ready":true,"n":45,"wrapped":false,"dt_ms":100,"t0":123456,"samples":[[t,rpm,im,d,fel],...]}` — `im` e `d` como float no JSON; `ready:false` se não houve corrida finalizada.
 
 Quando o PS4 está desconectado (`ps4c=false`), `r2` e `circle` são forçados a zero/false no firmware; o dashboard exibe **"—"** nos campos de entrada em vez de interpretar estado de botão.
 
 ### 8.5 Interface web (`data/index.html`)
 
 - **Painel lateral:** estado FSM, elétrico, velocidade, PI, PS4 (Bluetooth, R2, Circle), CPU/heap.
-- **Gráficos (Chart.js):** correntes de fase, RPM, duty/f_el, latência/heap (buffer de 300 pontos).
+- **Gráficos (Chart.js):** correntes de fase, RPM, duty/f_el, latência/heap (buffer de 300 pontos em modo live).
+- **Modo defer:** durante `buffering`, gráficos não recebem pontos zerados; ao sair de RUNNING, `fetch('/data/batch')` preenche os gráficos com a última corrida; banner **"Última corrida: N amostras"** no header.
 - **Exportação:** CSV (histórico em memória do browser) e PNG (captura dos 4 gráficos).
 
 ### 8.6 Coexistência BT + Wi-Fi e ADC1

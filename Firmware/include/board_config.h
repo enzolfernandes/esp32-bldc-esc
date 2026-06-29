@@ -196,4 +196,10 @@
 #define WIFI_AP_CHANNEL     6
 #define WIFI_TELEMETRY_PORT 80
 
+/** Telemetria diferida em RUNNING: grava amostras compactas em RAM e expõe lote em IDLE.
+ *  Só efetivo com BOARD_ENABLE_WIFI_TELEMETRY=1. DEFER=0 restaura push JSON completo em RUNNING. */
+#define WIFI_TELEMETRY_DEFER_IN_RUNNING  1
+#define WIFI_TELEM_RUN_BUF_SAMPLES       80   /* 80 × 100 ms ≈ 8 s de corrida */
+#define WIFI_TELEM_RUN_SAMPLE_MS         100  /* alinhado ao intervalo RUNNING no loop */
+
 #endif // BOARD_CONFIG_H

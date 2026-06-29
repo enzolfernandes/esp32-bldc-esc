@@ -207,7 +207,7 @@ static void apply_ps4_to_esc(const ps4_input_state_t *st)
  *   step=passo 6-step, cmode=modo comutação(0=OPEN,1=ZCD),
  *   uvlo=bool, ps4c=PS4 conectado, r2=R2%, circle=bool, fault=string.
  */
-static void push_wifi_telemetry(const ps4_input_state_t *ps4)
+static void push_wifi_telemetry_full(const ps4_input_state_t *ps4)
 {
     if (wifi_telemetry_client_count() == 0) {
         return;
@@ -217,7 +217,13 @@ static void push_wifi_telemetry(const ps4_input_state_t *ps4)
     const bool running = (state == ESC_STATE_RUNNING);
     const bool connected = (ps4 != nullptr && ps4->connected);
 
-    char json[380];
+#if WIFI_TELEMETRY_DEFER_IN_RUNNING
+    const bool batch_ready = wifi_telemetry_running_batch_ready();
+#else
+    const bool batch_ready = false;
+#endif
+
+    char json[420];
     snprintf(json, sizeof(json),
         "{"
         "\"t\":%lu,"
@@ -233,6 +239,9 @@ static void push_wifi_telemetry(const ps4_input_state_t *ps4)
         "\"uvlo\":%s,"
         "\"ps4c\":%s,\"r2\":%u,\"circle\":%s,"
         "\"fault\":\"%s\""
+#if WIFI_TELEMETRY_DEFER_IN_RUNNING
+        ",\"batch_ready\":%s"
+#endif
         "}",
         (unsigned long)millis(),
         ina240_read_amps(INA240_PHASE_A),
@@ -264,10 +273,20 @@ static void push_wifi_telemetry(const ps4_input_state_t *ps4)
         (state == ESC_STATE_FAULT)
             ? motor_control_fault_reason_name(motor_control_get_last_fault_reason())
             : ""
+#if WIFI_TELEMETRY_DEFER_IN_RUNNING
+        , batch_ready ? "true" : "false"
+#endif
     );
 
     wifi_telemetry_push(json);
 }
+
+#if BOARD_ENABLE_WIFI_TELEMETRY && !WIFI_TELEMETRY_DEFER_IN_RUNNING
+static void push_wifi_telemetry(const ps4_input_state_t *ps4)
+{
+    push_wifi_telemetry_full(ps4);
+}
+#endif
 
 /** Boot: Serial, PS4, init da FSM (HAL, drivers, timer 1 kHz). */
 void setup()
@@ -343,6 +362,23 @@ void loop()
     static ps4_input_state_t ps4 = {};
 
     const uint32_t now_ms = millis();
+    const esc_state_t esc_state = fsm_system_get_state();
+
+#if BOARD_ENABLE_WIFI_TELEMETRY && WIFI_TELEMETRY_DEFER_IN_RUNNING
+    static esc_state_t s_prev_esc_state = ESC_STATE_INIT;
+    static uint32_t s_last_light_wifi_ms = 0;
+
+    if (esc_state == ESC_STATE_RUNNING && s_prev_esc_state != ESC_STATE_RUNNING) {
+        wifi_telemetry_clear_running_batch();
+    }
+    if (s_prev_esc_state == ESC_STATE_RUNNING &&
+        (esc_state == ESC_STATE_IDLE || esc_state == ESC_STATE_FAULT)) {
+        wifi_telemetry_finalize_running_batch();
+        if (wifi_telemetry_client_count() > 0) {
+            push_wifi_telemetry_full(&ps4);
+        }
+    }
+#endif
 
     if ((now_ms - last_poll_ms) >= PS4_INPUT_POLL_MS) {
         last_poll_ms = now_ms;
@@ -358,7 +394,7 @@ void loop()
     /* Telemetria serial 500 ms (IDLE e RUNNING). Wi-Fi push só com dashboard ativo. */
 #if BOARD_ENABLE_WIFI_TELEMETRY
     const uint32_t telem_interval_ms =
-        (fsm_system_get_state() == ESC_STATE_RUNNING ||
+        (esc_state == ESC_STATE_RUNNING ||
          wifi_telemetry_client_count() > 0) ? 100U : 500U;
 #else
     const uint32_t telem_interval_ms = 500U;
@@ -368,7 +404,34 @@ void loop()
         s_last_telemetry_ms = now_ms;
         print_telemetry(&ps4);
 #if BOARD_ENABLE_WIFI_TELEMETRY
+#if WIFI_TELEMETRY_DEFER_IN_RUNNING
+        if (esc_state == ESC_STATE_RUNNING) {
+            wifi_telemetry_record_running_sample(
+                now_ms,
+                motor_control_get_measured_rpm(),
+                motor_control_get_measured_amps(),
+                motor_control_get_duty_percent(),
+                motor_control_get_open_loop_comm_hz());
+            if (wifi_telemetry_client_count() > 0 &&
+                (now_ms - s_last_light_wifi_ms) >= 1000U) {
+                s_last_light_wifi_ms = now_ms;
+                const bool ps4_conn = ps4.connected;
+                wifi_telemetry_push_light_running_status(
+                    now_ms,
+                    wifi_telemetry_running_buf_count(),
+                    ps4_conn,
+                    ps4_conn ? static_cast<uint8_t>(ps4.r2_raw * 100U / 255U) : 0U);
+            }
+        } else {
+            push_wifi_telemetry_full(&ps4);
+        }
+#else
         push_wifi_telemetry(&ps4);
 #endif
+#endif
     }
+
+#if BOARD_ENABLE_WIFI_TELEMETRY && WIFI_TELEMETRY_DEFER_IN_RUNNING
+    s_prev_esc_state = esc_state;
+#endif
 }
