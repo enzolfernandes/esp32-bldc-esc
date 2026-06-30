@@ -7,7 +7,7 @@ Fontes em Mermaid (`.mmd`) para fluxogramas do firmware, alinhados a [`DOCUMENTA
 | Arquivo | Descrição | Uso na tese |
 |---------|-----------|-------------|
 | [`fluxograma1_documentacao_fluxo_Completo.mmd`](fluxograma1_documentacao_fluxo_Completo.mmd) | Mapa completo: Fluxos A, B e C + acoplamentos ①–⑨ | Apêndice ou figura principal (A2/A3 paisagem) |
-| [`fluxograma1_documentacao_fluxo_A.mmd`](fluxograma1_documentacao_fluxo_A.mmd) | Fluxo A isolado — `loop()` ~20 ms, FSM, PS4 | Cap. implementação |
+| [`fluxograma1_documentacao_fluxo_A.mmd`](fluxograma1_documentacao_fluxo_A.mmd) | Fluxo A isolado — `loop()` ~20 ms, FSM, Serial HMI ou PS4 | Cap. implementação |
 | [`fluxograma1_documentacao_fluxo_B.mmd`](fluxograma1_documentacao_fluxo_B.mmd) | Fluxo B isolado — `esp_timer` 1 kHz, PI, 6-step | Cap. controle |
 | [`fluxograma1_documentacao_fluxo_C.mmd`](fluxograma1_documentacao_fluxo_C.mmd) | Fluxo C isolado — ISR OC Trip (µs) | Cap. proteções |
 | [`fluxograma2_processo.mmd`](fluxograma2_processo.mmd) | Visão operacional resumida (1× A4) | Metodologia / visão geral |
@@ -16,7 +16,7 @@ Fontes em Mermaid (`.mmd`) para fluxogramas do firmware, alinhados a [`DOCUMENTA
 ## Convenções
 
 - **INÍCIO** no topo; loops com setas de retorno explícitas (sem conectores ○A/○B).
-- **Cores dos painéis** (LED PS4): azul = Fluxo A / IDLE, verde = Fluxo B / RUNNING, vermelho = Fluxo C / FAULT.
+- **Cores dos painéis** (LED PS4 quando ativo): azul = Fluxo A / IDLE, verde = Fluxo B / RUNNING, vermelho = Fluxo C / FAULT.
 - **Setas sólidas** = sequência interna; **tracejadas numeradas** = acoplamento entre fluxos (somente no mapa completo).
 - **ZCD:** padrão `BOARD_ENABLE_BEMF_ZCD=0` (malha aberta).
 
@@ -46,4 +46,4 @@ Detalhes, tabela de acoplamentos e texto de `\caption` pronto: [`fluxograma1_leg
 
 ## Manutenção
 
-Ao alterar `initVariant`, sequência de boot INA240 (`esc_boot_sensors`, recals pós-Wi-Fi/PS4), `setup`/`loop`, FSM, `motor_control_tick` ou ISR de OC, atualizar os `.mmd` correspondentes e a [Seção 7.3](../../DOCUMENTACAO_PROGRAMACAO.md#73-fluxogramas-mermaid) da documentação.
+Ao alterar sequência de boot (`hal_motor`, `esc_radio_quiet`, Wi-Fi/HMI), `setup`/`loop`, FSM, `motor_control_tick` ou ISR de OC, atualizar os `.mmd` correspondentes e a [Seção 7.3](../../DOCUMENTACAO_PROGRAMACAO.md#73-fluxogramas-mermaid) da documentação.

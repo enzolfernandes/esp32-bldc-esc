@@ -16,41 +16,39 @@ flowchart TB
 
             START(["▶ INÍCIO<br/>Alimentação / reset"])
 
-            P00["initVariant · cal INA240 128×"]
-            P01["Serial 115200 + diag INA240"]
-            P02["GPIO + PWM hold LOW"]
-            P03["fsm_system_init<br/>ADC · LM339 · MCPWM · INA240 skip · bateria · ISR OC · timer 1 kHz"]
-            P04["Wi-Fi AP + telemetria HTTP"]
-            P05["Post-WiFi recal INA240"]
-            P06["Bluetooth + PS4"]
-            P07["Post-PS4 recal INA240"]
+            P00["hal_motor_init<br/>SD=HIGH · PWM LOW"]
+            P01["Serial + esc_radio_quiet_init"]
+            P02["Wi-Fi AP opcional"]
+            P03["PS4 OU Serial HMI init"]
+            P04["fsm_system_init<br/>ADC · LM339 · INA240 · bateria · timer 1 kHz"]
+            P05["hal_motor_reclaim_outputs"]
             D01{"Init OK?"}
 
-            P14["Estado → IDLE · LED azul"]
-            F1["enter_fault_state · FAULT · LED vermelho"]
+            P14["Estado → IDLE"]
+            F1["enter_fault_state · FAULT"]
 
             P20["battery_monitor_tick"]
             P21["fsm_system_tick"]
-            IO_IN["Entrada PS4 · R2 · Circle · Options"]
+            IO_IN["Entrada Serial HMI ou PS4"]
             D_FAULT{"Estado FAULT?"}
-            D03{"Options?"}
+            D03{"Clear fault?"}
             D04{"OC liberado · sem UVLO?"}
-            P23["Clear fault → IDLE · LED azul"]
+            P23["Clear fault → IDLE"]
 
-            D02{"PS4 conectado?"}
+            D02{"Entrada ativa?"}
             P22["Desarme se RUNNING"]
-            D05{"R2 > 10?"}
-            D06{"Pode armar?<br/>IDLE sem UVLO/OC"}
-            ARM["Armar ESC · RUNNING · LED verde"]
+            D05{"Comando arm?"}
+            D06{"Pode armar?"}
+            ARM["Armar ESC · RUNNING"]
             D07{"Estado RUNNING?"}
             P24["Desarme"]
-            D08{"R2 solto + Circle?"}
+            D08{"Troca sentido?"}
             P25["Sentido CW ↔ CCW"]
             P26["Setpoint com slew"]
-            IO_OUT["Telemetria serial + Wi-Fi"]
+            IO_OUT["Telemetria serial 500 ms"]
 
-            START --> P00 --> P01 --> P02 --> P03 --> D01
-            D01 -->|Sim| P04 --> P05 --> P06 --> P07 --> P14 --> P20
+            START --> P00 --> P01 --> P02 --> P03 --> P04 --> P05 --> D01
+            D01 -->|Sim| P14 --> P20
             D01 -->|Não| F1 --> P20
 
             P20 --> P21 --> IO_IN --> D_FAULT
@@ -83,9 +81,9 @@ flowchart TB
 
             D10{"motor_control ativo?"}
             P42["Encerrar tick · sem PWM"]
-            P30["Ler correntes INA240<br/>mediana 8× fase A · EMA α=0,05/0,25"]
+            P30["Ler correntes INA240<br/>mediana 16× fase A · EMA α=0,05/0,25"]
             D11{"Fase ALIGN?"}
-            P31["ALIGN 500 ms · duty 12%"]
+            P31["ALIGN 100 ms · duty 3% rampa"]
             D12{"Fase RUN_OPEN?"}
             P32["Rampa OPEN 5→300 Hz"]
             D13{"Fase RUN_SPEED?"}
@@ -96,8 +94,8 @@ flowchart TB
             D17{"Comutação ZCD fechada?"}
             P37O["6-step malha aberta · padrão"]
             P37Z["6-step BEMF ZCD + 30°"]
-            P38["Aplicar duty MCPWM"]
-            D14{"OC software ≥ 8 A?"}
+            P38["hal_motor_apply_step"]
+            D14{"OC software ≥ 15 A?"}
             P39["Registrar flag OC software"]
             D15{"Stall?"}
             P40["Registrar flag STALL"]
@@ -132,7 +130,7 @@ flowchart TB
 
             CSTART(["▶ Interrupção OC Trip"])
 
-            P50["PWM off · shutdown LOW"]
+            P50["hal_motor_emergency_shutdown"]
             P52["Registrar flag falha hardware"]
             END_ISR(["Retornar da ISR"])
 
@@ -140,8 +138,8 @@ flowchart TB
         end
     end
 
-    P03 -.->|"① init timer"| BSTART
-    P03 -.->|"② init ISR"| CSTART
+    P04 -.->|"① init timer"| BSTART
+    P04 -.->|"② init ISR"| CSTART
     ARM -.->|"③ arm"| D10
     P24 -.->|"④ disarm"| D10
     P26 -.->|"⑤ setpoint"| P36

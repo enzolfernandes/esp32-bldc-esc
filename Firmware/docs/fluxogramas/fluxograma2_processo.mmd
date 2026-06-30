@@ -13,28 +13,28 @@ flowchart TB
 
         START(["▶ INÍCIO<br/>Alimentação / reset"])
 
-        P1["Inicializar hardware, Wi-Fi, BT e FSM<br/>cal INA240 em 3 etapas no boot"]
+        P1["hal_motor_init · Serial · esc_radio_quiet<br/>Wi-Fi/HMI opcional · fsm_system_init · reclaim SD"]
         D1{"Inicialização<br/>OK?"}
 
-        EST["Estado ESC + LED PS4<br/>IDLE · RUNNING · FAULT"]
+        EST["Estado ESC<br/>IDLE · RUNNING · FAULT"]
 
         LOOP(["Ciclo principal ~20 ms"])
 
-        P4["Ler PS4 e executar ciclo FSM"]
+        P4["Ler Serial HMI ou PS4 · fsm_system_tick"]
         D_FAULT{"Estado<br/>FAULT?"}
-        D6{"Options<br/>limpar falha?"}
-        P8["Clear fault → IDLE · LED azul"]
+        D6{"Clear fault?"}
+        P8["Clear fault → IDLE"]
 
-        D_PS4{"PS4<br/>conectado?"}
+        D_IN{"Entrada<br/>ativa?"}
         P5["Desarmar motor → IDLE"]
-        D3{"R2 > 10?"}
+        D3{"Comando<br/>arm?"}
         D4{"Pode armar?<br/>IDLE · sem UVLO/OC"}
-        P6["Armar · partida → RUNNING · LED verde"]
+        P6["Armar · partida → RUNNING"]
         D_RUN{"Estado<br/>RUNNING?"}
         P7["Regulação PI e comutação 6-step<br/>malha aberta · padrão ZCD=0"]
         D5{"Falha crítica?<br/>OCP · UVLO · Stall"}
-        P3["FAULT · desarmar PWM · LED vermelho"]
-        IO["Enviar telemetria serial e Wi-Fi"]
+        P3["FAULT · desarmar PWM"]
+        IO["Telemetria serial 500 ms"]
 
         START --> P1 --> D1
         D1 -->|Sim · IDLE| EST
@@ -47,9 +47,9 @@ flowchart TB
         D6 -->|Não| IO
         IO --> LOOP
 
-        D_FAULT -->|Não| D_PS4
-        D_PS4 -->|Não| P5 --> D3
-        D_PS4 -->|Sim| D3
+        D_FAULT -->|Não| D_IN
+        D_IN -->|Não| P5 --> D3
+        D_IN -->|Sim| D3
         D3 -->|Sim| D4
         D4 -->|Sim| P6 --> P7 --> D5
         D4 -->|Não| D_RUN
@@ -65,7 +65,7 @@ flowchart TB
     class P3 faultSt
     class P6 runSt
     class P8 idleSt
-    class P1,P4,P5,P7,D1,D_PS4,D3,D4,D5,D6,D_FAULT,D_RUN,IO neutral
+    class P1,P4,P5,P7,D1,D_IN,D3,D4,D5,D6,D_FAULT,D_RUN,IO neutral
 
     classDef initSt fill:#FFE8CC,stroke:#CC8400,stroke-width:3px,color:#000
     classDef idleSt fill:#CCE5FF,stroke:#0078FF,stroke-width:2px,color:#000

@@ -2,6 +2,7 @@
 #define HAL_PWM_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,7 +26,8 @@ typedef enum {
 bool hal_pwm_hold_pins_low(void);
 
 bool hal_pwm_init(void);
-void hal_pwm_set_armed(bool armed);
+/** true = MCPWM ligado aos GPIOs; false = desarmado. Retorna false se attach falhar. */
+bool hal_pwm_set_armed(bool armed);
 bool hal_pwm_is_armed(void);
 void hal_pwm_set_phase_duty(hal_pwm_phase_t phase, float duty_percent);
 void hal_pwm_set_phase_conduction(hal_pwm_phase_t phase, hal_pwm_conduction_t mode,

@@ -12,14 +12,12 @@
 #include "bemf_zcd.h"
 #include "board_config.h"
 #include "hal_adc.h"
-#include "hal_gpio.h"
-#include "hal_pwm.h"
+#include "hal_motor.h"
 #include "ina240_current_sensors.h"
 #include "lm339_protection.h"
 #include "motor_control.h"
 
 #include "esp_attr.h"
-
 #include <stddef.h>
 
 static esc_state_t s_state = ESC_STATE_INIT;
@@ -34,15 +32,13 @@ static void IRAM_ATTR on_overcurrent_isr(void *arg)
 
 /**
  * @brief Sequência unificada de entrada em falha (fail-safe).
- * Ordem: shutdown LOW → desarm motor_control → PWM off → estado FAULT.
+ * Ordem: SD=HIGH → desarm motor_control → disarm HAL → estado FAULT.
  */
 static void enter_fault_state(void)
 {
-    hal_shutdown_set_enabled(false);   // 1. Desliga drivers IR2110
-    motor_control_on_disarm();         // 2. Para malha e zera referências
-    hal_pwm_set_armed(false);          // 3. Bloqueia saída MCPWM
-    hal_pwm_disable_all();             // 4. Todas as pernas em OFF
-    s_state = ESC_STATE_FAULT;         // 5. Bloqueia re-arm até clear fault
+    hal_motor_disarm();
+    motor_control_on_disarm();
+    s_state = ESC_STATE_FAULT;
 }
 
 /**
@@ -51,11 +47,7 @@ static void enter_fault_state(void)
  */
 static bool run_init_sequence(void)
 {
-    if (!hal_gpio_init()) {
-        return false;
-    }
-
-    if (!hal_pwm_hold_pins_low()) {
+    if (!hal_motor_init()) {
         return false;
     }
 
@@ -66,12 +58,6 @@ static bool run_init_sequence(void)
     if (!lm339_protection_init()) {
         return false;
     }
-
-    if (!hal_pwm_init()) {
-        return false;
-    }
-
-    hal_shutdown_set_enabled(false);
 
     ina240_init();
 
@@ -121,7 +107,6 @@ bool fsm_system_init(void)
  */
 void fsm_system_tick(void)
 {
-    // Falha de hardware OCP (flag setada na ISR)
     if (s_fault_pending) {
         s_fault_pending = false;
         if (s_state != ESC_STATE_FAULT) {
@@ -134,13 +119,11 @@ void fsm_system_tick(void)
         return;
     }
 
-    // Falha de software (OC, stall) sinalizada por motor_control
     if (s_state == ESC_STATE_RUNNING && motor_control_consume_software_fault()) {
         enter_fault_state();
         return;
     }
 
-    // UVLO: bloqueia arm em IDLE; em RUNNING força FAULT
     if (battery_monitor_uvlo_active()) {
         if (s_state == ESC_STATE_RUNNING) {
             motor_control_trip_uvlo_fault();
@@ -193,9 +176,11 @@ bool fsm_system_request_arm(void)
         return false;
     }
 
-    hal_pwm_set_armed(true);
+    if (!hal_motor_arm()) {
+        hal_motor_disarm();
+        return false;
+    }
 
-    hal_shutdown_set_enabled(true);
     motor_control_on_arm();
     s_state = ESC_STATE_RUNNING;
 
@@ -210,9 +195,7 @@ bool fsm_system_request_disarm(void)
     }
 
     motor_control_on_disarm();
-    hal_pwm_set_armed(false);
-    hal_pwm_disable_all();
-    hal_shutdown_set_enabled(false);
+    hal_motor_disarm();
     s_state = ESC_STATE_IDLE;
     return true;
 }
@@ -236,9 +219,7 @@ bool fsm_system_clear_fault(void)
 
     s_fault_pending = false;
     motor_control_on_disarm();
-    hal_pwm_set_armed(false);
-    hal_pwm_disable_all();
-    hal_shutdown_set_enabled(false);
+    hal_motor_disarm();
     s_state = ESC_STATE_IDLE;
     return true;
 }

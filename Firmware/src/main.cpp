@@ -14,12 +14,18 @@
 
 #include "battery_monitor.h"
 #include "board_config.h"
+#include "esc_radio_quiet.h"
 #include "fsm_system.h"
-#include "hal_gpio.h"
-#include "hal_pwm.h"
+#include "hal_motor.h"
 #include "ina240_current_sensors.h"
 #include "motor_control.h"
 #include "ps4_input.h"
+#if BOARD_ENABLE_PS4_BT
+#include "ps4_bt_host.h"
+#endif
+#if BOARD_ENABLE_SERIAL_HMI
+#include "serial_hmi.h"
+#endif
 #include "wifi_telemetry.h"
 
 static uint32_t s_last_telemetry_ms = 0;
@@ -34,10 +40,28 @@ static bool is_run_phase_for_telemetry(motor_start_phase_t phase)
 /** Imprime diagnóstico na Serial: estado FSM, correntes, VBAT, RPM/duty em RUNNING. */
 static void print_telemetry(const ps4_input_state_t *ps4)
 {
-    Serial.printf("[%s] BT=%s  R2=%u  bolinha=%u",
+#if BOARD_ENABLE_SERIAL_HMI
+    Serial.printf("[%s] HMI=SER  R2=%u(rest=%u eff=%u)",
                   fsm_system_state_name(fsm_system_get_state()),
-                  (ps4 != nullptr && ps4->connected) ? "OK" : "OFF",
                   (ps4 != nullptr) ? static_cast<unsigned>(ps4->r2_raw) : 0U,
+                  (ps4 != nullptr) ? static_cast<unsigned>(ps4->r2_rest) : 0U,
+                  (ps4 != nullptr) ? static_cast<unsigned>(ps4->r2_effective) : 0U);
+#elif BOARD_ENABLE_PS4_BT
+    Serial.printf("[%s] BT=%s link=%s  R2=%u(rest=%u eff=%u)",
+                  fsm_system_state_name(fsm_system_get_state()),
+                  (ps4 != nullptr && ps4->connected) ? "ON" : "OFF",
+                  ps4_bt_host_link_state_name(ps4_bt_host_get_link_state()),
+                  (ps4 != nullptr) ? static_cast<unsigned>(ps4->r2_raw) : 0U,
+                  (ps4 != nullptr) ? static_cast<unsigned>(ps4->r2_rest) : 0U,
+                  (ps4 != nullptr) ? static_cast<unsigned>(ps4->r2_effective) : 0U);
+#else
+    Serial.printf("[%s] HMI=OFF  R2=%u(rest=%u eff=%u)",
+                  fsm_system_state_name(fsm_system_get_state()),
+                  (ps4 != nullptr) ? static_cast<unsigned>(ps4->r2_raw) : 0U,
+                  (ps4 != nullptr) ? static_cast<unsigned>(ps4->r2_rest) : 0U,
+                  (ps4 != nullptr) ? static_cast<unsigned>(ps4->r2_effective) : 0U);
+#endif
+    Serial.printf("  bolinha=%u",
                   (ps4 != nullptr && ps4->circle_pressed) ? 1U : 0U);
 
     Serial.printf("  I: A=%+.2f  B=%+.2f  C=%+.2f A  VBAT=%.1f V  pack=%uS  uvlo=%s",
@@ -91,6 +115,10 @@ static void print_telemetry(const ps4_input_state_t *ps4)
                       (unsigned long)motor_control_get_tick_latency_us(),
                       (unsigned long)motor_control_get_tick_latency_min_us(),
                       (unsigned long)motor_control_get_tick_latency_max_us());
+
+        if (!hal_motor_is_armed()) {
+            Serial.print("  PWM=DESARM");
+        }
     }
 
     /* Sub-teste 5.2: heap livre do FreeRTOS em bytes */
@@ -137,6 +165,7 @@ static void apply_ps4_to_esc(const ps4_input_state_t *st)
     if (!st->connected) {
         if (fsm_system_get_state() == ESC_STATE_RUNNING) {
             fsm_system_request_disarm();
+            s_require_r2_release = true;
         }
         return;
     }
@@ -149,24 +178,34 @@ static void apply_ps4_to_esc(const ps4_input_state_t *st)
         return;
     }
 
+    // Etapa 2b: Share (borda) — desarme imediato em RUNNING (fallback se R2 colado)
+    if (st->share_pressed && fsm_system_get_state() == ESC_STATE_RUNNING) {
+        fsm_system_request_disarm();
+        s_require_r2_release = true;
+        motor_control_set_target_amps(0.0f);
+        motor_control_set_target_rpm(0.0f);
+        return;
+    }
+
     // Etapa 3: em FAULT sem clear — ignora demais entradas
     if (fsm_system_get_state() == ESC_STATE_FAULT) {
         return;
     }
 
-    // Etapa 4: após clear fault, aguarda R2 em zero antes de aceitar novo arm
+    // Etapa 4: após clear fault ou desarme, aguarda gatilho solto antes de re-armar
     if (s_require_r2_release) {
-        if (st->r2_raw > 0U) {
+        if (st->throttle_active) {
             return;
         }
 
         s_require_r2_release = false;
     }
 
-    // Etapa 5: R2 solto (≤ limiar) — desarm, zera setpoint, permite trocar sentido (Circle)
-    if (st->r2_raw <= PS4_R2_ARM_THRESHOLD) {
+    // Etapa 5: gatilho solto (pós-cal) — desarm e zera setpoint
+    if (!st->throttle_active) {
         if (fsm_system_get_state() == ESC_STATE_RUNNING) {
             fsm_system_request_disarm();
+            s_require_r2_release = true;
         }
 
         motor_control_set_target_amps(0.0f);
@@ -175,8 +214,14 @@ static void apply_ps4_to_esc(const ps4_input_state_t *st)
         return;
     }
 
-    // Etapa 6: R2 pressionado em IDLE — tenta arm (recusado se UVLO ou OCP ativo)
+    // Etapa 6: aguarda calibração R2 e pressão do gatilho para arm em IDLE
     if (fsm_system_get_state() == ESC_STATE_IDLE) {
+#if !BOARD_ENABLE_SERIAL_HMI
+        if (!ps4_input_r2_calibrated()) {
+            return;
+        }
+#endif
+
         if (!fsm_system_request_arm()) {
             return;
         }
@@ -292,26 +337,49 @@ static void push_wifi_telemetry(const ps4_input_state_t *ps4)
 void setup()
 {
     /* Segurança de potência antes de Wi-Fi/BT: SD em shutdown e pinos PWM em GPIO LOW. */
-    (void)hal_gpio_init();
-    (void)hal_pwm_hold_pins_low();
+    (void)hal_motor_init();
 
     Serial.begin(115200);
     delay(100);
 
-    Serial.println("\n--- ESC BLDC: controle PS4 (Bluepad32) ---");
-    Serial.println("Serial: telemetria somente leitura.");
+    esc_radio_quiet_init();
+
+    Serial.println("\n--- ESC BLDC: bancada inversor ---");
+#if BOARD_ENABLE_SERIAL_HMI
+    Serial.println("HMI: Serial USB (monitor 115200).");
+    Serial.println("  A/a = arm/disarm   + = sobe setpoint   - = desce setpoint   espaco = e-stop");
+    Serial.println("  c/C = clear fault (sai de FAULT para IDLE)");
+#elif BOARD_ENABLE_PS4_BT
+    Serial.println("--- ESC BLDC: controle PS4 (Bluepad32) ---");
     Serial.println("Pairing PS4: Share + PS ate LED piscar; ESP32 escaneia automaticamente.");
+    Serial.printf("R2: aguarde cal (2 s em repouso, R2=0) antes de pressionar.\n");
+#endif
+    Serial.println("Serial: telemetria somente leitura.");
 #if BOARD_ENABLE_BEMF_ZCD
     Serial.println("ZCD BEMF: habilitado (handover OPEN->ZCD se hardware OK)");
 #else
     Serial.println("ZCD BEMF: desabilitado — comutacao malha aberta com rampa");
 #endif
-    Serial.printf("Controle: mode=%s  R2=%s | Bolinha=CCW | Options=clear fault\n",
+#if MOTOR_SWAP_PHASES_BC
+    Serial.println("Motor: MOTOR_SWAP_PHASES_BC=1 (fases B/C trocadas)");
+#endif
+#if MOTOR_BENCH_FIX_RUN_OPEN_F_EL
+    Serial.printf("Bancada: RUN_OPEN f_el fixo %.1f Hz (~%.0f RPM) — R2 arma/desarma\n",
+                  (double)MOTOR_BENCH_RUN_OPEN_F_EL_HZ,
+                  (double)(MOTOR_BENCH_RUN_OPEN_F_EL_HZ * 60.0f /
+                           (float)MOTOR_POLE_PAIRS));
+#endif
+    Serial.printf("Controle: mode=%s  setpoint=%s",
                   motor_control_control_mode_name(motor_control_get_control_mode()),
 #if MOTOR_CONTROL_DEFAULT_MODE == MOTOR_CONTROL_MODE_SPEED
                   "RPM");
 #else
                   "corrente");
+#endif
+#if BOARD_ENABLE_PS4_BT
+    Serial.println(" | Bolinha=CCW | Share=desarm | Options=clear fault");
+#else
+    Serial.println("");
 #endif
 
     /* Wi-Fi ANTES do Bluetooth: o ESP-IDF exige que o modo Wi-Fi seja configurado
@@ -324,13 +392,28 @@ void setup()
     Serial.println("[WiFi] Dashboard desligado (BOARD_ENABLE_WIFI_TELEMETRY=0).");
 #endif
 
+#if BOARD_ENABLE_PS4_BT
     if (!ps4_input_init()) {
-        Serial.println("ps4_input_init: FALHA");
+        Serial.println("[PS4] init: FALHA");
     }
+#else
+    Serial.println("[PS4] Bluetooth desligado (BOARD_ENABLE_PS4_BT=0).");
+#endif
+
+#if BOARD_ENABLE_SERIAL_HMI
+    if (!serial_hmi_init()) {
+        Serial.println("[Serial HMI] init: FALHA");
+    } else {
+        Serial.println("[Serial HMI] ativo (Core 0, poll 20 ms).");
+    }
+#endif
 
     if (!fsm_system_init()) {
         Serial.println("fsm_system_init: FAULT");
     } else {
+        if (!hal_motor_reclaim_outputs()) {
+            Serial.println("[HAL] reclaim SD FALHOU");
+        }
         Serial.printf("fsm_system_init: %s\n",
                       fsm_system_state_name(fsm_system_get_state()));
         Serial.printf("Pack LiPo: %uS (auto)  UVLO cutoff=%.1f V  recover=%.1f V\n",
@@ -364,8 +447,15 @@ void loop()
     const uint32_t now_ms = millis();
     const esc_state_t esc_state = fsm_system_get_state();
 
-#if BOARD_ENABLE_WIFI_TELEMETRY && WIFI_TELEMETRY_DEFER_IN_RUNNING
     static esc_state_t s_prev_esc_state = ESC_STATE_INIT;
+
+    if (esc_state != s_prev_esc_state) {
+        Serial.printf("[FSM] %s -> %s\n",
+                      fsm_system_state_name(s_prev_esc_state),
+                      fsm_system_state_name(esc_state));
+    }
+
+#if BOARD_ENABLE_WIFI_TELEMETRY && WIFI_TELEMETRY_DEFER_IN_RUNNING
     static uint32_t s_last_light_wifi_ms = 0;
 
     if (esc_state == ESC_STATE_RUNNING && s_prev_esc_state != ESC_STATE_RUNNING) {
@@ -380,15 +470,32 @@ void loop()
     }
 #endif
 
+    s_prev_esc_state = esc_state;
+
     if ((now_ms - last_poll_ms) >= PS4_INPUT_POLL_MS) {
         last_poll_ms = now_ms;
 
+#if BOARD_ENABLE_PS4_BT
         if (ps4_input_update(&ps4)) {
             apply_ps4_to_esc(&ps4);
 
             ps4_input_set_led_status(
                 led_status_from_fsm(ps4.connected, fsm_system_get_state()));
         }
+#elif BOARD_ENABLE_SERIAL_HMI
+        if (serial_hmi_update(&ps4)) {
+            const esc_state_t fsm_before = fsm_system_get_state();
+            apply_ps4_to_esc(&ps4);
+            const esc_state_t fsm_after = fsm_system_get_state();
+
+            if (fsm_before != fsm_after) {
+                Serial.printf("[FSM] %s -> %s\n",
+                              fsm_system_state_name(fsm_before),
+                              fsm_system_state_name(fsm_after));
+                s_prev_esc_state = fsm_after;
+            }
+        }
+#endif
     }
 
     /* Telemetria serial 500 ms (IDLE e RUNNING). Wi-Fi push só com dashboard ativo. */
@@ -434,4 +541,6 @@ void loop()
 #if BOARD_ENABLE_WIFI_TELEMETRY && WIFI_TELEMETRY_DEFER_IN_RUNNING
     s_prev_esc_state = esc_state;
 #endif
+
+    vTaskDelay(1);
 }

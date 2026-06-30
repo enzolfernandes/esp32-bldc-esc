@@ -233,13 +233,19 @@ A abordagem adotada é top-down: especificação da carga → dimensionamento da
 - **Arquitetura:** ESP32 em modo AP (`ESC-Dashboard`, `192.168.4.1`); módulo `wifi_telemetry`; ESPAsyncWebServer; LittleFS (`index.html`, `chart.min.js`); HTTP polling `GET /data` (1 s no browser, snapshot atualizado a 100 ms no firmware)
 - **Payload JSON:** FSM, correntes, VBAT, RPM, PI, latência tick, heap, `ps4c`/R2/Circle, fault
 - **Coexistência:** Wi-Fi inicializado antes do Bluetooth; ADC1 inalterado; WebSocket descartado por consumo de heap (~19 KB/cliente)
-- **Deploy:** `pio run -t upload` + `pio run -t uploadfs`
+- **Deploy:** `pio run -t upload` + `pio run -t uploadfs` (Wi-Fi **desligado por padrão** na bancada: `BOARD_ENABLE_WIFI_TELEMETRY=0`)
+
+#### Interface de comando e boot (jun/2026)
+
+- **Default bancada:** Serial HMI (`BOARD_ENABLE_SERIAL_HMI=1`, monitor USB 115200); PS4 opcional (`BOARD_ENABLE_PS4_BT=0`)
+- **Boot:** `hal_motor_init` → Serial → `esc_radio_quiet_init` → Wi-Fi/HMI opcional → `fsm_system_init` → `hal_motor_reclaim_outputs`
+- **Telemetria serial:** 500 ms (Wi-Fi off); referência: `Firmware/DOCUMENTACAO_PROGRAMACAO.md`
 
 #### Firmware — Máquina de Estados de Comutação
 
 - **Estado 1 — Alinhamento (Estático):**
   - Energização de um par de fases (ex: Fase A High, Fase B Low)
-  - Duração: 500 ms (corrente DC constante)
+  - Duração: **100 ms**; duty **3 %** com rampa linear (`align_ramp_duty_percent()`)
   - Objetivo: posição inicial θ₀ conhecida antes do início do movimento
 
 - **Estado 2 — Aceleração em Malha Aberta (Blind Commutation):**
@@ -390,7 +396,7 @@ Este capítulo valida experimentalmente e computacionalmente as decisões de pro
 3. **Operação da proteção OCP (LM339 + INA240):** validar o tempo de resposta do Wired-OR em condição real de sobrecorrente e confirmar que o bloqueio do MCPWM ocorre dentro dos limites seguros.
 4. **Temperatura de junção dos MOSFETs:** validar a necessidade (ou não) de dissipador térmico adicional além dos copper pours do PCB.
 5. **Qualidade do sinal ZCD com o circuito de sensoriamento final:** confirmar que a reconstrução do neutro virtual, a filtragem RC e os comparadores LM339 fornecem sinais de ZCD limpos e sem disparos espúrios na faixa de 5% a 100% da velocidade nominal.
-6. **Partida sensorless com o firmware embarcado no ESP32:** validar a máquina de estados (alinhamento 500ms → rampa → ZCD) com o hardware físico, incluindo o ajuste fino dos parâmetros de rampa para o motor Turnigy XK3674.
+6. **Partida sensorless com o firmware embarcado no ESP32:** validar a máquina de estados (alinhamento **100 ms** / 3 % → rampa → ZCD) com o hardware físico, incluindo o ajuste fino dos parâmetros de rampa para o motor em bancada (A2212/10T; Turnigy XK3674 como alvo nominal).
 7. **Impacto da assimetria de turn-on/turn-off (Schottky 1N5819):** confirmar quantitativamente a redução do shoot-through e do ringing em relação a um gate com resistor simétrico.
 
 ---
@@ -885,7 +891,7 @@ A abordagem é top-down, estruturada em cinco etapas sequenciais:
 
 - **Problema:** FCEM = K_e × ω → nula em ω=0. Comparadores cegos na partida.
 - **Estado 1 — Alinhamento (estático):**
-  - Aplicação de tensão DC constante em par de fases (ex: Fase A High, Fase B Low) por **500 ms**
+  - Aplicação de tensão DC em par de fases (ex: Fase A High, Fase B Low) por **100 ms**, duty **3 %** com rampa
   - O rotor se alinha com o campo estático → posição θ₀ conhecida
   - Duração e magnitude são parâmetros críticos: insuficientes → torque inicial fraco → falha na partida
 - **Estado 2 — Aceleração em Malha Aberta (Blind Commutation):**
@@ -976,7 +982,7 @@ A abordagem é top-down, estruturada em cinco etapas sequenciais:
 
 3. **Validação da capacitância do Link DC (940µF):** o dimensionamento teórico prevê que 940µF é suficiente para absorver os transientes de corrente. A simulação e os ensaios práticos **devem** quantificar a eficácia do banco (amplitude residual de ripple de tensão no barramento) e confirmar que os capacitores não sobreaquecem.
 
-4. **Calibração empírica dos parâmetros de partida sensorless:** o capítulo fixa arbitrariamente 500ms para o alinhamento e um perfil de rampa genérico. Os resultados **devem** apresentar a calibração experimental desses parâmetros (tempo de alinhamento, taxa de incremento da rampa, limiar de transição para ZCD) para o motor Turnigy XK3674 específico.
+4. **Calibração empírica dos parâmetros de partida sensorless:** o firmware em bancada (jun/2026) fixa **100 ms** e **3 %** com rampa para ALIGN; ensaios com A2212 validam rampa e handover ZCD. Parâmetros para o Turnigy XK3674 permanecem item de calibração futura.
 
 5. **Validação do ganho do amplificador de corrente (A_v = 73):** o ganho foi calculado assumindo que 91A de pico gera 45,5mV no shunt de 0,5mΩ. Os resultados **devem** confirmar a linearidade e precisão da cadeia de sensoriamento (shunt + amplificador) e validar o ajuste do limiar de OCP.
 
@@ -1200,9 +1206,9 @@ Seção de validação arquitetural do firmware, independente dos ensaios físic
 | Subseção | Conteúdo |
 |----------|----------|
 | Arquitetura Modular e Isolamento da HAL | Demonstração por inspeção estrutural da inversão de dependência: `pid_regulator` não referencia `board_config.h`; conversão de tensão→corrente confinada em `ina240_current_sensors`; compilação condicional `BOARD_ENABLE_BEMF_ZCD` e `MOTOR_CONTROL_USE_SPEED_MODE`. Escolha PI (não P/PID) referenciada à Seção `sec:controle_pi`; implementação detalhada em `subsec:estrategia_pi` |
-| Máquina de Estados e Robustez das Transições | Sequência determinística de inicialização (9 etapas); análise das guardas de transição IDLE→RUNNING (UVLO + fault check); sub-FSM de partida ALIGN→RUN\_OPEN→RUN\_SPEED; inversão de sentido bloqueada com torque ativo |
-| Rotinas de Proteção e Tratamento de Exceções | OCP hardware (LM339 → ISR IRAM\_ATTR → $t_{resp}$ microssegundos); OCP software (`motor_control_tick()`, 1 ms); UVLO (debounce 100 ms, histerese 200 mV/célula); Detecção de Stall (3 critérios independentes); sequência unificada `enter_fault_state()` |
-| Parametrização e Comportamento com A2212/10T | Justificativa de `MOTOR_POLE_PAIRS = 7U` e `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f`; equação de estimativa de RPM; mapeamento R2→setpoint; filtro exponencial de RPM (7/8 + 1/8); interface DualShock 4 e lightbar FSM |
+| Máquina de Estados e Robustez das Transições | Boot: `hal_motor` → `esc_radio_quiet` → FSM; Serial HMI ou PS4; sub-FSM ALIGN (100 ms, 3 %) → RUN\_OPEN → RUN\_SPEED; clear fault via Options ou `c`/`C` |
+| Rotinas de Proteção e Tratamento de Exceções | OCP hardware 25 A (LM339); OCP software 15 A; ISR → `hal_motor_emergency_shutdown()`; `enter_fault_state()` → `hal_motor_disarm()` |
+| Parametrização e Comportamento com A2212/10T | `MOTOR_POLE_PAIRS = 7U`; `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f`; interface Serial HMI (default) ou DualShock 4 |
 
 **Lacunas (LACUNA BANCADA)** presentes nesta seção:
 - Oscilograma da sequência de partida (ALIGN → RUN\_OPEN → RUN\_SPEED)
@@ -1324,7 +1330,7 @@ Nesta velocidade, a FCEM é proporcional a \(K_e \cdot \omega_{handover}\), sufi
 
 - A troca do motor de teste não altera a lógica de comutação, as malhas de controle PI, os circuitos de proteção (OCP, UVLO) nem os demais parâmetros de firmware.
 - Apenas os parâmetros físicos do motor — `MOTOR_POLE_PAIRS` e `MOTOR_OPEN_LOOP_COMM_HZ_MAX` — foram ajustados, derivando automaticamente `MOTOR_SPEED_MAX_RPM ≈ 2571 RPM`.
-- Os testes em bancada com A2212 visam validar a máquina de estados de partida sensorless (alinhamento 500 ms → rampa → ZCD) e a eficácia das proteções (OCP hardware e software) em condições de carga controlada (corrente limitada a 3 A), antes de progressão para o motor nominal de alta corrente.
+- Os testes em bancada com A2212 visam validar a máquina de estados de partida sensorless (alinhamento **100 ms** / 3 % → rampa → ZCD) e a eficácia das proteções (OCP hardware **25 A** e software **15 A**) em condições de carga controlada (corrente limitada a 3 A), com interface **Serial HMI** por padrão, antes de progressão para o motor nominal de alta corrente.
 
 ---
 
@@ -1396,7 +1402,7 @@ Três setups sequenciais com motor desconectado, alimentação 12 V / 100 mA:
 
 ### Consistência com o restante do documento
 
-- Parâmetros do firmware respeitados: dead-time 500 ns, limiar OCP 8 A → $V_{dac} \approx 1{,}81\,\text{V}$, ganho INA240 20 V/V, shunt 1 mΩ, GPIO 26 (OC Trip), DAC1 GPIO 25, calibração runtime por `ina240_calibrate_offset(64)`.
+- Parâmetros do firmware respeitados: dead-time 500 ns, limiar OCP hardware **25 A** (`LM339_OCP_DAC_RAW`), OCP software **15 A** (`MOTOR_SOFTWARE_OC_AMPS`), ganho INA240 20 V/V, shunt 1 mΩ, GPIO 26 (OC Trip), DAC1 GPIO 25, offset manual INA240 + cal em `fsm_system_init`.
 - A calibração do INA240 **não** usa constante estática em `board_config.h`; é runtime, com o multímetro servindo apenas de verificação cruzada.
 - Equações inseridas: $\Delta V_{out} = G \cdot V_{shunt}$ (Eq. do ganho INA240); $di/dt|_{max} = V_{DC}/L$ (análise de tempo de resposta OCP); $\Delta V_C = I_{ripple} \cdot D / (f_{sw} \cdot C_{bus})$ (ripple teórico do barramento).
 - Novos termos usados no texto: **ESR** e **ESL** — entradas adicionadas ao `GLOSSARIO_TERMOS.md` em 2026-06-22.

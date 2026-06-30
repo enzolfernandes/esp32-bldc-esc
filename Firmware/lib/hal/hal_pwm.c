@@ -2,7 +2,8 @@
  * hal_pwm.c — MCPWM: seis saídas complementares para inversor trifásico (IR2110).
  *
  * Camada: HAL. Chamado por motor_control (comutação 6-step) e fsm_system (arm/disarm).
- * Frequência 20 kHz, dead-time 500 ns. Modos por fase: OFF, SOURCE (PWM high-side), SINK (low-side ON).
+ * Frequência 20 kHz. Dead-time no IR2110 (~520 ns); MCPWM sem complement (HO/LO independentes).
+ * Modos por fase: OFF, SOURCE (PWM high-side), SINK (low-side ON).
  *
  * Boot: pinos permanecem GPIO LOW até hal_pwm_set_armed(true) (attach MCPWM só no arm).
  */
@@ -14,6 +15,7 @@
 #include "driver/gpio.h"
 #include "driver/mcpwm.h"
 
+#include <stdio.h>
 #include <stddef.h>
 
 static bool s_armed = false;
@@ -46,14 +48,6 @@ static const int s_all_pwm_pins[] = {
     PIN_PWM_CH,
     PIN_PWM_CL,
 };
-
-/** Converte DEAD_TIME_NS em ticks do MCPWM (passo de 100 ns no driver ESP-IDF). */
-static uint32_t dead_time_ticks(void)
-{
-    uint32_t ticks = DEAD_TIME_NS / 100U;
-
-    return (ticks == 0U) ? 1U : ticks;
-}
 
 /** Limita duty ao teto de 95 % (margem para bootstrap do IR2110). */
 static float clamp_duty(float duty_percent)
@@ -106,7 +100,7 @@ static void force_phase_outputs_low(mcpwm_timer_t timer)
 /**
  * @brief Configura timer, duty 0 % em A/B, dead-time e saídas LOW (sem attach GPIO).
  */
-static esp_err_t configure_phase_timer(mcpwm_timer_t timer, uint32_t dead_ticks)
+static esp_err_t configure_phase_timer(mcpwm_timer_t timer)
 {
     const mcpwm_config_t pwm_config = {
         .frequency = PWM_FREQUENCY_HZ,
@@ -126,11 +120,11 @@ static esp_err_t configure_phase_timer(mcpwm_timer_t timer, uint32_t dead_ticks)
     mcpwm_set_duty(MCPWM_UNIT_0, timer, MCPWM_OPR_A, 0.0f);
     mcpwm_set_duty(MCPWM_UNIT_0, timer, MCPWM_OPR_B, 0.0f);
 
-    err = mcpwm_deadtime_enable(MCPWM_UNIT_0, timer, MCPWM_ACTIVE_HIGH_COMPLIMENT_MODE,
-                                dead_ticks, dead_ticks);
-    if (err != ESP_OK) {
-        return err;
-    }
+    /*
+     * Complement MCPWM acopla HO/LO — inviável para 6-step (HO PWM + LO fixo em fases distintas).
+     * Dead-time fica a cargo do IR2110 (datasheet ~520 ns).
+     */
+    mcpwm_deadtime_disable(MCPWM_UNIT_0, timer);
 
     force_phase_outputs_low(timer);
 
@@ -166,6 +160,17 @@ static bool attach_pwm_gpios(void)
         force_phase_outputs_low(timer);
     }
 
+    for (int phase = 0; phase < HAL_PWM_PHASE_COUNT; phase++) {
+        const esp_err_t start_err =
+            mcpwm_start(MCPWM_UNIT_0, s_phase_timers[phase]);
+
+        if (start_err != ESP_OK) {
+            printf("[HAL] MCPWM start timer %d FALHOU err=%d\n", phase,
+                   (int)start_err);
+            return false;
+        }
+    }
+
     s_gpio_attached = true;
 
     return true;
@@ -195,14 +200,12 @@ static void detach_pwm_gpios(void)
  */
 bool hal_pwm_init(void)
 {
-    const uint32_t dead_ticks = dead_time_ticks();
-
     if (!hal_pwm_hold_pins_low()) {
         return false;
     }
 
     for (int phase = 0; phase < HAL_PWM_PHASE_COUNT; phase++) {
-        if (configure_phase_timer(s_phase_timers[phase], dead_ticks) != ESP_OK) {
+        if (configure_phase_timer(s_phase_timers[phase]) != ESP_OK) {
             return false;
         }
     }
@@ -217,26 +220,47 @@ bool hal_pwm_init(void)
     return true;
 }
 
-/** Autoriza saída PWM; true faz attach MCPWM→GPIO (drivers ainda via hal_shutdown). */
-void hal_pwm_set_armed(bool armed)
+/** Autoriza saída PWM; true faz attach MCPWM→GPIO (SD por fase via hal_motor). */
+bool hal_pwm_set_armed(bool armed)
 {
     if (armed) {
         if (!attach_pwm_gpios()) {
             s_armed = false;
-            return;
+            printf("[HAL] MCPWM attach FALHOU — PWM inativo\n");
+            return false;
         }
         s_armed = true;
-        return;
+        printf("[HAL] MCPWM attach OK  freq=%u Hz\n", (unsigned)PWM_FREQUENCY_HZ);
+        return true;
     }
 
     s_armed = false;
     hal_pwm_disable_all();
     detach_pwm_gpios();
+    return true;
 }
 
 bool hal_pwm_is_armed(void)
 {
     return s_armed;
+}
+
+/** Força gerador em nível baixo (fase OFF ou perna inativa). */
+static void force_generator_off(mcpwm_timer_t timer, mcpwm_generator_t gen)
+{
+    mcpwm_set_signal_low(MCPWM_UNIT_0, timer, gen);
+}
+
+/**
+ * PWM no gerador: duty_type antes de duty libera force de set_signal_low/high.
+ * Ref.: ESP-IDF legacy MCPWM — ordem invertida deixa o gerador preso em LOW.
+ */
+static void set_generator_pwm(mcpwm_timer_t timer, mcpwm_generator_t gen, float duty_percent)
+{
+    const float duty = clamp_duty(duty_percent);
+
+    mcpwm_set_duty_type(MCPWM_UNIT_0, timer, gen, MCPWM_DUTY_MODE_0);
+    mcpwm_set_duty(MCPWM_UNIT_0, timer, gen, duty);
 }
 
 /** Ambas pernas em nível baixo — fase flutuante (passo 6-step com C OFF, etc.). */
@@ -245,14 +269,14 @@ static void set_phase_off(hal_pwm_phase_t phase)
     if (s_gpio_attached) {
         const mcpwm_timer_t timer = s_phase_timers[phase];
 
-        mcpwm_set_signal_low(MCPWM_UNIT_0, timer, MCPWM_OPR_A);
-        mcpwm_set_signal_low(MCPWM_UNIT_0, timer, MCPWM_OPR_B);
+        force_generator_off(timer, MCPWM_GEN_A);
+        force_generator_off(timer, MCPWM_GEN_B);
     }
 
     s_phase_mode[phase] = HAL_PWM_COND_OFF;
 }
 
-/** PWM na perna high-side (SOURCE); low-side complementar com dead-time. */
+/** PWM na perna high-side (SOURCE); low-side desligada. */
 static void set_phase_source(hal_pwm_phase_t phase, float duty_percent)
 {
     if (!s_gpio_attached) {
@@ -262,12 +286,12 @@ static void set_phase_source(hal_pwm_phase_t phase, float duty_percent)
 
     const mcpwm_timer_t timer = s_phase_timers[phase];
 
-    mcpwm_set_duty_type(MCPWM_UNIT_0, timer, MCPWM_OPR_A, MCPWM_DUTY_MODE_0);
-    mcpwm_set_duty(MCPWM_UNIT_0, timer, MCPWM_OPR_A, clamp_duty(duty_percent));
+    force_generator_off(timer, MCPWM_GEN_B);
+    set_generator_pwm(timer, MCPWM_GEN_A, duty_percent);
     s_phase_mode[phase] = HAL_PWM_COND_SOURCE;
 }
 
-/** Low-side condutora contínua (SINK); high-side desligada. */
+/** Low-side condutora contínua (SINK): HO off, LO nível alto fixo (não duty 100 %). */
 static void set_phase_sink(hal_pwm_phase_t phase)
 {
     if (!s_gpio_attached) {
@@ -277,8 +301,8 @@ static void set_phase_sink(hal_pwm_phase_t phase)
 
     const mcpwm_timer_t timer = s_phase_timers[phase];
 
-    mcpwm_set_duty_type(MCPWM_UNIT_0, timer, MCPWM_OPR_A, MCPWM_DUTY_MODE_0);
-    mcpwm_set_duty(MCPWM_UNIT_0, timer, MCPWM_OPR_A, 0.0f);
+    force_generator_off(timer, MCPWM_GEN_A);
+    mcpwm_set_signal_high(MCPWM_UNIT_0, timer, MCPWM_GEN_B);
     s_phase_mode[phase] = HAL_PWM_COND_SINK;
 }
 

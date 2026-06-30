@@ -35,7 +35,7 @@ O grafo Mermaid **não** inclui este bloco — evita poluir o layout.
 | Oval | Início / retorno de ISR |
 | Retângulo | Processo |
 | Losango | Decisão |
-| Paralelogramo implícito | Entrada/Saída (PS4, telemetria, LED) |
+| Paralelogramo implícito | Entrada/Saída (Serial HMI, PS4, telemetria) |
 | Seta sólida | Sequência **dentro** do mesmo fluxo |
 | Seta tracejada numerada | **Acoplamento** entre fluxos (flags, arm, setpoint) |
 
@@ -45,8 +45,8 @@ O grafo Mermaid **não** inclui este bloco — evita poluir o layout.
 
 | ID | Origem | Destino | Mecanismo no firmware |
 |----|--------|---------|------------------------|
-| ① | Fluxo A · `P03` fsm_system_init | Fluxo B · disparo 1 ms | `motor_control_init()` em `fsm_system_init()` cria `esp_timer` 1 kHz |
-| ② | Fluxo A · `P03` fsm_system_init | Fluxo C · OC Trip | `lm339_protection_arm()` em `fsm_system_init()` habilita EXTI |
+| ① | Fluxo A · `P04` fsm_system_init | Fluxo B · disparo 1 ms | `motor_control_init()` em `fsm_system_init()` cria `esp_timer` 1 kHz |
+| ② | Fluxo A · `P04` fsm_system_init | Fluxo C · OC Trip | `lm339_protection_arm()` em `fsm_system_init()` habilita EXTI |
 | ③ | Fluxo A · `ARM` | Fluxo B · `motor_control ativo?` | `motor_control_on_arm()` → `s_active=true` |
 | ④ | Fluxo A · `P24` desarme | Fluxo B · ticks inativos | `motor_control_on_disarm()` → tick retorna sem PWM |
 | ⑤ | Fluxo A · `P26` setpoint | Fluxo B · PI corrente | `motor_control_set_target_*()` alimenta malha 1 kHz |
@@ -59,15 +59,11 @@ O grafo Mermaid **não** inclui este bloco — evita poluir o layout.
 
 ## Nota calibração INA240 (rodapé da figura — Fluxo A)
 
-Calibração de offset em **três etapas** no boot:
+**Perfil bancada (default):** `esc_radio_quiet_init()` desliga BT; cal INA240 em `fsm_system_init()` se necessário; offset manual (`INA240_USE_MANUAL_OFFSET=1`, 1670/1480/1510 mV).
 
-| Nó | Etapa | Função firmware |
-|----|-------|-----------------|
-| `P00` | Early cal | `initVariant()` → `esc_boot_early_calibrate()` — 128 amostras, RF mínimo |
-| `P05` | Pós-Wi-Fi | `ina240_recalibrate_after_wifi()` — log `[Post-WiFi]` |
-| `P07` | Pós-PS4 | `ina240_recalibrate_runtime()` — log `[Post-PS4]` |
+**Perfil histórico PS4+Wi-Fi:** três etapas (`initVariant` early cal → recal pós-AP → recal pós-BT) — APIs no driver, não invocadas no `main.cpp` atual.
 
-Recals atualizam `adc_zero` e `bench_corr` sem alterar offset manual do multímetro (`INA240_USE_MANUAL_OFFSET=1`). No Fluxo B, fase A (GPIO 34) usa mediana 8× + EMA α=0,05 em runtime. Ver [§4.3.4.1](../../DOCUMENTACAO_PROGRAMACAO.md#4341-ina240--canal-a-gpio-34).
+No Fluxo B, fase A (GPIO 34) usa **mediana 16×** + EMA α=0,05 em runtime. Ver [§4.3.4.1](../../DOCUMENTACAO_PROGRAMACAO.md#4341-ina240--canal-a-gpio-34).
 
 ---
 

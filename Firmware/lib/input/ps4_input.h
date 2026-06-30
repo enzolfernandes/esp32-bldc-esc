@@ -16,8 +16,12 @@ extern "C" {
 typedef struct {
     bool connected;
     bool options_pressed;  /**< Borda de subida do botão Options (clear fault) */
+    bool share_pressed;    /**< Borda de subida do Share — desarme imediato */
     bool circle_pressed;     /**< Circle (○): CCW quando pressionado */
-    uint8_t r2_raw;          /**< Gatilho direito 0–255 após deadzone */
+    uint8_t r2_raw;          /**< Gatilho direito bruto 0–255 (Bluepad32) */
+    uint8_t r2_rest;         /**< Offset de repouso aprendido na calibração */
+    uint8_t r2_effective;    /**< r2_raw − r2_rest − margem, limitado a 0–255 */
+    bool throttle_active;    /**< true = gatilho acima do limiar efetivo de arm */
     float target_amps;       /**< Mapeamento linear para modo CURRENT */
     float target_rpm;        /**< Mapeamento linear para modo SPEED */
     int8_t direction;        /**< +1 CW, -1 CCW */
@@ -34,6 +38,7 @@ typedef enum {
 bool ps4_input_init(void);
 bool ps4_input_update(ps4_input_state_t *out);
 bool ps4_input_is_connected(void);
+bool ps4_input_r2_calibrated(void);
 void ps4_input_set_led_status(ps4_led_status_t status);
 
 #ifdef __cplusplus

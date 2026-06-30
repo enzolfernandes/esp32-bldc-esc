@@ -15,24 +15,49 @@
 // JTAG (ESP-Prog): GPIO12 MTDI, 13 MTCK, 14 TMS, 15 MTDO
 // Flash SPI interna: GPIO6–11
 
-/* --- Pinos MCPWM: saídas complementares AH/AL, BH/BL, CH/CL para os IR2110 --- */
-#define PIN_PWM_AH    21
-#define PIN_PWM_AL    22
-#define PIN_PWM_BH    27
-#define PIN_PWM_BL    23   // evita GPIO14 (TMS/JTAG)
-#define PIN_PWM_CH    18
-#define PIN_PWM_CL    19
+// ==========================================
+// MAPEAMENTO LÓGICO DEFINITIVO (PORTAS 'D')
+// ==========================================
 
-/* --- Shutdown IR2110: SD ativo em nível baixo no CI (LOW = drivers desligados) --- */
-#define PIN_SD_A      32
-#define PIN_SD_B      33
-#define PIN_SD_C      4
+// --- FASE A ---
+#define PIN_AH            19
+#define PIN_AL            22
+#define PIN_SHUTDOWN_A    32
 
-/* --- ADC1: correntes de fase e VBAT (input-only; seguro com Bluetooth ativo) --- */
-#define PIN_ADC_IA    34   // ADC1_CH6 (input-only)
-#define PIN_ADC_IB    35   // ADC1_CH7 (input-only)
-#define PIN_ADC_IC    36   // ADC1_CH0 / SENSOR_VP (input-only)
-#define PIN_ADC_VBAT  39   // ADC1_CH3 / SENSOR_VN (input-only)
+// --- FASE B ---
+#define PIN_BH            27
+#define PIN_BL            23
+#define PIN_SHUTDOWN_B    33
+
+// --- FASE C ---
+#define PIN_CH            15
+#define PIN_CL            18
+#define PIN_SHUTDOWN_C    4
+
+/* Aliases legados (hal_pwm / docs) */
+#define PIN_PWM_AH        PIN_AH
+#define PIN_PWM_AL        PIN_AL
+#define PIN_PWM_BH        PIN_BH
+#define PIN_PWM_BL        PIN_BL
+#define PIN_PWM_CH        PIN_CH
+#define PIN_PWM_CL        PIN_CL
+#define PIN_SD_A          PIN_SHUTDOWN_A
+#define PIN_SD_B          PIN_SHUTDOWN_B
+#define PIN_SD_C          PIN_SHUTDOWN_C
+
+/** IR2110 SD (datasheet): HIGH = HO/LO High-Z; LOW = segue HIN/LIN. */
+#define IR2110_SD_SHUTDOWN_LEVEL  1
+#define IR2110_SD_ENABLE_LEVEL    0
+
+// --- SENSORES DE CORRENTE E TENSÃO ---
+#define PIN_ISENSE_A      34
+#define PIN_ISENSE_B      35
+#define PIN_ISENSE_C      36  /* VP */
+#define PIN_VCC_SENSE     39  /* VN */
+#define PIN_ADC_IA        PIN_ISENSE_A
+#define PIN_ADC_IB        PIN_ISENSE_B
+#define PIN_ADC_IC        PIN_ISENSE_C
+#define PIN_ADC_VBAT      PIN_VCC_SENSE
 
 /** Calibração de offset INA240 no boot (128 amostras por fase). */
 #define INA240_CALIBRATION_SAMPLES  128U
@@ -61,9 +86,9 @@
 #define INA240_RECAL_AFTER_PS4          0
 #define INA240_RECAL_AFTER_PS4_DELAY_MS 500U
 
-/* --- Proteção OCP: DAC1 gera Vdac; LM339 dispara OC Trip (GPIO26, ativo baixo) --- */
-#define PIN_VDAC_REF  25   // DAC1, referência comparadores OCP (+)
-#define PIN_OC_TRIP   26   // Entrada digital, ativo baixo + pull-up
+// --- PROTEÇÃO OCP (LM339) ---
+#define PIN_VDAC_REF      25
+#define PIN_OC_TRIP       26
 
 /* --- ZCD BEMF (opcional): comparadores para comutação sensorless por cruzamento por zero --- */
 // 0 = malha aberta (padrão). 1 = permite handover OPEN → ZCD fechado.
@@ -97,8 +122,8 @@
 #define MOTOR_OPEN_LOOP_COMM_RAMP_MAX          20.0f
 
 /** Alinhamento estático do rotor antes da rampa (tese: ~500 ms). */
-#define MOTOR_ALIGN_DURATION_MS    500U
-#define MOTOR_ALIGN_DUTY_PERCENT   12.0f
+#define MOTOR_ALIGN_DURATION_MS    100U
+#define MOTOR_ALIGN_DUTY_PERCENT   3.0f
 #define MOTOR_ALIGN_DUTY_MIN       3.0f
 #define MOTOR_ALIGN_DUTY_MAX       25.0f
 #define MOTOR_ALIGN_DURATION_MS_MIN  100U
@@ -122,10 +147,13 @@
 #define MOTOR_PI_INTEG_MAX   40.0f
 
 /** Trip de sobrecorrente em software (A); complementa LM339 na bancada. */
-#define MOTOR_SOFTWARE_OC_AMPS     8.0f
+#define MOTOR_SOFTWARE_OC_AMPS     15.0f
 
-/** Limiar OCP hardware (A) via Vdac (DAC1 → LM339 +); default = trip SW. */
-#define LM339_HW_OC_AMPS           MOTOR_SOFTWARE_OC_AMPS
+/** OCP hardware: DAC1 raw → ~2,15 V → ~25 A (shunt 1 mΩ, INA240 20 V/V). */
+#define LM339_OCP_DAC_RAW          166U
+#define LM339_OCP_AMPS_LIMIT       25.0f
+/** Limiar OCP documentado (A); referência para telemetria — HW usa LM339_OCP_DAC_RAW. */
+#define LM339_HW_OC_AMPS           LM339_OCP_AMPS_LIMIT
 
 /** Stall: corrente elevada sustentada em RUN (malha aberta dessincronizada). */
 #define MOTOR_STALL_CURRENT_AMPS   6.0f
@@ -134,17 +162,64 @@
 /** Stall: sem avanço de passo por N vezes o período esperado (RUN, I*>0). */
 #define MOTOR_STALL_STEP_TIMEOUT_MULT  4U
 
-/* --- Entrada PS4: limiares do gatilho R2 e período de polling no loop principal --- */
-/** R2 (throttle, gatilho direito) abaixo deste valor desarma; acima permite armar e mapeia corrente. */
-#define PS4_R2_ARM_THRESHOLD  10U
-/** Zona morta analógica do gatilho R2 (0–255). */
-#define PS4_R2_DEADZONE       5U
+/* --- Entrada PS4: R2 com auto-calibração de repouso (offset por controle) --- */
+#include "board_profiles.h"
+/** Janela após BT connect para aprender R2 em repouso (não pressione o gatilho). */
+#define PS4_R2_CALIB_MS          2000U
+/** Margem acima do repouso calibrado antes de considerar gatilho pressionado. */
+#define PS4_R2_REST_MARGIN       10U
+/** Travel efetivo mínimo (0–255 pós-offset) para arm / torque (histerese implícita). */
+#define PS4_R2_ARM_EFFECTIVE     12U
+/** R2 repouso=0 (Bluepad32): raw mínimo para arm/desarm (idle medido 0–4). */
+#define PS4_R2_ZERO_REST_ARM_RAW 35U
+/** 1 = troca fases B↔C (só inverte sentido; equivalente a trocar 2 fios). */
+#define MOTOR_SWAP_PHASES_BC       0
+/** 1 = RUN_OPEN em f_el fixo (bancada); R2 só arma/desarma, não acelera. */
+#define MOTOR_BENCH_FIX_RUN_OPEN_F_EL  1
+#define MOTOR_BENCH_RUN_OPEN_F_EL_HZ   8.0f
+/** Repouso em R2=0: tempo contínuo em zero para calibrar (Bluepad32 idle). */
+#define PS4_R2_ZERO_REST_MS      PS4_R2_CALIB_MS
+/** Repouso analógico elevado: spread máx. na janela e teto idle (não pressionar). */
+#define PS4_R2_STABLE_SPREAD     12U
+#define PS4_R2_STABLE_MAX_IDLE   55U
+#define PS4_R2_ANALOG_REST_MIN   8U
 /** Período de polling do controle no loop principal (ms). */
 #define PS4_INPUT_POLL_MS     20U
-/** 0 = desabilita filtro clone; lightbar sempre via setColorLED. */
+#if PS4_ACTIVE_PROFILE == PS4_PROFILE_BENCH_STABLE
+/** Perfil bancada: sem lightbar até pareamento estável. */
+#define PS4_SKIP_LIGHTBAR_ON_CLONE  1
+#else
+/** Perfil DS4 Sony original: lightbar por FSM (setColorLED). */
 #define PS4_SKIP_LIGHTBAR_ON_CLONE  0
+#endif
 /** 1 = touchpad virtual DS4 (evita log "Failed to create virtual device"). */
-#define PS4_ENABLE_VIRTUAL_DEVICE 1
+/** 0 = só controle físico na bancada; 1 = gamepad virtual Bluepad32 (pode conflitar com DS4 real). */
+#define PS4_ENABLE_VIRTUAL_DEVICE 0
+/** Nível GAP BTstack (0=off). sdkconfig.defaults não altera lib pré-compilada — aplicar em runtime. */
+#define PS4_GAP_SECURITY_LEVEL  0
+/** 1 = apaga chaves BT no boot (recovery SDP — usar UMA VEZ com PS4 esquecido também).
+ *  NÃO deixe 1 permanente: ESP apaga chaves mas PS4 tenta reconectar → sdp_query_timeout. */
+#define PS4_FORGET_BT_KEYS_ON_BOOT  0
+/** Sem conectar em N ms: apaga chaves 1× por boot e pede Share+PS (SDP/pareamento preso). */
+#define PS4_AUTO_RECOVERY_PAIRING_MS  30000U
+
+/** 1 = Bluepad32 / DualShock 4 ativo; 0 = BT desligado (bancada inversor). */
+#define BOARD_ENABLE_PS4_BT  0
+/** 1 = HMI serial via monitor USB (substitui PS4 na bancada). */
+#define BOARD_ENABLE_SERIAL_HMI  1
+
+#if BOARD_ENABLE_PS4_BT && BOARD_ENABLE_SERIAL_HMI
+#error "Ative apenas PS4 ou Serial HMI, nao ambos"
+#endif
+
+/** Task FreeRTOS do HMI serial (Core 0 — Core 1 reservado ao motor). */
+#define SERIAL_HMI_TASK_CORE   0
+#define SERIAL_HMI_TASK_STACK  2048
+#define SERIAL_HMI_TASK_PRIO   1
+#define SERIAL_HMI_POLL_MS     20U
+/** Passo de '+'/'-' em modo SPEED (RPM) ou CURRENT (A). */
+#define SERIAL_HMI_RPM_STEP    50.0f
+#define SERIAL_HMI_AMPS_STEP   0.2f
 
 /* --- UVLO: subtensão do pack LiPo; detecção automática de 4S–6S no boot --- */
 /** Faixa de packs suportados (células em série). */
@@ -177,6 +252,10 @@
 #define MOTOR_SPEED_HANDOVER_MS            200U
 /** Corrente fixa durante RUN_OPEN (modo SPEED). */
 #define MOTOR_SPEED_OPEN_LOOP_I_AMPS       0.5f
+/** Teto de f_el na partida RUN_OPEN (malha aberta forçada) até handover RUN_SPEED. */
+#define MOTOR_OPEN_LOOP_RUN_OPEN_RAMP_MAX_HZ  18.0f
+/** Velocidade de aproximação de f_el ao comando R2 em RUN_OPEN (Hz/s). */
+#define MOTOR_OPEN_LOOP_RUN_OPEN_F_EL_SLEW_HZ_PER_S  2.0f
 /** Dessincronismo RPM vs f_el_cmd em RUN_SPEED. */
 #define MOTOR_SPEED_DESYNC_RPM             200.0f
 #define MOTOR_SPEED_DESYNC_TIMEOUT_MS      300U

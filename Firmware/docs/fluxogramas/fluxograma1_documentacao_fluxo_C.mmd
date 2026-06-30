@@ -13,7 +13,7 @@ flowchart TB
 
         CSTART(["▶ Interrupção OC Trip"])
 
-        P50["PWM off · shutdown LOW"]
+        P50["hal_motor_emergency_shutdown"]
         P52["Registrar flag falha hardware"]
         END_ISR(["Retornar da ISR"])
 

@@ -20,7 +20,7 @@ As entradas estão em ordem alfabética. Cada termo inclui o nome por extenso, u
 
 [A](#a) · [B](#b) · [C](#c) · [D](#d) · [E](#e) · [F](#f) · [G](#g) · [H](#h) · [I](#i) · [J](#j) · [K](#k) · [L](#l) · [M](#m) · [N](#n) · [O](#o) · [P](#p) · [R](#r) · [S](#s) · [T](#t) · [U](#u) · [V](#v) · [W](#w) · [Z](#z)
 
-[6-step](#6-step) · [A2212](#a2212) · [ADC](#adc) · [ADC1](#adc1) · [ADC2](#adc2) · [AH / AL](#ah--al) · [ALIGN](#align) · [anti-windup](#anti-windup) · [AP](#ap) · [API](#api) · [arm](#arm) · [baud](#baud) · [BEMF](#bemf) · [BH / BL](#bh--bl) · [BLDC](#bldc) · [Bluepad32](#bluepad32) · [bootstrap](#bootstrap) · [BT](#bt) · [cascata](#cascata) · [Chart.js](#chartjs) · [CH / CL](#ch--cl) · [clear fault](#clear-fault) · [coast-down](#coast-down) · [CURRENT](#current) · [CW / CCW](#cw--ccw) · [DAC](#dac) · [DAC1](#dac1) · [dB](#db) · [Dashboard](#dashboard) · [dead-time](#dead-time) · [debounce](#debounce) · [disarm](#disarm) · [DMA](#dma) · [duty cycle](#duty-cycle) · [ESC](#esc) · [ESP-IDF](#esp-idf) · [ESP32](#esp32) · [ESPAsyncWebServer](#espasyncwebserver) · [ESP-Prog](#esp-prog) · [ESP_TIMER_TASK](#esp_timer_task) · [ESR](#esr) · [ESL](#esl) · [EXTI](#exti) · [fail-safe](#fail-safe) · [FAULT](#fault) · [feedforward](#feedforward) · [FOC](#foc) · [frequência elétrica](#frequência-elétrica) · [FreeRTOS](#freertos) · [FSM](#fsm) · [fsm_system](#fsm_system) · [GPIO](#gpio) · [ground loop](#ground-loop) · [HAL](#hal) · [handover](#handover) · [HID](#hid) · [high-side / low-side](#high-side--low-side) · [HTTP polling](#http-polling) · [Hz / kHz](#hz--khz) · [IDLE](#idle) · [INA240](#ina240) · [INIT](#init) · [IR2110](#ir2110) · [IRAM_ATTR](#iram_attr) · [Isense](#isense) · [isolamento galvânico virtual](#isolamento-galvânico-virtual) · [ISR](#isr) · [jitter](#jitter) · [JTAG](#jtag) · [Kconfig](#kconfig) · [L2](#l2) · [LDF](#ldf) · [LEDC](#ledc) · [LiPo](#lipo) · [LittleFS](#littlefs) · [LM339](#lm339) · [malha aberta / fechada](#malha-aberta--fechada) · [MCPWM](#mcpwm) · [MCU](#mcu) · [MOTOR_OPEN_LOOP_COMM_HZ_MAX](#motor_open_loop_comm_hz_max) · [MOTOR_POLE_PAIRS](#motor_pole_pairs) · [motor_control](#motor_control) · [ms / ns](#ms--ns) · [mutex](#mutex) · [OC](#oc) · [OC Trip](#oc-trip) · [OCP](#ocp) · [OFF / SOURCE / SINK](#off--source--sink) · [OPEN_LOOP](#open_loop) · [outrunner](#outrunner) · [overshoot](#overshoot) · [pares de polos](#pares-de-polos) · [PCB](#pcb) · [PI](#pi) · [pid_regulator](#pid_regulator) · [PlatformIO](#platformio) · [polling](#polling) · [power-cycle](#power-cycle) · [PS4](#ps4) · [ps4c](#ps4c) · [PWM](#pwm) · [R2](#r2) · [RC](#rc) · [RGB](#rgb) · [RPM](#rpm) · [RUN / RUN_OPEN / RUN_SPEED](#run--run_open--run_speed) · [RUNNING](#running) · [SD](#sd) · [SDK](#sdk) · [sensorless](#sensorless) · [setpoint](#setpoint) · [slew rate](#slew-rate) · [SPEED](#speed) · [SPI](#spi) · [stall](#stall) · [TCC](#tcc) · [trapezoidal](#trapezoidal) · [UART](#uart) · [UVLO](#uvlo) · [VBAT](#vbat) · [Vdac](#vdac) · [volatile](#volatile) · [Wi-Fi](#wi-fi) · [wifi_telemetry](#wifi_telemetry) · [wired-OR](#wired-or) · [ZCD](#zcd) · [ZCD_CLOSED](#zcd_closed)
+[6-step](#6-step) · [A2212](#a2212) · [ADC](#adc) · [ADC1](#adc1) · [ADC2](#adc2) · [AH / AL](#ah--al) · [ALIGN](#align) · [anti-windup](#anti-windup) · [AP](#ap) · [API](#api) · [arm](#arm) · [baud](#baud) · [BEMF](#bemf) · [BH / BL](#bh--bl) · [BLDC](#bldc) · [Bluepad32](#bluepad32) · [bootstrap](#bootstrap) · [BT](#bt) · [cascata](#cascata) · [Chart.js](#chartjs) · [CH / CL](#ch--cl) · [clear fault](#clear-fault) · [coast-down](#coast-down) · [CURRENT](#current) · [CW / CCW](#cw--ccw) · [DAC](#dac) · [DAC1](#dac1) · [dB](#db) · [Dashboard](#dashboard) · [dead-time](#dead-time) · [debounce](#debounce) · [disarm](#disarm) · [DMA](#dma) · [duty cycle](#duty-cycle) · [ESC](#esc) · [esc_boot_sensors](#esc_boot_sensors) · [esc_radio_quiet](#esc_radio_quiet) · [ESP-IDF](#esp-idf) · [ESP32](#esp32) · [ESPAsyncWebServer](#espasyncwebserver) · [ESP-Prog](#esp-prog) · [ESP_TIMER_TASK](#esp_timer_task) · [ESR](#esr) · [ESL](#esl) · [EXTI](#exti) · [fail-safe](#fail-safe) · [FAULT](#fault) · [feedforward](#feedforward) · [FOC](#foc) · [frequência elétrica](#frequência-elétrica) · [FreeRTOS](#freertos) · [FSM](#fsm) · [fsm_system](#fsm_system) · [GPIO](#gpio) · [ground loop](#ground-loop) · [HAL](#hal) · [hal_motor](#hal_motor) · [handover](#handover) · [HID](#hid) · [high-side / low-side](#high-side--low-side) · [HTTP polling](#http-polling) · [Hz / kHz](#hz--khz) · [IDLE](#idle) · [INA240](#ina240) · [INIT](#init) · [IR2110](#ir2110) · [IRAM_ATTR](#iram_attr) · [Isense](#isense) · [isolamento galvânico virtual](#isolamento-galvânico-virtual) · [ISR](#isr) · [jitter](#jitter) · [JTAG](#jtag) · [Kconfig](#kconfig) · [L2](#l2) · [LDF](#ldf) · [LEDC](#ledc) · [LiPo](#lipo) · [LittleFS](#littlefs) · [LM339](#lm339) · [malha aberta / fechada](#malha-aberta--fechada) · [MCPWM](#mcpwm) · [MCU](#mcu) · [MOTOR_OPEN_LOOP_COMM_HZ_MAX](#motor_open_loop_comm_hz_max) · [MOTOR_POLE_PAIRS](#motor_pole_pairs) · [motor_control](#motor_control) · [ms / ns](#ms--ns) · [mutex](#mutex) · [OC](#oc) · [OC Trip](#oc-trip) · [OCP](#ocp) · [OFF / SOURCE / SINK](#off--source--sink) · [OPEN_LOOP](#open_loop) · [outrunner](#outrunner) · [overshoot](#overshoot) · [pares de polos](#pares-de-polos) · [PCB](#pcb) · [PI](#pi) · [pid_regulator](#pid_regulator) · [PlatformIO](#platformio) · [polling](#polling) · [power-cycle](#power-cycle) · [PS4](#ps4) · [ps4c](#ps4c) · [PWM](#pwm) · [R2](#r2) · [RC](#rc) · [RGB](#rgb) · [RPM](#rpm) · [RUN / RUN_OPEN / RUN_SPEED](#run--run_open--run_speed) · [RUNNING](#running) · [SD](#sd) · [SDK](#sdk) · [sensorless](#sensorless) · [setpoint](#setpoint) · [serial_hmi](#serial_hmi) · [HMI serial](#hmi-serial) · [slew rate](#slew-rate) · [SPEED](#speed) · [SPI](#spi) · [stall](#stall) · [TCC](#tcc) · [trapezoidal](#trapezoidal) · [UART](#uart) · [UVLO](#uvlo) · [VBAT](#vbat) · [Vdac](#vdac) · [volatile](#volatile) · [Wi-Fi](#wi-fi) · [wifi_telemetry](#wifi_telemetry) · [wired-OR](#wired-or) · [ZCD](#zcd) · [ZCD_CLOSED](#zcd_closed)
 
 ---
 
@@ -78,7 +78,7 @@ Compartilha recursos com o subsistema Wi-Fi/Bluetooth e torna-se indisponível o
 
 **A** High / **A** Low, pernas superior e inferior da fase A do inversor.
 
-**No firmware:** GPIO 21 (AH) e GPIO 22 (AL), controlados pelo MCPWM.
+**No firmware:** GPIO 19 (AH) e GPIO 22 (AL), controlados pelo MCPWM.
 
 <a id="align"></a>
 
@@ -86,7 +86,7 @@ Compartilha recursos com o subsistema Wi-Fi/Bluetooth e torna-se indisponível o
 
 Fase de **alinhamento** na sequência de partida do motor.
 
-Aplica um vetor magnético fixo no estator por 500 ms para posicionar o rotor em um ângulo conhecido antes de iniciar a comutação. Ver também: [sensorless](#sensorless), [6-step](#6-step).
+Aplica um vetor magnético fixo no estator por **100 ms** (`MOTOR_ALIGN_DURATION_MS`), com duty rampando de 0 % a **3 %** (`align_ramp_duty_percent()`), para posicionar o rotor em um ângulo conhecido antes de iniciar a comutação. Ver também: [sensorless](#sensorless), [6-step](#6-step).
 
 <a id="anti-windup"></a>
 
@@ -104,7 +104,7 @@ Sem anti-windup, ao liberar a saturação o sistema pode apresentar [overshoot](
 
 Modo em que o ESP32 cria sua própria rede sem fio local, sem depender de roteador externo. O operador conecta o celular ou notebook diretamente ao AP para acessar o dashboard.
 
-**No firmware:** `WiFi.softAP()` em `wifi_telemetry_init()`; SSID `ESC-Dashboard`, IP padrão `192.168.4.1`. Ver também: [Wi-Fi](#wi-fi), [Dashboard](#dashboard).
+**No firmware:** `WiFi.softAP()` em `wifi_telemetry_init()`; SSID `ESC-Dashboard`, IP padrão `192.168.4.1`. **Desligado por padrão** na bancada (`BOARD_ENABLE_WIFI_TELEMETRY=0`). Ver também: [Wi-Fi](#wi-fi), [Dashboard](#dashboard).
 
 <a id="api"></a>
 
@@ -214,7 +214,7 @@ Biblioteca JavaScript de código aberto para gráficos de linha em páginas web.
 
 **C** High / **C** Low, pernas superior e inferior da fase C do inversor.
 
-**No firmware:** GPIO 18 (CH) e GPIO 19 (CL).
+**No firmware:** GPIO 15 (CH) e GPIO 18 (CL).
 
 <a id="clear-fault"></a>
 
@@ -222,7 +222,7 @@ Biblioteca JavaScript de código aberto para gráficos de linha em páginas web.
 
 **Limpar falha**, ação do operador para sair do estado `FAULT` e retornar a `IDLE`.
 
-No firmware, acionada pelo botão Options do PS4, após o hardware de sobrecorrente estar liberado e sem UVLO ativo.
+No firmware, acionada pelo botão **Options** do PS4 ou por **`c`/`C`** no Serial HMI, após o hardware de sobrecorrente estar liberado e sem UVLO ativo.
 
 <a id="coast-down"></a>
 
@@ -343,6 +343,22 @@ Controla a tensão média aplicada ao motor. Teto do projeto: 95 %. O período d
 **E**lectronic **S**peed **C**ontroller (Controlador Eletrônico de Velocidade).
 
 Circuito que comanda a velocidade ou o torque de um motor elétrico, tipicamente variando a tensão ou a corrente aplicada por meio de um inversor trifásico.
+
+<a id="esc_boot_sensors"></a>
+
+### esc_boot_sensors
+
+Módulo legado (`src/esc_boot_sensors.c`) que implementa calibração INA240 early via `esc_boot_early_calibrate()`.
+
+**Não invocado** no boot atual; mantido para possível reativação. Calibração ocorre em `fsm_system_init()`.
+
+<a id="esc_radio_quiet"></a>
+
+### esc_radio_quiet
+
+Módulo (`src/esc_radio_quiet.c`) que desabilita e libera memória do controlador Bluetooth quando `BOARD_ENABLE_PS4_BT=0`.
+
+Chamado em `setup()` após `Serial.begin()` para liberar GPIO SD e reduzir deriva RF no ADC1 durante ensaios com Serial HMI.
 
 <a id="esp-idf"></a>
 
@@ -534,7 +550,15 @@ Correntes parasitas circulam pelo loop, distorcendo medições e aquecendo condu
 
 Camada de software que encapsula o acesso direto aos periféricos do microcontrolador, expondo uma API simples em C puro.
 
-**No firmware:** módulos `hal_pwm`, `hal_adc`, `hal_gpio`, `hal_dac`.
+**No firmware:** módulos `hal_motor`, `hal_pwm`, `hal_adc`, `hal_gpio`, `hal_dac`.
+
+<a id="hal_motor"></a>
+
+### hal_motor
+
+Facade HAL que orquestra **shutdown IR2110** (SD) e **MCPWM** para operação segura do inversor.
+
+API: `hal_motor_init()` (boot seguro), `hal_motor_arm()` / `hal_motor_disarm()`, `hal_motor_apply_step()` (6-step atômico), `hal_motor_emergency_shutdown()` (ISR OCP). Usado por `motor_control` e `fsm_system`.
 
 <a id="handover"></a>
 
@@ -1091,7 +1115,21 @@ A posição do rotor é inferida pela BEMF ou por sequência de partida em malha
 
 **Ponto de ajuste**, valor de referência que o controlador PI tenta alcançar (corrente em A ou RPM).
 
-Definido pelo gatilho R2 ou zerado ao desarmar.
+Definido pelo gatilho R2, teclas +/- do Serial HMI, ou zerado ao desarmar.
+
+<a id="serial_hmi"></a>
+
+### serial_hmi
+
+Módulo de **HMI serial** (`lib/input/serial_hmi.cpp`) — interface de comando via monitor USB 115200.
+
+Default na bancada (`BOARD_ENABLE_SERIAL_HMI=1`). Task FreeRTOS Core 0; produz `ps4_input_state_t` para `apply_ps4_to_esc()`. Comandos: `A`/`a` arm/disarm, `+`/`-` setpoint, espaço e-stop, `c`/`C` clear fault. Ver também: [HMI serial](#hmi-serial).
+
+<a id="hmi-serial"></a>
+
+### HMI serial
+
+Sinônimo de [serial_hmi](#serial_hmi) — substitui o PS4 em ensaios de potência sem Bluetooth.
 
 <a id="slew-rate"></a>
 
@@ -1191,7 +1229,7 @@ Tensão da **bateria** (battery voltage), tensão do barramento DC medida pelo d
 
 Tensão de referência **analógica** gerada pelo DAC1 (GPIO 25) para os comparadores LM339 de OCP.
 
-Calculada conforme o limiar de corrente desejado (ex.: 8 A → ~1,81 V).
+Calculada conforme o limiar de corrente desejado: **25 A** (`LM339_OCP_AMPS_LIMIT`) → ~2,15 V via `LM339_OCP_DAC_RAW`. OCP software complementar em **15 A** (`MOTOR_SOFTWARE_OC_AMPS`).
 
 <a id="volatile"></a>
 
@@ -1213,7 +1251,7 @@ Essencial em flags escritas por ISRs e lidas no loop principal (ex.: `s_fault_pe
 
 Protocolo de rede sem fio integrado ao ESP32.
 
-**No firmware:** operando em modo **Access Point** (`ESC-Dashboard`) para servir o dashboard web em `http://192.168.4.1`. Coexiste com Bluetooth Classic (PS4) via time-sharing de rádio do ESP-IDF. O **ADC1** permanece seguro; apenas o **ADC2** é afetado pelo rádio ativo. Inicializado **antes** do Bluetooth em `setup()`. Ver também: [AP](#ap), [wifi_telemetry](#wifi_telemetry), [Dashboard](#dashboard).
+**No firmware:** operando em modo **Access Point** (`ESC-Dashboard`) para servir o dashboard web em `http://192.168.4.1` quando `BOARD_ENABLE_WIFI_TELEMETRY=1`. **Default bancada:** AP desligado; telemetria serial apenas. Coexiste com Bluetooth Classic (PS4) via time-sharing de rádio do ESP-IDF. Ver também: [AP](#ap), [wifi_telemetry](#wifi_telemetry), [Dashboard](#dashboard).
 
 <a id="wifi_telemetry"></a>
 

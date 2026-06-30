@@ -1,8 +1,8 @@
 /*
- * hal_gpio.c — GPIO: shutdown dos IR2110 e interrupção OC Trip (LM339).
+ * hal_gpio.c — GPIO: shutdown por fase (IR2110) e interrupção OC Trip (LM339).
  *
- * Camada: HAL. Chamado por fsm_system (init, arm/disarm) e lm339_protection (ISR OCP).
- * A ISR de sobrecorrente deve ser mínima: apenas sinaliza callback registrado pela FSM.
+ * SD (GPIO 4/32/33): HIGH = shutdown (High-Z); LOW = driver segue HIN/LIN.
+ * Pinos ADC2 usam RTC GPIO quando disponível.
  */
 
 #include "hal_gpio.h"
@@ -10,7 +10,12 @@
 #include "board_config.h"
 
 #include "driver/gpio.h"
+#include "driver/rtc_io.h"
+#include "esp_attr.h"
 #include "esp_err.h"
+#include "soc/gpio_struct.h"
+#include "soc/rtc_io_reg.h"
+#include "soc/soc.h"
 
 #include <stddef.h>
 
@@ -18,30 +23,137 @@ static hal_gpio_isr_cb_t s_oc_trip_cb = NULL;
 static void *s_oc_trip_arg = NULL;
 static bool s_isr_attached = false;
 
-static const int s_shutdown_pins[] = {
-    PIN_SD_A,
-    PIN_SD_B,
-    PIN_SD_C,
-};
-
-/**
- * @brief Aplica nível HIGH/LOW nos três pinos SD dos IR2110.
- * @param enabled true = HIGH (drivers habilitados); false = LOW (shutdown, fail-safe).
- */
-static void apply_shutdown_level(bool enabled)
+static int phase_to_shutdown_pin(hal_pwm_phase_t phase)
 {
-    const int level = enabled ? 1 : 0;
-
-    for (size_t i = 0; i < (sizeof(s_shutdown_pins) / sizeof(s_shutdown_pins[0])); i++) {
-        gpio_set_level(s_shutdown_pins[i], level);
+    switch (phase) {
+    case HAL_PWM_PHASE_A:
+        return PIN_SHUTDOWN_A;
+    case HAL_PWM_PHASE_B:
+        return PIN_SHUTDOWN_B;
+    case HAL_PWM_PHASE_C:
+        return PIN_SHUTDOWN_C;
+    default:
+        return -1;
     }
 }
 
-/**
- * @brief ISR de sobrecorrente — executada na borda de descida do OC Trip (ativo baixo).
- * IRAM_ATTR: código na RAM interna para resposta em microssegundos.
- * Apenas repassa ao callback; desarme de PWM fica no handler registrado (fsm_system).
- */
+
+/** Índice RTCIO (ESP32): GPIO4→10, GPIO32→9, GPIO33→8. */
+static int sd_pin_to_rtc_num(int pin)
+{
+    switch (pin) {
+    case 4:
+        return 10;
+    case 32:
+        return 9;
+    case 33:
+        return 8;
+    default:
+        return -1;
+    }
+}
+
+static void IRAM_ATTR sd_set_level_raw(int pin, int level)
+{
+    if (pin >= 32) {
+        const uint32_t bit = 1U << (pin - 32);
+
+        if (level != 0) {
+            GPIO.out1_w1ts.val = bit;
+        } else {
+            GPIO.out1_w1tc.val = bit;
+        }
+        return;
+    }
+
+    const uint32_t bit = 1U << pin;
+
+    if (level != 0) {
+        GPIO.out_w1ts = bit;
+    } else {
+        GPIO.out_w1tc = bit;
+    }
+}
+
+/** Saída SD via registradores RTCIO — válido em ISR (OCP). */
+static void IRAM_ATTR sd_set_level_rtc_iram(int pin, int level)
+{
+    const int rtc_num = sd_pin_to_rtc_num(pin);
+
+    if (rtc_num < 0) {
+        sd_set_level_raw(pin, level);
+        return;
+    }
+
+    if (level != 0) {
+        REG_WRITE(RTC_GPIO_OUT_W1TS_REG, (1U << rtc_num));
+    } else {
+        REG_WRITE(RTC_GPIO_OUT_W1TC_REG, (1U << rtc_num));
+    }
+}
+
+static bool sd_pin_is_rtc(int pin)
+{
+    return rtc_gpio_is_valid_gpio((gpio_num_t)pin);
+}
+
+static bool configure_shutdown_pin(int pin)
+{
+    const gpio_num_t gpio = (gpio_num_t)pin;
+
+    gpio_reset_pin(gpio);
+
+    if (!sd_pin_is_rtc(pin)) {
+        return false;
+    }
+
+    esp_err_t err = rtc_gpio_init(gpio);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        return false;
+    }
+
+    rtc_gpio_set_direction(gpio, RTC_GPIO_MODE_OUTPUT_ONLY);
+    rtc_gpio_pullup_dis(gpio);
+    rtc_gpio_pulldown_dis(gpio);
+    rtc_gpio_hold_dis(gpio);
+
+    return true;
+}
+
+static void sd_set_level(int pin, int level)
+{
+    if (sd_pin_is_rtc(pin)) {
+        rtc_gpio_set_level((gpio_num_t)pin, level);
+    } else {
+        sd_set_level_raw(pin, level);
+    }
+}
+
+static void apply_sd_level(bool shutdown)
+{
+    const int level =
+        shutdown ? IR2110_SD_SHUTDOWN_LEVEL : IR2110_SD_ENABLE_LEVEL;
+
+    sd_set_level(PIN_SHUTDOWN_A, level);
+    sd_set_level(PIN_SHUTDOWN_B, level);
+    sd_set_level(PIN_SHUTDOWN_C, level);
+}
+
+static bool configure_all_shutdown_outputs(void)
+{
+    if (!configure_shutdown_pin(PIN_SHUTDOWN_A)) {
+        return false;
+    }
+    if (!configure_shutdown_pin(PIN_SHUTDOWN_B)) {
+        return false;
+    }
+    if (!configure_shutdown_pin(PIN_SHUTDOWN_C)) {
+        return false;
+    }
+
+    return true;
+}
+
 static void IRAM_ATTR oc_trip_isr_handler(void *arg)
 {
     (void)arg;
@@ -51,32 +163,13 @@ static void IRAM_ATTR oc_trip_isr_handler(void *arg)
     }
 }
 
-/**
- * @brief Configura GPIOs de saída (SD) e entrada (OC Trip).
- * SD inicia em LOW (shutdown) por segurança no boot.
- */
 bool hal_gpio_init(void)
 {
-    uint64_t output_mask = 0U;
-
-    for (size_t i = 0; i < (sizeof(s_shutdown_pins) / sizeof(s_shutdown_pins[0])); i++) {
-        output_mask |= (1ULL << s_shutdown_pins[i]);
-    }
-
-    gpio_config_t output_conf = {
-        .pin_bit_mask = output_mask,
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-
-    if (gpio_config(&output_conf) != ESP_OK) {
+    if (!configure_all_shutdown_outputs()) {
         return false;
     }
 
-    // Fail-safe: drivers desligados até arm explícito
-    apply_shutdown_level(false);
+    apply_sd_level(true);
 
     gpio_config_t input_conf = {
         .pin_bit_mask = (1ULL << PIN_OC_TRIP),
@@ -89,16 +182,47 @@ bool hal_gpio_init(void)
     return gpio_config(&input_conf) == ESP_OK;
 }
 
-/** Habilita ou desabilita os drivers IR2110 via pinos SD. */
-void hal_shutdown_set_enabled(bool enabled)
+bool hal_gpio_reclaim_shutdown_outputs(void)
 {
-    apply_shutdown_level(enabled);
+    if (!configure_all_shutdown_outputs()) {
+        return false;
+    }
+
+    apply_sd_level(true);
+    return true;
 }
 
-/**
- * @brief Registra ISR na borda de descida do pino OC Trip (GPIO 26).
- * Chamado após lm339_protection_init, no final da sequência de boot.
- */
+void hal_phase_shutdown_set(hal_pwm_phase_t phase, bool shutdown)
+{
+    const int pin = phase_to_shutdown_pin(phase);
+
+    if (pin < 0) {
+        return;
+    }
+
+    const int level =
+        shutdown ? IR2110_SD_SHUTDOWN_LEVEL : IR2110_SD_ENABLE_LEVEL;
+
+    sd_set_level(pin, level);
+}
+
+void hal_phase_shutdown_all(bool shutdown)
+{
+    const int level =
+        shutdown ? IR2110_SD_SHUTDOWN_LEVEL : IR2110_SD_ENABLE_LEVEL;
+
+    sd_set_level(PIN_SHUTDOWN_A, level);
+    sd_set_level(PIN_SHUTDOWN_B, level);
+    sd_set_level(PIN_SHUTDOWN_C, level);
+}
+
+void IRAM_ATTR hal_phase_shutdown_emergency(void)
+{
+    sd_set_level_rtc_iram(PIN_SHUTDOWN_A, IR2110_SD_SHUTDOWN_LEVEL);
+    sd_set_level_rtc_iram(PIN_SHUTDOWN_B, IR2110_SD_SHUTDOWN_LEVEL);
+    sd_set_level_rtc_iram(PIN_SHUTDOWN_C, IR2110_SD_SHUTDOWN_LEVEL);
+}
+
 bool hal_gpio_attach_oc_trip_isr(hal_gpio_isr_cb_t cb, void *arg)
 {
     esp_err_t err;
@@ -147,7 +271,6 @@ void hal_gpio_detach_oc_trip_isr(void)
     s_oc_trip_arg = NULL;
 }
 
-/** Retorna true se OC Trip está em nível baixo (comparador LM339 disparou). */
 bool hal_gpio_oc_trip_asserted(void)
 {
     return gpio_get_level(PIN_OC_TRIP) == 0;

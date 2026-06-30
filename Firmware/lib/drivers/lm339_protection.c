@@ -10,6 +10,7 @@
 #include "board_config.h"
 #include "hal_dac.h"
 #include "hal_gpio.h"
+#include "hal_motor.h"
 
 #include "esp_attr.h"
 
@@ -36,7 +37,7 @@ static float amps_to_vdac(float amps)
 }
 
 /**
- * @brief ISR de OCP — apenas latch, shutdown imediato (gpio) e sinalização à FSM.
+ * @brief ISR de OCP — latch, SD=HIGH imediato e sinalização à FSM.
  * Proibido: printf, MCPWM ou outras APIs bloqueantes aqui (causam abort()).
  */
 static void IRAM_ATTR oc_trip_handler(void *arg)
@@ -48,7 +49,7 @@ static void IRAM_ATTR oc_trip_handler(void *arg)
     }
 
     s_fault_latched = true;
-    hal_shutdown_set_enabled(false);
+    hal_motor_emergency_shutdown();
 
     if (s_fault_cb != NULL) {
         s_fault_cb(s_fault_arg);
@@ -61,7 +62,7 @@ bool lm339_protection_init(void)
         return false;
     }
 
-    if (!lm339_protection_set_oc_threshold_amps(LM339_HW_OC_AMPS)) {
+    if (!hal_dac_set_raw(LM339_OCP_DAC_RAW)) {
         return false;
     }
 

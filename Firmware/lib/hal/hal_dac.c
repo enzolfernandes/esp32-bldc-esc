@@ -49,6 +49,27 @@ bool hal_dac_init(void)
     return hal_dac_set_voltage(0.0f);
 }
 
+/** Programa DAC1 com valor bruto 0–255. */
+bool hal_dac_set_raw(uint8_t raw)
+{
+#if PIN_VDAC_REF == 25
+    const dac_channel_t channel = DAC_CHANNEL_1;
+#else
+#error "PIN_VDAC_REF must be GPIO25 (DAC1) for this PCB layout"
+#endif
+
+    if (!s_initialized) {
+        return false;
+    }
+
+    if (dac_output_voltage(channel, raw) != ESP_OK) {
+        return false;
+    }
+
+    s_output_volts = ((float)raw / (float)DAC_MAX_RAW) * DAC_FULL_SCALE_V;
+    return true;
+}
+
 /** Programa tensão de referência dos comparadores LM339 (limiar OCP ajustável). */
 bool hal_dac_set_voltage(float volts)
 {

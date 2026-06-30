@@ -154,7 +154,7 @@ Essa queda de apenas $36mV$ (0,24\% da tensão de alimentação) assegura que a 
 \subsection{Determinação da Frequência de Chaveamento}
 \label{subsec:determinacao_fsw}
 
-A definição da frequência de chaveamento ($f_{sw}$) é um parâmetro crítico no projeto de inversores de frequência de alta corrente, pois representa um \textit{trade-off} direto entre eficiência térmica, qualidade da forma de onda e conforto acústico. O panorama de faixas adotadas pela indústria --- desde ESCs audíveis de 8--12 kHz até conversores \textit{racing} de 48--96 kHz --- encontra-se sintetizado na Tabela~\ref{tab:panorama_fsw_industria} da Introdução Teórica (Subseção~\ref{subsec:freq_chaveamento_pwm}). Dentro desse contexto, a seleção de \textbf{20 kHz} para este protótipo fundamenta-se na compatibilidade com os MOSFETs IRFS7530 (elevado $Q_g$), o driver IR2110 e a dissipação passiva disponível no \textit{layout} da placa, descartando as frequências de aeromodelismo de alta performance em favor de um ponto de operação silencioso e termicamente gerenciável.
+A definição da frequência de chaveamento ($f_{sw}$) é um parâmetro crítico no projeto de inversores de frequência de alta corrente, pois representa um \textit{trade-off} direto entre eficiência térmica, qualidade da forma de onda e conforto acústico. O panorama de faixas adotadas pela indústria (desde ESCs audíveis de 8--12 kHz até conversores \textit{racing} de 48--96 kHz) encontra-se sintetizado na Tabela~\ref{tab:panorama_fsw_industria} da Introdução Teórica (Subseção~\ref{subsec:freq_chaveamento_pwm}). Dentro desse contexto, a seleção de \textbf{20 kHz} para este protótipo fundamenta-se na compatibilidade com os MOSFETs IRFS7530 (elevado $Q_g$), o driver IR2110 e a dissipação passiva disponível no \textit{layout} da placa, descartando as frequências de aeromodelismo de alta performance em favor de um ponto de operação silencioso e termicamente gerenciável.
 
 Para este projeto, optou-se pela frequência de \textbf{20 kHz}.
 
@@ -245,6 +245,12 @@ Para validar a lógica de controle e a integridade dos sinais de disparo antes d
 A etapa de integração física consiste na montagem do controlador em uma placa de circuito impresso (PCB) desenhada para suportar as altas correntes do barramento DC, com trilhas reforçadas e planos de terra adequados. O sistema é submetido a testes de bancada, iniciando com cargas leves e alimentação limitada para verificação de segurança (teste de fumaça), progredindo para o acionamento do motor em rampa de velocidade para validação do protótipo funcional. Em paralelo à construção do hardware, desenvolve-se o firmware de controle, cujas decisões de arquitetura, linguagem e paradigmas de programação são descritas nas subseções subsequentes.
 
 % ------------------------------------------------------------
+\subsection{Disponibilização dos artefatos do projeto}
+\label{subsec:repositorio_projeto}
+% ------------------------------------------------------------
+Todos os materiais produzidos neste trabalho, monografia, firmware, projeto de hardware, simulações e registros experimentais de bancada, encontram-se reunidos em repositório público versionado, organizado nas pastas \texttt{Docs/Thesis/} (fonte \LaTeX{} desta monografia e dados em \texttt{ensaio\_bancada/}), \texttt{Firmware/} (código PlatformIO do ESP32), \texttt{Hardware/PCB\_Project/} (esquemáticos, layout e Gerbers) e \texttt{Simulation/} (modelos LTSpice e gráficos MATLAB)~\cite{esp32BldcEscRepo}.
+
+% ------------------------------------------------------------
 \subsection{Plataforma de Controle: O Microcontrolador ESP32}
 % ------------------------------------------------------------
 Para essa aplicação, foi selecionado o ESP32-DevKit C. Utilizando como principal elemento o módulo ESP32-WROOM-32, ele apresenta uma solução robusta para controle em tempo real. Capaz de operar em velocidades de clock de até $240 MHz$, permite a execução paralela de tarefas, característica crítica para sistemas ESC. A resolução de 16 bits dos geradores PWM amplia a precisão no controle da velocidade.
@@ -296,7 +302,7 @@ O controle lógico do inversor é centralizado no microcontrolador, responsável
      Sensoriamento de Corrente \quad Monitor de Bateria \quad Prote\c{c}\~ao OCP};
 
 \node[camada, fill=gray!47, below=of drivers] (hal)
-    {\textbf{HAL --- Abstra\c{c}\~ao de Hardware} \\[1pt]
+    {\textbf{HAL, Abstra\c{c}\~ao de Hardware} \\[1pt]
      Abstr.\ PWM \quad Abstr.\ ADC \quad Abstr.\ GPIO \quad Abstr.\ DAC};
 
 \node[camada, fill=gray!65, below=of hal] (silicio)
@@ -322,7 +328,7 @@ Essa separação entre frequência de chaveamento e frequência da malha de cont
 
 Do ponto de vista da dinâmica elétrica do motor, a constante de tempo estimada $\tau = L/R \approx 2\,\text{ms}$ (Subseção de \textit{Ripple} de Corrente e Torque) estabelece a escala temporal da resposta de corrente de fase. Adotando a regra empírica de amostragem de malhas de corrente em sistemas de potência, período de amostragem significativamente inferior à constante de tempo elétrica, tipicamente $T_s \leq \tau/2$, o valor $T_s = 1\,\text{ms}$ situa-se na fronteira conservadora dessa faixa ($T_s = 0{,}5\,\tau$), assegurando que o discretizador PI capture variações de corrente sem subamostrar a planta. Taxas inferiores (por exemplo, $100\,\text{Hz}$) degradariam a integração numérica do termo $I$ do regulador e atrasariam a resposta a degraus de referência e a detecção de sobrecorrente por software; taxas superiores (por exemplo, $10\,\text{kHz}$) não agregariam ganho proporcional à dinâmica mecânica e elétrica do sistema trapezoidal, mas elevariam o custo computacional da aquisição de correntes e competiriam com os subsistemas de comunicação sem fio previstos para a validação em bancada.
 
-A materialização dessa taxa no firmware, temporizador periódico, despacho em \textit{task} FreeRTOS, leitura síncrona do ADC1 e atualização do ciclo de trabalho do MCPWM e a verificação experimental de margem computacional e de coexistência com Bluetooth e Wi-Fi são apresentadas, respectivamente, na Subseção~\ref{subsec:implementacao_malha_1khz} e na Subseção~\ref{subsec:metricas_desempenho_software} do Capítulo de Resultados e Discussão.
+A materialização dessa taxa no firmware (temporizador periódico, despacho em \textit{task} FreeRTOS, leitura síncrona do ADC1 e atualização do ciclo de trabalho do MCPWM) seria verificada experimentalmente quanto à margem computacional na Subseção~\ref{subsec:implementacao_malha} do Capítulo de Resultados e Discussão; a validação dinâmica das malhas de controle em rotação encontra-se no protocolo proposto (Subseção~\ref{subsec:protocolo_validacao_proposto}).
 
 \subsubsection{Estratégia de Controle PI}
 \label{subsec:estrategia_pi}
@@ -355,7 +361,7 @@ Velocidade (\texttt{s\_speed\_pi}) & 0{,}02 & 0{,}5 \\
 
 A saída do PI de corrente é limitada a 0--95\,\% de \textit{duty cycle} (margem para recarga do \textit{bootstrap} IR2110). O integrador de cada malha possui limites próprios (\texttt{MOTOR\_PI\_INTEG\_MIN/MAX} para corrente; \texttt{MOTOR\_SPEED\_PI\_INTEG\_MIN/MAX} para velocidade), implementando anti-windup por \textit{clamping} conforme a Equação~\ref{eq:pi_saida}. Em eventos de falha ou desarme (\texttt{motor\_control\_on\_disarm()}), os estados integrais são zerados para evitar \textit{windup} residual na re-armagem.
 
-A taxa de variação das referências é limitada por \textit{slew rate limiters} (\texttt{MOTOR\_TARGET\_SLEW\_AMPS\_PER\_S} = 2\,A/s para corrente; \texttt{MOTOR\_SPEED\_SLEW\_RPM\_PER\_S} = 1500\,RPM/s para velocidade), reduzindo transitórios abruptos que poderiam disparar a proteção de sobrecorrente. A validação experimental dos ganhos e da resposta dinâmica das malhas é apresentada no Capítulo de Resultados e Discussão.
+A taxa de variação das referências é limitada por limitadores de taxa de variação (\texttt{MOTOR\_TARGET\_SLEW\_AMPS\_PER\_S} = 2\,A/s para corrente; \texttt{MOTOR\_SPEED\_SLEW\_RPM\_PER\_S} = 1500\,RPM/s para velocidade), reduzindo transitórios abruptos que poderiam disparar a proteção de sobrecorrente. A validação experimental dos ganhos e da resposta dinâmica das malhas constitui etapa do protocolo proposto na Subseção~\ref{subsec:protocolo_validacao_proposto}; a implementação em firmware é avaliada no Capítulo de Resultados e Discussão.
 
 % ------------------------------------------------------------
 \subsection{Interface de Entrada: Controle DualShock 4 via Bluetooth}
@@ -363,7 +369,7 @@ A taxa de variação das referências é limitada por \textit{slew rate limiters
 
 Para a etapa de validação experimental do protótipo em bancada, a definição de uma interface de entrada de dados ágil e ergonômica é um requisito funcional tão relevante quanto a arquitetura do inversor em si. O operador necessita enviar setpoints de comando ao ESC de forma contínua, graduada e segura, sem impedir o acesso físico ao conjunto motor-placa durante os ensaios.
 
-Nesse contexto, foi adotado o controle \textit{DualShock 4} (PS4) como dispositivo de entrada principal do sistema. A escolha fundamenta-se em três critérios de engenharia de sistemas: (1) o controle disponibiliza dois gatilhos analógicos de alta resolução (R2 para aceleração), com curso contínuo que permite mapear linearmente toda a faixa de referência de corrente ou velocidade do ESC sem os degraus discretos de um potenciômetro rotativo; (2) sua interface de comunicação é \textbf{Bluetooth Low Energy (BLE)}, eliminando cabos entre o operador e o banco de ensaios e, consequentemente, removendo qualquer risco de choque elétrico por conexão direta a um circuito de alta tensão em operação; (3) o controle expõe pinos de LED colorido (\textit{lightbar}) e botões de ação nomeados (Circle, Options), os quais foram aproveitados como canal de diagnóstico visual e como comandos de arme/desarme e \textit{clear fault} da Máquina de Estados do ESC, respectivamente, dispensando interface serial durante ensaios de campo.
+Nesse contexto, foi adotado o controle \textit{DualShock 4} (PS4) como dispositivo de entrada principal do sistema. A escolha fundamenta-se em três critérios de engenharia de sistemas: (1) o controle disponibiliza dois gatilhos analógicos de alta resolução (R2 para aceleração), com curso contínuo que permite mapear linearmente toda a faixa de referência de corrente ou velocidade do ESC sem os degraus discretos de um potenciômetro rotativo; (2) sua interface de comunicação é \textbf{Bluetooth Low Energy (BLE)}, eliminando cabos entre o operador e o banco de ensaios e, consequentemente, removendo qualquer risco de choque elétrico por conexão direta a um circuito de alta tensão em operação; (3) o controle expõe pinos de LED colorido (\textit{lightbar}) e botões de ação nomeados (Circle, Options), os quais foram aproveitados como canal de diagnóstico visual e como comandos de arme/desarme e liberação de falha (\textit{clear fault}) da Máquina de Estados do ESC, respectivamente, dispensando interface serial durante ensaios de campo.
 
 A integração com o microcontrolador ESP32 é viabilizada pela biblioteca de código aberto \textbf{Bluepad32}, que implementa a pilha de protocolo HID Bluetooth para gamepads comerciais diretamente sobre o núcleo Arduino customizado para o ESP32. Os detalhes de implementação desta integração são apresentados na subseção referente à escolha da linguagem de programação.
 
@@ -409,10 +415,12 @@ O \textbf{PlatformIO}, ambiente adotado neste trabalho, endereça essas limitaç
     \item \textbf{Gestão de versões fixadas:} a versão exata do \textit{toolchain} e do SDK é fixada no arquivo de configuração do projeto, garantindo que o firmware seja compilado de forma idêntica em qualquer máquina de desenvolvimento ou servidor de integração contínua, sem dependência do estado global do ambiente.
     \item \textbf{Compilação modular automática:} o \textit{Library Dependency Finder} (LDF) compila automaticamente cada módulo no diretório de bibliotecas como uma biblioteca estática independente, vinculando-as ao binário final sem declarações manuais de dependências locais. Isso preserva o isolamento entre módulos e detecta inclusões circulares no processo de compilação.
     \item \textbf{Integração com ferramentas profissionais:} ao funcionar como extensão de editores de código modernos, o PlatformIO habilita \textit{IntelliSense} (autocompletar e navegação por definição), indicação de erros em tempo real e integração com sistemas de controle de versão como o Git, recursos que reduzem erros e agilizam o ciclo de desenvolvimento.
-    \item \textbf{Configuração de SDK por arquivo:} um arquivo de configuração específico permite ajustar opções de \textit{firmware} do ESP-IDF --- como desabilitar o console USB da pilha Bluetooth que conflitaria com a porta serial de telemetria --- sem modificar o código-fonte, mantendo a separação entre configuração e implementação.
+    \item \textbf{Configuração de SDK por arquivo:} um arquivo de configuração específico permite ajustar opções de \textit{firmware} do ESP-IDF (como desabilitar o console USB da pilha Bluetooth que conflitaria com a porta serial de telemetria) sem modificar o código-fonte, mantendo a separação entre configuração e implementação.
     \item \textbf{Filesystem LittleFS:} partição de arquivos na flash interna, gravada pelo comando \texttt{pio run -t uploadfs}, contendo \texttt{index.html} e \texttt{chart.min.js} da dashboard Wi-Fi.
     \item \textbf{Dependências de rede:} ESPAsyncWebServer-esphome e AsyncTCP-esphome declaradas em \texttt{platformio.ini}; \texttt{board\_build.filesystem = littlefs}.
 \end{itemize}
+
+O projeto de compilação reside no diretório \texttt{Firmware/} do repositório~\cite{esp32BldcEscRepo}.
 
 % ------------------------------------------------------------
 \subsection{Estrutura de Módulos: Cabeçalhos e Arquivos-Fonte}
@@ -497,6 +505,7 @@ Essa sequência constitui a contrapartida de software aos resistores de \textit{
 
 % ------------------------------------------------------------
 \subsection{Sistema de Realimentação por Força Contraeletromotriz}
+\label{subsec:condicionamento_sinais}
 % ------------------------------------------------------------
 
 Para viabilizar a operação em malha fechada sem o uso de sensores de posição dedicados (sensores Hall), planeja-se implementar a técnica de detecção de cruzamento por zero (\textit{Zero-Crossing Detection} ZCD) da força contraeletromotriz (FCEM). Esta técnica baseia-se no monitoramento da tensão na fase não energizada do motor durante a sequência de comutação de seis passos. O instante em que a FCEM cruza o nível de tensão do ponto neutro do motor indica uma posição angular conhecida do rotor, permitindo a sincronização precisa da comutação eletrônica.
@@ -630,8 +639,8 @@ A técnica de detecção de cruzamento por zero da FCEM possui uma limitação f
     \item \textbf{Transição pós-partida:} 
     O comportamento após \textit{RUN\_OPEN} depende da configuração de compilação (Figura~\ref{fig:fsm_estados}):
     \begin{itemize}
-        \item \textbf{Com ZCD} (Figura~\ref{fig:fsm_zcd}): assim que o microcontrolador detecta uma sequência válida de cruzamentos por zero nos comparadores, o sistema realiza o \textit{handover}. O temporizador de malha aberta é desativado e o controle passa a ser orientado a eventos: cada ZCD dispara, após um atraso de $30^\circ$ elétricos, a próxima comutação de fase.
-        \item \textbf{Sem ZCD} (Figura~\ref{fig:fsm_sem_zcd}, implementação validada): a comutação permanece em malha aberta por temporizador. Quando o RPM medido supera o limiar de \textit{handover}, o estado evolui para \textit{RUN\_SPEED}, em que um PI de velocidade comanda a corrente. Dessincronismo provoca retorno a \textit{RUN\_OPEN}, sem entrada em falha.
+        \item \textbf{Com ZCD} (Figura~\ref{fig:fsm_zcd}): assim que o microcontrolador detecta uma sequência válida de cruzamentos por zero nos comparadores, o sistema realiza a transição de malha. O temporizador de malha aberta é desativado e o controle passa a ser orientado a eventos: cada ZCD dispara, após um atraso de $30^\circ$ elétricos, a próxima comutação de fase.
+        \item \textbf{Sem ZCD} (Figura~\ref{fig:fsm_sem_zcd}, implementação validada): a comutação permanece em malha aberta por temporizador. Quando o RPM medido supera o limiar de transição de malha, o estado evolui para \textit{RUN\_SPEED}, em que um PI de velocidade comanda a corrente. Dessincronismo provoca retorno a \textit{RUN\_OPEN}, sem entrada em falha.
     \end{itemize}
 \end{enumerate}
 
@@ -713,4 +722,60 @@ Ressalta-se que a escalabilidade é limitada por dois fatores físicos:
     \item \textbf{Limite Superior (6S):} A tensão máxima é estritamente limitada pela tensão de ruptura ($V_{DSS}$) dos MOSFETs utilizados (IRFS7530, $60V$). Embora baterias 7S ($29,4V$) ou 8S ($33,6V$) pareçam estar dentro do limite estático, os picos indutivos gerados durante a comutação podem atingir o dobro da tensão de barramento, excedendo o $V_{DSS}$ e causando falha catastrófica. Portanto, o limite de 6S ($25,2V$) garante a margem de segurança necessária para a robustez do inversor.
 \end{enumerate}
 
-Todas as etapas de validação e os resultados obtidos, tanto na simulação quanto nos ensaios práticos, são documentados no capítulo subsequente de Resultados.
+\subsection{Protocolo de Validação Experimental Proposto}
+\label{subsec:protocolo_validacao_proposto}
+
+Após a validação estática do hardware e da arquitetura de firmware documentada no Capítulo de Resultados e Discussão, previa-se um segundo lote de ensaios dinâmicos com o motor conectado à ponte inversora. O protocolo seguiria a filosofia de \textbf{energização incremental} já adotada nos ensaios estáticos: alimentação por fonte de bancada regulada, limitador de corrente configurável e interface de comando serial ou via controle DualShock\,4. A carga representativa seria o motor A2212/10T 1400\,kV (\textit{outrunner}, 14 polos, $p = 7$), ilustrado na Figura~\ref{fig:motor_a2212_bancada} do Capítulo de Resultados, selecionado como \textbf{Prova de Conceito em escala reduzida} em detrimento do motor de projeto Turnigy XK3674-2200\,kV, permitindo operar com tensão compatível a pack 4S ($\approx 14{,}8\,\text{V}$) e corrente limitada a $3\,\text{A}$ sem dissipadores externos.
+
+\subsubsection{Estratégia de carga e parametrização prevista}
+
+A relação entre frequência elétrica de comutação e velocidade mecânica obedeceria à equação $f_{el} = n \cdot p / 60$. A rampa em malha aberta seria limitada a \texttt{MOTOR\_OPEN\_LOOP\_COMM\_HZ\_MAX}\,$= 300\,\text{Hz}$ ($\approx 2571\,\text{RPM}$), com incremento de $+1{,}5\,\text{Hz}$ por passo comutado a partir de $5\,\text{Hz}$. Os controladores PI utilizariam os ganhos padrão da Tabela~\ref{tab:pi_ganhos_default}, com integração de Euler e \textit{anti-windup} por limitação do integrador. O resultado esperado para esta etapa consistiria em confirmar que a rampa de frequência elétrica permitiria ao rotor acompanhar o campo girante do estator sem perda de sincronismo magnético durante a transição de \texttt{RUN\_OPEN} para \texttt{RUN\_SPEED}.
+
+\subsubsection{Ensaio dinâmico 4.1: Sequência de partida e comutação trapezoidal com carga}
+
+Este ensaio teria como objetivo registrar, com pinças de corrente nos três terminais de fase, a evolução temporal das correntes de estator durante o ciclo completo de partida, comandado pelo gatilho R2 do DualShock\,4 ou pela interface serial (\texttt{A} + setpoint). Verificar-se-ia a integridade da sequência \texttt{ALIGN} $\to$ \texttt{RUN\_OPEN} $\to$ \texttt{RUN\_SPEED} no domínio elétrico (formas trapezoidais de corrente) e temporal (duração de cada estado).
+
+Na fase \texttt{ALIGN}, aplicar-se-ia o vetor estático do Passo\,0 com rampa de ciclo de trabalho de $0\,\%$ a $3\,\%$ em $100\,\text{ms}$. Em regime estacionário ao final da rampa, a corrente de alinhamento aproximar-se-ia de:
+\begin{equation}
+    I_{align} \approx \frac{D_{align} \cdot V_{DC}}{R_{eq}} = \frac{0{,}03 \times 12\,\text{V}}{R_{eq}}
+    \label{eq:corrente_align_proto}
+\end{equation}
+\noindent onde $R_{eq}$ englobaria resistência de armadura em série e $R_{DS(on)}$ dos MOSFETs condutores. O resultado esperado seria um pulso de corrente estável nas fases A e B, referenciando $\theta_0$ antes de \texttt{RUN\_OPEN}.
+
+Em \texttt{RUN\_OPEN}, a frequência elétrica incrementar-se-ia linearmente até $300\,\text{Hz}$; as correntes de fase apresentariam o padrão trapezoidal característico da comutação de seis passos (pulsos de $120°$ elétricos, intervalo Hi-Z de $60°$). A transição para \texttt{RUN\_SPEED} ocorreria quando o RPM estimado superasse 600\,RPM por 200\,ms consecutivos.
+
+\subsubsection{Ensaio dinâmico 4.2: Determinismo temporal do PWM sob carga do escalonador FreeRTOS}
+
+Com o motor em rotação estável, pressionar-se-iam repetidamente botões do DualShock\,4 enquanto uma sonda monitoraria o sinal de \textit{gate} $AH$ em persistência infinita ($\geq 1\,\text{min}$). O resultado esperado seria período nominal $T_{PWM} = 50\,\mu\text{s}$ ($f_{sw} = 20\,\text{kHz}$) sem \textit{glitches}, confirmando que o MCPWM opera como autômato de hardware independente do \texttt{loop()} Arduino e da pilha Bluetooth.
+
+\subsubsection{Ensaio dinâmico 4.3: Resposta dinâmica ao degrau de corrente e acompanhamento pelo PI}
+
+Com o motor em regime estável, aplicar-se-ia um degrau brusco no gatilho R2; a telemetria serial registraria referência rampeada e corrente medida. O \textit{slew rate limiter} (\texttt{MOTOR\_TARGET\_SLEW\_AMPS\_PER\_S}\,$= 2\,\text{A/s}$) imporia incremento máximo $\Delta I_{max} = 2\,\text{mA}$ por ciclo de $1\,\text{ms}$; um degrau de $0$ a $3\,\text{A}$ geraria rampa de referência de $\approx 1{,}5\,\text{s}$. O resultado esperado consistiria em rastreamento da corrente medida pelo INA240 com erro estacionário nulo (termo integral) e sobressinal limitado pelo \textit{anti-windup} e pelo teto de $95\,\%$ de ciclo de trabalho.
+
+\subsubsection{Ensaio dinâmico 4.4: Limite inferior em malha aberta e motivação do ZCD}
+
+Reduzir-se-ia progressivamente a referência de corrente até mapear a frequência elétrica mínima $f_{el,min}$ em que o rotor ainda acompanharia o campo do estator sem escorregamento. Abaixo desse limiar, esperar-se-ia perda de sincronismo, vibração audível e disparo da proteção de \textit{stall} por corrente sustentada. O resultado teórico motivaria a ativação futura de \texttt{BOARD\_ENABLE\_BEMF\_ZCD}\,$= 1$, eliminando a ``zona cega'' entre $0\,\text{RPM}$ e a velocidade mínima de sincronismo em malha aberta.
+
+\subsubsection{Ensaio dinâmico 4.5: Proteção de \textit{stall} por travamento mecânico}
+
+Com o motor em velocidade intermediária e $I_{ref} = 1{,}5\,\text{A}$, bloquear-se-ia fisicamente o eixo. A sequência esperada na telemetria seria: (i)~anulação da FCEM e crescimento de corrente; (ii)~saturação do PI em $95\,\%$; (iii)~detecção por \texttt{trip\_stall\_high\_current} após 300\,ms acima de 6\,A; (iv)~transição para \texttt{ESC\_STATE\_FAULT} com \textit{lightbar} vermelha e código \texttt{MOTOR\_FAULT\_STALL}; (v)~\texttt{pi\_reset()} no desarme para evitar \textit{windup} residual.
+
+\subsubsection{Ensaios complementares de instrumentação}
+
+Os ensaios a seguir complementariam a validação quantitativa do hardware já verificado qualitativamente em bancada:
+
+\begin{itemize}
+    \item \textbf{Tempo morto e $V_{GS}$ (Identificadores de ensaio~16--17):} medição por osciloscópio nos \textit{gates} complementares do braço A; resultado esperado: $t_{dead} \approx 500\,\text{ns}$, conforme \texttt{mcpwm\_deadtime\_enable()}.
+    \item \textbf{Disparo OCP em quatro canais (Identificadores~02 e~18):} estímulo no LM339 com captura simultânea de INA240, \textit{OC Trip}, PWM e \textit{shutdown}; resultado esperado: $t_{OCP,total} < 2\,\mu\text{s}$ frente a $di/dt \approx 0{,}6\,\text{A}/\mu\text{s}$.
+    \item \textbf{Ripple do barramento DC (Identificador~19):} medição em acoplamento AC nos terminais do \textit{link} de $940\,\mu\text{F}$; comparação com a Equação de ondulação capacitiva do projeto.
+    \item \textbf{UVLO com pack 4S (Identificador~03):} descarga controlada com marcação de histerese 3,3/3,5\,V por célula.
+    \item \textbf{Ganho INA240 (Identificador~15):} injeção de $1\,\text{A}$ no \textit{shunt} da fase B e medição de $\Delta V_{out} \approx 20\,\text{mV}$.
+    \item \textbf{Validação cruzada dashboard $\times$ multímetro (Identificador~10):} $\varepsilon_I$ e $\varepsilon_{RPM,serial}$ em patamares de 1500 e 2000\,RPM.
+    \item \textbf{Oscilograma de FCEM em Hi-Z (Identificador~08):} forma trapezoidal na fase flutuante a $\approx 2571\,\text{RPM}$ em malha aberta.
+\end{itemize}
+
+\subsubsection{Telemetria Wi-Fi em rotação}
+
+A validação operacional da dashboard previa operação com \texttt{BOARD\_ENABLE\_WIFI\_TELEMETRY}\,$= 1$, telemetria adiada em \texttt{RUNNING} (\texttt{WIFI\_TELEMETRY\_DEFER\_IN\_RUNNING}\,$= 1$) e critérios de aceite: pareamento Bluetooth estável por $\geq 30\,\text{s}$ em rotação, \texttt{GET /data/batch} com $n > 0$ ao retornar a \texttt{IDLE}, gráficos preenchidos e exportação CSV. O resultado esperado consistiria em documentar corridas completas sem cabo USB, preservando o isolamento galvânico virtual entre o barramento de potência e o equipamento do operador.
+
+Os resultados efetivamente obtidos na simulação, nos ensaios estáticos, na validação de firmware e no ensaio a vazio (bem como a interrupção deste protocolo dinâmico) são documentados no capítulo subsequente de Resultados e Discussão.

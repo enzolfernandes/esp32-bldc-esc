@@ -26,9 +26,10 @@ O **passo a passo didático do código** está nos comentários em português de
 | Framework | Arduino (PlatformIO), com drivers nativos ESP-IDF |
 | PWM de comutação | 20 kHz, dead-time 500 ns (MCPWM) |
 | Teto de duty cycle | 95 % (margem para recarga bootstrap IR2110) |
-| Malha de controle | 1 kHz (`esp_timer`) |
-| Interface de comando | DualShock 4 via Bluetooth (Bluepad32) |
-| Telemetria | Serial 115200 baud (somente leitura) + dashboard Wi-Fi (HTTP polling) |
+| Malha de controle | 1 kHz (`esp_timer`, `MOTOR_CONTROL_LOOP_HZ`) |
+| Interface de comando (default bancada) | Serial HMI via monitor USB (`BOARD_ENABLE_SERIAL_HMI=1`) |
+| Interface alternativa | DualShock 4 via Bluetooth (`BOARD_ENABLE_PS4_BT=1`, Bluepad32) |
+| Telemetria | Serial 115200 baud (500 ms; somente leitura) + dashboard Wi-Fi opcional (HTTP polling) |
 
 ---
 
@@ -64,9 +65,11 @@ flowchart TB
         Main[main.cpp]
         FSM[fsm_system]
         WiFi[wifi_telemetry]
+        RadioQuiet[esc_radio_quiet]
     end
     subgraph entrada [Camada de Entrada]
         PS4[ps4_input]
+        HMI[serial_hmi]
     end
     subgraph controle [Camada de Controle]
         MC[motor_control]
@@ -79,29 +82,36 @@ flowchart TB
         ZCD[bemf_zcd]
     end
     subgraph hal [Camada HAL]
+        Motor[hal_motor]
         PWM[hal_pwm]
         ADC[hal_adc]
         GPIO[hal_gpio]
         DAC[hal_dac]
     end
     PS4_BT[DualShock4 BT] --> PS4
+    SerialUSB[Monitor USB] --> HMI
     Browser[Browser Wi-Fi] --> WiFi
     Main --> FSM
     Main --> PS4
+    Main --> HMI
+    Main --> RadioQuiet
     Main --> WiFi
     FSM --> MC
     MC --> PI
     MC --> drivers
+    MC --> Motor
     drivers --> hal
+    Motor --> PWM
+    Motor --> GPIO
 ```
 
 | Camada | Responsabilidade | Exemplos |
 |--------|------------------|----------|
-| **Aplicação** | Ciclo de vida do ESC, orquestração de entrada, telemetria serial e Wi-Fi | `main.cpp`, `fsm_system`, `wifi_telemetry` |
-| **Entrada** | Conversão de comandos externos em setpoints e eventos | `ps4_input` |
+| **Aplicação** | Ciclo de vida do ESC, orquestração de entrada, telemetria serial e Wi-Fi | `main.cpp`, `fsm_system`, `wifi_telemetry`, `esc_radio_quiet` |
+| **Entrada** | Conversão de comandos externos em setpoints e eventos | `serial_hmi` (default bancada), `ps4_input` (perfil PS4) |
 | **Controle** | Algoritmos de malha fechada e comutação BLDC | `motor_control`, `pid_regulator` |
 | **Drivers** | Conversão entre sinais elétricos e grandezas de engenharia | `ina240`, `battery_monitor`, `lm339_protection`, `bemf_zcd` |
-| **HAL** | Acesso aos periféricos do ESP32 | `hal_pwm`, `hal_adc`, `hal_gpio`, `hal_dac` |
+| **HAL** | Acesso aos periféricos do ESP32 | `hal_motor`, `hal_pwm`, `hal_adc`, `hal_gpio`, `hal_dac` |
 
 O fluxo de dependências é **unidirecional**: aplicação → controle → drivers → HAL. Nenhum módulo da HAL ou dos drivers referencia a FSM ou o controlador PI.
 
@@ -127,8 +137,10 @@ O firmware encontra-se em estágio **funcional de bancada**, com os seguintes co
 | Drivers (INA240, VBAT, LM339, BEMF opcional) | Implementado |
 | FSM do ESC (`fsm_system`) | Implementado |
 | Controle de motor (6-step, PI corrente/velocidade) | Implementado |
-| Entrada PS4 (Bluepad32) | Implementado |
-| Dashboard Wi-Fi (AP + HTTP polling + Chart.js local) | Implementado |
+| Entrada Serial HMI (monitor USB) | Implementado (default bancada) |
+| Entrada PS4 (Bluepad32) | Implementado (perfil alternativo) |
+| `esc_radio_quiet` (desliga BT quando PS4 off) | Implementado |
+| Dashboard Wi-Fi (AP + HTTP polling + Chart.js local) | Implementado (`BOARD_ENABLE_WIFI_TELEMETRY=0` por padrão) |
 | Comutação com ZCD/BEMF | Opcional (`BOARD_ENABLE_BEMF_ZCD 0` por padrão) |
 | FOC / sensores Hall | Não implementado (escopo futuro) |
 
@@ -136,21 +148,21 @@ Na configuração padrão, a comutação opera em **malha aberta** com rampa de 
 
 ### 1.6 Mapa de hardware (resumo)
 
-O mapa segue o pinout **ESP32-DevKitC v4** e a PCB documentada na tese. Pinos reservados: **GPIO 12–15** (JTAG/ESP-Prog); **GPIO 6–11** (flash SPI interna).
+O mapa segue o pinout **ESP32-DevKitC v4** e a PCB documentada na tese. Pinos reservados pelo silício: **GPIO 6–11** (flash SPI interna); **GPIO 12–14** (JTAG/ESP-Prog). **GPIO 15** (MTDO/JTAG) é usado por `PIN_CH` na PCB atual — ver [`include/board_config.h`](include/board_config.h).
 
 | Sinal | GPIO | Função |
 |-------|------|--------|
-| AH / AL | 21 / 22 | MCPWM fase A (high/low) |
+| AH / AL | 19 / 22 | MCPWM fase A (high/low) |
 | BH / BL | 27 / 23 | MCPWM fase B |
-| CH / CL | 18 / 19 | MCPWM fase C |
-| SD A / B / C | 32 / 33 / 4 | Shutdown IR2110 (ativo baixo) |
+| CH / CL | 15 / 18 | MCPWM fase C |
+| SD A / B / C | 32 / 33 / 4 | Shutdown IR2110 (SD HIGH = shutdown) |
 | Isense A / B / C | 34 / 35 / 36 | ADC1 corrente de fase |
 | VBAT | 39 | ADC1 tensão do barramento |
 | Vdac Ref | 25 | DAC1 → referência OCP LM339 |
 | OC Trip | 26 | Entrada digital LM339 (wired-OR, ativo baixo) |
 | ZCD A / B / C | 16 / 17 / 5 | Comparadores BEMF (reserva; requer pull-up em GPIO5) |
 
-A sequência de segurança em falha segue a ordem: ISR ou FSM detecta evento → `hal_shutdown_set_enabled(false)` (pinos SD em LOW) → `hal_pwm_disable_all()`.
+A sequência de segurança em falha segue a ordem: ISR ou FSM detecta evento → `hal_motor_emergency_shutdown()` ou `hal_motor_disarm()` (SD=HIGH, PWM off) → `motor_control_on_disarm()`.
 
 ---
 
@@ -179,7 +191,7 @@ O framework **Arduino** fornece o ambiente de execução principal (`Serial`, `m
 
 ```ini
 platform_packages =
-    framework-arduinoespressif32@https://github.com/maxgerhardt/pio-framework-bluepad32/archive/refs/heads/main.zip
+    framework-arduinoespressif32@https://github.com/maxgerhardt/pio-framework-bluepad32/archive/e010351b2cafe3a872f18878cb2d3e08f167c650.zip
 ```
 
 Bluepad32 **não** consta em `lib_deps`: substitui o pacote padrão `framework-arduinoespressif32`, embutindo a stack Bluetooth no core. Essa abordagem garante que o perfil HID do controle PS4 e o stack BT coexistam com o firmware do ESC no mesmo binário.
@@ -275,7 +287,7 @@ O firmware opera com **duas cadências temporais** distintas:
 
 | Cadência | Contexto | Período | Responsabilidades |
 |----------|----------|---------|-------------------|
-| **Loop principal** | `loop()` Arduino | ~20 ms (PS4), 100 ms telemetria em `RUNNING` ou com dashboard ativo / 500 ms nos demais estados | Polling do gamepad, UVLO debounce, `fsm_system_tick()`, telemetria serial e `push_wifi_telemetry()` |
+| **Loop principal** | `loop()` Arduino | ~20 ms (entrada HMI/PS4); telemetria serial **500 ms** (Wi-Fi off) ou 100 ms com dashboard ativo | Polling Serial HMI ou PS4, UVLO debounce, `fsm_system_tick()`, telemetria serial e `push_wifi_telemetry()` |
 | **Malha de controle** | `esp_timer` → task FreeRTOS | 1 ms (1 kHz) | PI, comutação 6-step, leitura de corrente, detecção de stall, medição de latência do tick |
 
 A malha de controle **não** reside no `loop()` porque este acumula jitter variável, operações de Bluetooth, `Serial.printf()` e `battery_monitor_tick()`, incompatível com a integração numérica do termo integral do PI e com a temporização da comutação trapezoidal. O `esp_timer` garante período estável de 1 ms, alinhado ao campo `dt` do controlador PI.
@@ -318,9 +330,12 @@ Parâmetros críticos definem-se em [`board_config.h`](include/board_config.h) e
 | `PWM_FREQUENCY_HZ`, `DEAD_TIME_NS` | Parâmetros imutáveis do MCPWM |
 | `MOTOR_POLE_PAIRS` | Número de pares de polos do motor de teste; governa a relação \(f_e = p \cdot n/60\) entre frequência elétrica de comutação e velocidade mecânica do rotor. **Motor A2212/10T 1400kV (14 polos magnéticos):** `7U` |
 | `MOTOR_OPEN_LOOP_COMM_HZ_MAX` | Frequência elétrica máxima da rampa em malha aberta; limita a comutação forçada para prevenir perda de sincronismo magnético (stall/engasgo) durante a aceleração inicial, garantindo FCEM suficiente para handover ao ZCD. **Motor A2212/10T 1400kV:** `300.0f` Hz → teto de ≈ 2571 RPM mecânicos |
-| `WIFI_AP_SSID`, `WIFI_AP_PASSWORD`, `WIFI_AP_CHANNEL`, `WIFI_TELEMETRY_PORT` | Parâmetros do Access Point e porta HTTP do dashboard Wi-Fi |
+| `BOARD_ENABLE_SERIAL_HMI` | 1 = HMI serial USB (default bancada); mutuamente exclusivo com PS4 |
+| `BOARD_ENABLE_PS4_BT` | 0 = BT desligado na bancada; 1 = DualShock 4 via Bluepad32 |
+| `BOARD_ENABLE_WIFI_TELEMETRY` | 0 = AP/HTTP desligados (default bancada) |
+| `WIFI_AP_SSID`, `WIFI_AP_PASSWORD`, `WIFI_AP_CHANNEL`, `WIFI_TELEMETRY_PORT` | Parâmetros do Access Point e porta HTTP (quando Wi-Fi ligado) |
 
-A configuração em tempo de compilação sacrifica flexibilidade em runtime em favor de **determinismo** e **otimização**, constantes podem ser inlined pelo compilador, e o binário resultante contém apenas os caminhos de código necessários.
+> **Nota:** `CONTROL_LOOP_HZ` (10000) em `board_config.h` é macro órfã; a malha efetiva usa `MOTOR_CONTROL_LOOP_HZ` = 1000 Hz em [`motor_control.h`](lib/control/motor_control.h).
 
 ### 3.7 Controlador PI proporcional-integral
 
@@ -382,21 +397,29 @@ Firmware/
 ├── platformio.ini                # Fontes .c/.cpp/.h com comentários didáticos inline
 ├── sdkconfig.defaults
 ├── include/
-│   └── board_config.h            # Pinos, limites e macros de configuração
+│   ├── board_config.h            # Pinos, limites e macros de configuração
+│   └── board_profiles.h          # Perfis PS4 (DS4 original vs bancada estável)
 ├── data/
 │   ├── index.html                # Dashboard web (painel lateral + gráficos)
 │   └── chart.min.js              # Chart.js 4 servido localmente (sem CDN)
 ├── src/
-│   ├── main.cpp                  # Aplicação: setup/loop, PS4, telemetria
+│   ├── main.cpp                  # Aplicação: setup/loop, entrada, telemetria
 │   ├── fsm_system.h / .c         # FSM do ESC
+│   ├── esc_radio_quiet.h / .c    # Desliga BTstack quando PS4 desabilitado
+│   ├── esc_boot_sensors.h / .c   # Legado: cal INA240 early (não invocado no boot atual)
 │   ├── wifi_telemetry.h / .cpp   # AP Wi-Fi, LittleFS, GET /data
 ├── lib/
 │   ├── input/
-│   │   └── ps4_input.h / .cpp    # DualShock 4 via Bluepad32
+│   │   ├── ps4_input.h / .cpp       # Facade — API pública DualShock 4
+│   │   ├── ps4_bt_host.h / .cpp     # Bluepad32 lifecycle + link state
+│   │   ├── ps4_calibration.cpp      # R2 repouso + map RPM/corrente
+│   │   ├── ps4_feedback.cpp         # Lightbar deferida (output report)
+│   │   └── serial_hmi.h / .cpp      # HMI serial USB (default bancada)
 │   ├── control/
 │   │   ├── pid_regulator.h / .c  # Controlador PI
 │   │   └── motor_control.h / .c  # Comutação 6-step e malhas de controle
 │   ├── hal/
+│   │   ├── hal_motor.h / .c      # SD + MCPWM seguros (arm/disarm/emergency)
 │   │   ├── hal_pwm.h / .c        # MCPWM
 │   │   ├── hal_adc.h / .c        # ADC1
 │   │   ├── hal_gpio.h / .c       # GPIO, EXTI, shutdown
@@ -414,7 +437,7 @@ Firmware/
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │  main.cpp                                                    │
-│    ps4_input ──► apply_ps4_to_esc() ──► fsm_system          │
+│    serial_hmi ou ps4_input ──► apply_ps4_to_esc() ──► FSM   │
 │                      │                      │                │
 │                      └──── motor_control_set_target_*()      │
 │    push_wifi_telemetry() ──► wifi_telemetry_push()          │
@@ -422,16 +445,16 @@ Firmware/
                               │
 ┌─────────────────────────────▼───────────────────────────────┐
 │  fsm_system.c                                                │
-│    init: hal_adc/gpio → lm339 → hal_pwm → ina240 → battery   │
+│    init: hal_motor → hal_adc → lm339 → ina240 → battery      │
 │          → bemf_zcd (opcional) → motor_control_init          │
-│    arm/disarm: hal_shutdown, hal_pwm, motor_control_on_*     │
+│    arm/disarm: hal_motor_arm/disarm, motor_control_on_*      │
 │    tick: UVLO, LM339, falhas de software                     │
 └─────────────────────────────────────────────────────────────┘
          │                    │                    │
          ▼                    ▼                    ▼
 ┌──────────────┐    ┌──────────────────┐    ┌──────────────┐
 │ lm339_prot   │    │ motor_control    │    │ battery_mon  │
-│  → hal_dac   │    │  → hal_pwm       │    │  → hal_adc   │
+│  → hal_dac   │    │  → hal_motor     │    │  → hal_adc   │
 │  → hal_gpio  │    │  → ina240        │    └──────────────┘
 └──────────────┘    │  → pid_regulator │
                     │  → bemf_zcd      │
@@ -449,9 +472,11 @@ Firmware/
 
 #### 4.3.1 Aplicação
 
-**[`src/main.cpp`](src/main.cpp)**, Ponto de entrada Arduino. **`initVariant()`** chama `esc_boot_early_calibrate()` (GPIO hold → ADC → `ina240_calibrate_offset(128)`) **antes** do corpo de `setup()`, Wi-Fi AP e `ps4_input_init()`. Em `setup()`: Serial → `ina240_log_boot_diagnostics()` → banners → **`fsm_system_init()`** (sem recalibrar se offset já válido) → **`wifi_telemetry_init()`** →, se AP ativo e `INA240_RECAL_AFTER_WIFI=1`, **`ina240_recalibrate_after_wifi(128)`** após `delay(300 ms)` + log `[Post-WiFi]` → **`ps4_input_init()`** →, se `INA240_RECAL_AFTER_PS4=1`, **`ina240_recalibrate_runtime(128)`** após `delay(500 ms)` + log `[Post-PS4]` (ordem Wi-Fi antes de PS4 exigida pelo coexistence scheduler BT+Wi-Fi do ESP-IDF). Loop com `battery_monitor_tick()`, `fsm_system_tick()`, polling do PS4 a cada `PS4_INPUT_POLL_MS` (20 ms) e telemetria serial + Wi-Fi a cada 100 ms (`RUNNING` ou dashboard ativo) ou 500 ms (demais estados). A função `apply_ps4_to_esc()` traduz o estado do gamepad em requisições de arm/disarm, setpoints e troca de sentido. Após cada poll do PS4, `ps4_input_set_led_status()` atualiza a lightbar do controle conforme conexão e estado da FSM. `push_wifi_telemetry()` monta o JSON compacto e chama `wifi_telemetry_push()`.
+**[`src/main.cpp`](src/main.cpp)**, Ponto de entrada Arduino. Em `setup()`: **`hal_motor_init()`** (SD=HIGH, PWM LOW) → Serial 115200 → **`esc_radio_quiet_init()`** (desliga BTstack se `BOARD_ENABLE_PS4_BT=0`) → banners → **`wifi_telemetry_init()`** (se `BOARD_ENABLE_WIFI_TELEMETRY=1`) → **`ps4_input_init()`** ou **`serial_hmi_init()`** (mutuamente exclusivos) → **`fsm_system_init()`** → **`hal_motor_reclaim_outputs()`** (reconfigura SD após stack BT). Loop: `battery_monitor_tick()`, `fsm_system_tick()`, polling de entrada a cada `PS4_INPUT_POLL_MS` (20 ms) via `serial_hmi_update()` ou `ps4_input_update()`, ambos alimentando `apply_ps4_to_esc()`. Telemetria serial a **500 ms** com Wi-Fi off; com dashboard ativo, push Wi-Fi a 100 ms em RUNNING (ou modo defer). `apply_ps4_to_esc()` traduz `ps4_input_state_t` em arm/disarm, setpoints e troca de sentido — independente da origem (Serial HMI ou PS4).
 
-**[`src/esc_boot_sensors.c`](src/esc_boot_sensors.c)**, Calibração prioritária INA240 no boot (sem Serial). Invocado em `initVariant()` para maximizar isolamento de RF antes do softAP e de `BP32.setup()`. Limitação: o core Bluepad32 pode inicializar o BTstack antes de `initVariant()`; a calibração explícita e o diagnóstico serial ocorrem antes de Wi-Fi e PS4. Com `INA240_RECAL_AFTER_WIFI=1` e `INA240_RECAL_AFTER_PS4=1`, passadas adicionais (`ina240_recalibrate_runtime`) após softAP e após `ps4_input_init()` atualizam `adc_zero` e `bench_corr` para o regime RF de runtime, preservando `ina240_get_offset_mv()` (valores manuais do multímetro quando `INA240_USE_MANUAL_OFFSET=1`). A calibração usa uma única leitura ADC por amostra (`hal_adc_raw_to_mv(raw)`); leitura dupla anterior contaminava `mV_cal` vs `mV_linear` no canal A.
+**[`src/esc_radio_quiet.c`](src/esc_radio_quiet.c)**, Quando `BOARD_ENABLE_PS4_BT=0`, desabilita e libera memória do controlador Bluetooth inicializado pelo core Bluepad32 antes de `setup()`. Evita conflito de GPIO SD (32/33/4) com o stack BT ativo e reduz deriva RF no ADC1 durante ensaios de potência com Serial HMI.
+
+**[`src/esc_boot_sensors.c`](src/esc_boot_sensors.c)** *(legado)*, Implementa `esc_boot_early_calibrate()` (GPIO hold → ADC → `ina240_calibrate_offset(128)`). **Não é invocado** no boot atual — calibração ocorre em `fsm_system_init()` se `ina240_is_offset_calibrated()` for falso. Mantido no repositório para possível reativação via `initVariant()`.
 
 **[`src/fsm_system.c`](src/fsm_system.c)**, FSM de alto nível do ESC. Estados: `INIT`, `IDLE`, `RUNNING`, `FAULT`. Orquestra a sequência de inicialização dos periféricos e drivers, autoriza ou bloqueia a operação do motor e centraliza a resposta a falhas. Não executa comutação nem cálculo de PI.
 
@@ -459,7 +484,33 @@ Firmware/
 
 #### 4.3.2 Entrada
 
-**[`lib/input/ps4_input.cpp`](lib/input/ps4_input.cpp)**, Encapsula a API **Bluepad32** (`BP32.setup`, `BP32.update`). Lê o gatilho **R2** via `ControllerPtr::throttle()` (não `brake()`, que corresponde ao L2). Expõe `ps4_input_state_t` com campos: `connected`, `r2_raw`, `target_amps`, `target_rpm`, `direction`, `options_pressed`, `circle_pressed`. Feedback visual da lightbar via `ps4_input_set_led_status(ps4_led_status_t)`: um valor por estado da FSM (`PS4_LED_INIT`, `PS4_LED_IDLE`, `PS4_LED_RUNNING`, `PS4_LED_FAULT`) ou `PS4_LED_OFF` (desconectado, sem alteração forçada). **Não** referencia `fsm_system`; `main.cpp` traduz `esc_state_t` → `ps4_led_status_t`.
+Dois perfis mutuamente exclusivos (`BOARD_ENABLE_SERIAL_HMI` vs `BOARD_ENABLE_PS4_BT`); ambos produzem `ps4_input_state_t` consumido por `apply_ps4_to_esc()`.
+
+**Serial HMI (default bancada)** — [`lib/input/serial_hmi.cpp`](lib/input/serial_hmi.cpp):
+
+| Comando | Ação |
+|---------|------|
+| `A` / `a` | Alterna arm / disarm |
+| `+` / `-` | Incrementa / decrementa setpoint (RPM ou corrente) |
+| Espaço | E-stop: zera setpoint e desarma |
+| `c` / `C` | Clear fault (FAULT → IDLE) |
+
+Task FreeRTOS no Core 0 (`SERIAL_HMI_TASK_CORE`), poll 20 ms. Telemetria serial exibe `HMI=SER`.
+
+**DualShock 4 (perfil alternativo)** — camada PS4 refatorada em quatro módulos em [`lib/input/`](lib/input/):
+
+| Módulo | Responsabilidade |
+|--------|------------------|
+| [`ps4_input.cpp`](lib/input/ps4_input.cpp) | Facade: `init` / `update` / `is_connected` / delegação LED |
+| [`ps4_bt_host.cpp`](lib/input/ps4_bt_host.cpp) | `BP32.setup/update`, callbacks connect/disconnect, estados `OFF` → `PAIRING` → `READY` → `ACTIVE` |
+| [`ps4_calibration.cpp`](lib/input/ps4_calibration.cpp) | Auto-calibração R2 (zero-rest + analógico), travel, mapa RPM/corrente |
+| [`ps4_feedback.cpp`](lib/input/ps4_feedback.cpp) | `setColorLED` deferido (+500 ms após connect; evita `Invalid cid` no handshake) |
+
+Perfis compiláveis em [`include/board_profiles.h`](include/board_profiles.h): `PS4_PROFILE_DS4_ORIGINAL` (lightbar FSM) vs `PS4_PROFILE_BENCH_STABLE` (sem lightbar no primeiro pareamento).
+
+**[`lib/input/ps4_input.cpp`](lib/input/ps4_input.cpp)** orquestra os submódulos. Lê R2 via `ControllerPtr::throttle()` (não `brake()` = L2). Expõe `ps4_input_state_t`. Input só é válido com `link >= READY` (callback `on_connected`). Telemetria serial inclui `link=PAIRING|READY|ACTIVE` via `ps4_bt_host_get_link_state()`. Lightbar: `ps4_input_set_led_status()` → `ps4_feedback`. **Não** referencia `fsm_system`; `main.cpp` traduz `esc_state_t` → `ps4_led_status_t`.
+
+**Stack BT:** Bluepad32 v4.1.0 (`espressif32@6.10.0` + fork maxgerhardt). Upgrade para ≥4.2 / pioarduino documentado como pendente (SDP timeout em v4.1.0 na bancada).
 
 #### 4.3.3 Controle
 
@@ -476,13 +527,13 @@ Firmware/
 
 API principal: `motor_control_init()`, `motor_control_on_arm()` / `on_disarm()`, `motor_control_tick()`, `motor_control_set_target_amps()` / `set_target_rpm()`, `motor_control_set_direction()`.
 
-Getters de instrumentação de latência (adicionados para Sub-teste 5.1 — bancada): `motor_control_get_tick_latency_us()` (último tick completo), `motor_control_get_tick_latency_min_us()` (mínimo histórico), `motor_control_get_tick_latency_max_us()` (máximo histórico). A medição cobre as Etapas 2–11 do tick (caminho ativo, após a guarda `s_active`). Impressos na telemetria serial em `main.cpp` a cada 100 ms durante `RUNNING`.
+Getters de instrumentação de latência (Sub-teste 5.1 — bancada): `motor_control_get_tick_latency_us()`, `motor_control_get_tick_latency_min_us()`, `motor_control_get_tick_latency_max_us()`. Impressos na telemetria serial a cada **500 ms** (Wi-Fi off) ou 100 ms com dashboard ativo durante `RUNNING`.
 
 #### 4.3.4 Drivers
 
 | Módulo | Função | API principal |
 |--------|--------|---------------|
-| **`ina240_current_sensors`** | Converte mV do ADC em ampères; EMA por fase (`INA240_MV_EMA_ALPHA_A`=0,05 / `INA240_MV_EMA_ALPHA_BC`=0,25); mediana 8× só fase A (`INA240_A_MEDIAN_SAMPLES`); cal 128 amostras; manual offset + `bench_corr`; recal pós-Wi-Fi e pós-PS4 | `ina240_init()`, `ina240_calibrate_offset()`, `ina240_recalibrate_runtime()`, `ina240_read_amps()`, `ina240_log_boot_diagnostics()` |
+| **`ina240_current_sensors`** | Converte mV do ADC em ampères; EMA por fase (`INA240_MV_EMA_ALPHA_A`=0,05 / `INA240_MV_EMA_ALPHA_BC`=0,25); mediana 16× só fase A (`INA240_A_MEDIAN_SAMPLES`); cal 128 amostras; offset manual + `bench_corr`; APIs de recal pós-Wi-Fi/PS4 disponíveis (não invocadas no boot atual) | `ina240_init()`, `ina240_calibrate_offset()`, `ina240_recalibrate_runtime()`, `ina240_read_amps()` |
 | **`battery_monitor`** | Escala divisor 39 kΩ/4,7 kΩ para tensão do barramento; UVLO com histerese | `battery_monitor_tick()`, `battery_monitor_read_volts()`, `battery_monitor_uvlo_active()` |
 | **`lm339_protection`** | Programa Vdac; arma EXTI no OC Trip; latch de falha | `lm339_protection_init()`, `lm339_protection_arm()`, `lm339_protection_fault_active()` |
 | **`bemf_zcd`** | EXTI nos comparadores BEMF; valida fase flutuante por passo | `bemf_zcd_init()`, `bemf_zcd_consume_edge()` (opcional) |
@@ -496,23 +547,17 @@ O canal A (GPIO 34, ADC1_CH6) apresentou em bancada **deriva pós-RF** distinta 
 | Macro | Valor / função |
 |-------|----------------|
 | `INA240_USE_MANUAL_OFFSET` | 1 — offset serial = multímetro (1670/1480/1510 mV) |
-| `INA240_RECAL_AFTER_WIFI` | Recal após `wifi_telemetry_init()` |
-| `INA240_RECAL_AFTER_PS4` | Recal após `ps4_input_init()` |
+| `INA240_RECAL_AFTER_WIFI` | Macro disponível; recal **não invocado** em `main.cpp` no perfil atual |
+| `INA240_RECAL_AFTER_PS4` | 0 — recal pós-BT desligado |
 | `INA240_CALIBRATION_SAMPLES` | 128 amostras por passada |
-| `INA240_A_MEDIAN_SAMPLES` | 8 — mediana só fase A em runtime |
+| `INA240_A_MEDIAN_SAMPLES` | 16 — mediana só fase A em runtime |
 | `INA240_MV_EMA_ALPHA_A` | 0,05 — EMA fase A (B/C: 0,25) |
 
-**Modelo de compensação:** `ina240_get_offset_mv()` retorna a referência manual (multímetro). `adc_zero` e `bench_corr` são recalculados em cada regime RF (pré-Wi-Fi, pós-AP, pós-BT) para alinhar a média ADC à referência física sem alterar o offset serial quando `INA240_USE_MANUAL_OFFSET=1`.
+**Modelo de compensação (perfil bancada):** `INA240_USE_MANUAL_OFFSET=1` fixa offset serial = multímetro (1670/1480/1510 mV). `esc_radio_quiet_init()` desliga BT antes da FSM, mitigando deriva RF no GPIO 34. Calibração única em `fsm_system_init()` se offset ainda não calibrado.
 
-**Sequência de boot (3 etapas):**
+**Perfil histórico PS4+Wi-Fi:** sequência em três etapas (`initVariant` early cal → recal pós-AP → recal pós-BT) foi validada em ensaios anteriores; APIs `ina240_recalibrate_after_wifi()` / `ina240_recalibrate_runtime()` permanecem no driver para reativação futura.
 
-1. `initVariant()` → `esc_boot_early_calibrate()` — cal early, 128 amostras, RF mínimo
-2. Após `wifi_telemetry_init()` → `ina240_recalibrate_after_wifi(128)` — log `[Post-WiFi]`
-3. Após `ps4_input_init()` → `ina240_recalibrate_runtime(128)` — log `[Post-PS4]`
-
-**Runtime (1 kHz):** fase A aplica mediana de 8 leituras consecutivas + EMA (α=0,05); B/C leitura simples + EMA (α=0,25).
-
-**APIs de diagnóstico:** `ina240_log_boot_diagnostics()`, `ina240_recalibrate_after_wifi()`, `ina240_recalibrate_runtime()`.
+**Runtime (1 kHz):** fase A aplica mediana de 16 leituras consecutivas + EMA (α=0,05); B/C leitura simples + EMA (α=0,25).
 
 **Resultado ID 14 (bancada):** offset aprovado; zero em IDLE aprovado com reserva (~90 % dentro de ±0,5 A em A; picos ~1 A). Ensaio de ganho (ID 15): preferir fase B. Melhoria hardware sugerida: capacitor 100–470 nF entre `OUT` A e SGND.
 
@@ -522,6 +567,7 @@ O canal A (GPIO 34, ADC1_CH6) apresentou em bancada **deriva pós-RF** distinta 
 
 | Módulo | Função | API principal |
 |--------|--------|---------------|
+| **`hal_motor`** | Orquestra SD IR2110 + MCPWM: boot seguro, arm/disarm, 6-step atômico, emergency shutdown (ISR) | `hal_motor_init()`, `hal_motor_arm()`, `hal_motor_disarm()`, `hal_motor_apply_step()`, `hal_motor_emergency_shutdown()` |
 | **`hal_pwm`** | MCPWM 6 canais, dead-time, modos OFF/SOURCE/SINK | `hal_pwm_init()`, `hal_pwm_set_armed()`, `hal_pwm_set_phase_conduction()`, `hal_pwm_disable_all()` |
 | **`hal_adc`** | ADC1, leitura em mV (`esp_adc_cal` + descarte pós-mux + fallback linear) | `hal_adc_init()`, `hal_adc_read_mv()`, `hal_adc_raw_to_mv()`, `hal_adc_is_calibrated()`, `hal_adc_cal_scheme_name()`, `hal_adc_read_raw()` |
 | **`hal_gpio`** | SD IR2110; EXTI OC Trip | `hal_shutdown_set_enabled()`, `hal_gpio_attach_oc_trip_isr()`, `hal_gpio_oc_trip_asserted()` |
@@ -554,17 +600,18 @@ INIT ──(init OK)──► IDLE ──(arm)──► RUNNING ──(disarm)�
                       └──── falhas ────┴────► FAULT ──(clear)──► IDLE
 ```
 
-**Sequência de inicialização** (`fsm_system_init()`):
+**Sequência de inicialização** (`fsm_system_init()` via `run_init_sequence()`):
 
-1. `hal_adc_init()`, configura ADC1 (idempotente; cal eFuse já feita em `initVariant` se aplicável).
-2. `hal_gpio_init()`, saídas SD em LOW; entrada OC Trip com pull-up.
-3. `lm339_protection_init()`, DAC1 com tensão de referência OCP.
-4. `hal_pwm_init()`, MCPWM 20 kHz; PWM desarmado.
-5. `ina240_calibrate_offset(INA240_CALIBRATION_SAMPLES)` **somente se** `ina240_is_offset_calibrated()` for falso (boot normal: já calibrado em `esc_boot_early_calibrate()`).
-6. `battery_monitor_init()`, detecção automática de células LiPo (4S–6S).
-7. `bemf_zcd_init()`, somente se `BOARD_ENABLE_BEMF_ZCD == 1`.
-8. `lm339_protection_arm()`, habilita ISR no OC Trip.
-9. `motor_control_init()`, cria temporizador 1 kHz.
+1. `hal_motor_init()` — SD=HIGH, pinos PWM LOW, MCPWM init sem attach.
+2. `hal_adc_init()` — ADC1 calibrado.
+3. `lm339_protection_init()` — DAC1 com tensão de referência OCP.
+4. `ina240_init()` + `ina240_calibrate_offset(128)` **somente se** `ina240_is_offset_calibrated()` for falso.
+5. `battery_monitor_init()` — detecção automática de células LiPo (4S–6S).
+6. `bemf_zcd_init()` — somente se `BOARD_ENABLE_BEMF_ZCD == 1`.
+7. `lm339_protection_arm()` — habilita ISR no OC Trip.
+8. `motor_control_init()` — cria temporizador 1 kHz.
+
+Em `setup()`, após `fsm_system_init()`: `hal_motor_reclaim_outputs()` reconfigura SD após possível init do stack BT.
 
 Falha em qualquer etapa invoca `enter_fault_state()` e o ESC permanece em `FAULT`.
 
@@ -573,11 +620,11 @@ Falha em qualquer etapa invoca `enter_fault_state()` e o ESC permanece em `FAULT
 | Função | Transição | Condições |
 |--------|-----------|-----------|
 | `fsm_system_request_arm()` | IDLE → RUNNING | Sem UVLO; sem falha LM339 ativa |
-| `fsm_system_request_disarm()` | RUNNING → IDLE |, |
+| `fsm_system_request_disarm()` | RUNNING → IDLE | — |
 | `fsm_system_clear_fault()` | FAULT → IDLE | Hardware OC liberado; sem UVLO |
-| `fsm_system_tick()` |, | Processa flags de falha, UVLO, OC |
+| `fsm_system_tick()` | — | Processa flags de falha, UVLO, OC |
 
-Ao armar: `hal_shutdown_set_enabled(true)` → `hal_pwm_set_armed(true)` → `motor_control_on_arm()`. Ao desarmar, a ordem inverte-se e o shutdown retorna a LOW.
+Ao armar: `hal_motor_arm()` → `motor_control_on_arm()`. Ao desarmar: `hal_motor_disarm()` → `motor_control_on_disarm()`.
 
 ### 5.2 Sub-FSM de partida do motor (`motor_control`)
 
@@ -585,22 +632,22 @@ Dentro de `ESC_STATE_RUNNING`, o módulo `motor_control` executa uma **sequênci
 
 #### 5.2.1 Fundamento: por que alinhar antes de comutar?
 
-Sem detecção de posição do rotor, a comutação imediata em malha aberta provoca vibração, ausência de rotação ou perda de sincronismo (*stall*). O estágio **ALIGN** aplica um vetor estático fixo no estator (passo 6-step 0 para CW ou passo 3 para CCW) com duty de 12 % por 500 ms, puxando o rotor para uma posição angular conhecida \(\theta_0\) antes de iniciar a sequência trapezoidal.
+Sem detecção de posição do rotor, a comutação imediata em malha aberta provoca vibração, ausência de rotação ou perda de sincronismo (*stall*). O estágio **ALIGN** aplica um vetor estático fixo no estator (passo 6-step 0 para CW ou passo 3 para CCW) com duty rampando de 0 % a **3 %** (`align_ramp_duty_percent()`) por **100 ms** (`MOTOR_ALIGN_DURATION_MS`), puxando o rotor para uma posição angular conhecida \(\theta_0\) antes de iniciar a sequência trapezoidal.
 
 #### 5.2.2 Fases de partida
 
 | Fase | Modo CURRENT | Modo SPEED |
 |------|--------------|------------|
 | `MOTOR_START_IDLE` | Referência zero; sem torque | Idem |
-| `MOTOR_START_ALIGN` | Alinhamento estático 500 ms | Idem |
-| `MOTOR_START_RUN` | PI corrente + rampa OPEN |, |
-| `MOTOR_START_RUN_OPEN` |, | Rampa OPEN; corrente fixa 0,5 A |
-| `MOTOR_START_RUN_SPEED` |, | PI velocidade + feedforward \(f_{el}\) |
+| `MOTOR_START_ALIGN` | Alinhamento estático 100 ms (duty 3 % rampa) | Idem |
+| `MOTOR_START_RUN` | PI corrente + rampa OPEN | — |
+| `MOTOR_START_RUN_OPEN` | — | Rampa OPEN (teto `MOTOR_OPEN_LOOP_RUN_OPEN_RAMP_MAX_HZ`); corrente fixa 0,5 A |
+| `MOTOR_START_RUN_SPEED` | — | PI velocidade + feedforward \(f_{el}\) |
 
 **Modo CURRENT** (`MOTOR_CONTROL_USE_SPEED_MODE 0`):
 
 ```text
-IDLE ──► ALIGN (500 ms) ──► RUN (PI + rampa f_el 5→300 Hz)
+IDLE ──► ALIGN (100 ms) ──► RUN (PI + rampa f_el 5→300 Hz)
 ```
 
 **Modo SPEED** (padrão, `MOTOR_CONTROL_USE_SPEED_MODE 1`):
@@ -635,14 +682,14 @@ Com `BOARD_ENABLE_BEMF_ZCD 1`, após velocidade e duty suficientes, o firmware p
 sequenceDiagram
     participant Loop as Arduino_loop
     participant FSM as fsm_system_tick
-    participant PS4 as ps4_input_update
+    participant HMI as serial_hmi_ou_ps4
     participant Timer as esp_timer_1kHz
     participant MC as motor_control_tick
     participant ISR as OC_Trip_ISR
 
     Loop->>FSM: cada iteracao
-    Loop->>PS4: a cada 20ms
-    PS4->>FSM: arm_disarm
+    Loop->>HMI: a cada 20ms
+    HMI->>FSM: arm_disarm
     Timer->>MC: 1000Hz
     MC->>MC: PI_comutacao_stall_check
     ISR->>FSM: s_fault_pending
@@ -651,12 +698,13 @@ sequenceDiagram
 
 O `motor_control_tick()` executa somente quando `s_active == true`, definido por `motor_control_on_arm()` na transição para `RUNNING`. Fora desse estado, o temporizador continua ativo, mas a função retorna sem atuar no PWM.
 
-**Sequência de boot INA240** (complementa Fluxo A nos fluxogramas `.mmd`):
+**Sequência de boot** (Fluxo A nos fluxogramas `.mmd`):
 
-1. `initVariant()` → `esc_boot_early_calibrate()` (128 amostras, sem Serial)
-2. `setup()`: Serial → diagnóstico pré-Wi-Fi → `fsm_system_init()` (cal INA240 condicional)
-3. `wifi_telemetry_init()` → `ina240_recalibrate_after_wifi()` — `[Post-WiFi]`
-4. `ps4_input_init()` → `ina240_recalibrate_runtime()` — `[Post-PS4]`
+1. `setup()`: `hal_motor_init()` → Serial → `esc_radio_quiet_init()` → banners
+2. `wifi_telemetry_init()` (se `BOARD_ENABLE_WIFI_TELEMETRY=1`)
+3. `ps4_input_init()` ou `serial_hmi_init()` (mutuamente exclusivos)
+4. `fsm_system_init()` — cal INA240 condicional
+5. `hal_motor_reclaim_outputs()`
 
 #### 5.3.1 Fluxogramas formais
 
@@ -665,7 +713,7 @@ Além do diagrama de sequência acima, o firmware possui **fluxogramas Mermaid**
 | Figura | Arquivo fonte | Conteúdo |
 |--------|---------------|----------|
 | Mapa completo | [`fluxograma1_documentacao_fluxo_Completo.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_Completo.mmd) | Fluxos A, B e C no mesmo grafo; acoplamentos ①–⑨ (tracejados) |
-| Fluxo A | [`fluxograma1_documentacao_fluxo_A.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_A.mmd) | `setup()` / `loop()` ~20 ms — FSM, PS4, telemetria, LED |
+| Fluxo A | [`fluxograma1_documentacao_fluxo_A.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_A.mmd) | `setup()` / `loop()` ~20 ms — FSM, Serial HMI ou PS4, telemetria |
 | Fluxo B | [`fluxograma1_documentacao_fluxo_B.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_B.mmd) | `esp_timer` 1 kHz — PI, partida 6-step, stall, ZCD opcional |
 | Fluxo C | [`fluxograma1_documentacao_fluxo_C.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_C.mmd) | ISR OC Trip LM339 — desarme imediato + flag para FSM |
 | Visão resumida | [`fluxograma2_processo.mmd`](docs/fluxogramas/fluxograma2_processo.mmd) | Equivalente operacional ao Fluxo A (1× A4) |
@@ -680,18 +728,35 @@ Legenda, tabela de acoplamentos e instruções de exportação SVG: [`fluxograma
 | ② | Init ISR (A) → OC Trip (C) | `lm339_protection_arm()` |
 | ③ | Arm (A) → `motor_control` ativo (B) | `motor_control_on_arm()` |
 | ④ | Desarme (A) → ticks inativos (B) | `motor_control_on_disarm()` |
-| ⑤ | Setpoint PS4 (A) → PI (B) | `motor_control_set_target_*()` |
+| ⑤ | Setpoint HMI/PS4 (A) → PI (B) | `motor_control_set_target_*()` |
 | ⑥⑦ | Flags OC/STALL (B) → `fsm_system_tick` (A) | `motor_control_consume_software_fault()` |
 | ⑧ | Flag HW OC (C) → `fsm_system_tick` (A) | `s_fault_pending` na ISR |
 | ⑨ | Supervisão (A) → FAULT | `enter_fault_state()` |
 
-### 5.4 Interface de comando (DualShock 4)
+### 5.4 Interface de comando (Serial HMI e DualShock 4)
 
-O controle opera exclusivamente via **Bluetooth**; a porta serial (115200 baud) emite apenas telemetria de diagnóstico, sem comandos interativos.
+Dois perfis mutuamente exclusivos em [`board_config.h`](include/board_config.h): **`BOARD_ENABLE_SERIAL_HMI=1`** (default bancada) ou **`BOARD_ENABLE_PS4_BT=1`** (demonstração wireless). Ambos alimentam `apply_ps4_to_esc()` via `ps4_input_state_t`.
+
+#### 5.4.1 Serial HMI (default bancada)
+
+Comandos via monitor USB 115200 (caractere + Enter):
 
 | Entrada | Ação |
 |---------|------|
-| R2 (gatilho direito, `throttle()`) > `PS4_R2_ARM_THRESHOLD` (10) | Arma o ESC; mapeia referência de corrente (0–5 A) ou RPM (0–2571) |
+| `A` / `a` | Alterna arm / disarm |
+| `+` / `-` | Incrementa / decrementa setpoint (RPM ou corrente) |
+| Espaço | E-stop: zera setpoint e desarma |
+| `c` / `C` | *Clear fault* em `FAULT` |
+
+Telemetria serial exibe `HMI=SER` e grandezas elétricas a 500 ms (Wi-Fi off).
+
+#### 5.4.2 DualShock 4 (perfil alternativo)
+
+O controle opera via **Bluetooth**; a porta serial emite apenas telemetria de diagnóstico.
+
+| Entrada | Ação |
+|---------|------|
+| R2 (gatilho direito, `throttle()`) > limiar | Arma o ESC; mapeia referência de corrente (0–5 A) ou RPM (0–2571) |
 | R2 ≤ limiar | Desarma; referência zero; permite troca de sentido |
 | Circle (○) solto / pressionado | Sentido CW / CCW (troca efetiva somente com R2 solto) |
 | Options (Start) | *Clear fault* em `FAULT`; exige soltar R2 antes de re-armar |
@@ -769,7 +834,7 @@ R2 ──► I_cmd ──► PI_corrente ──► duty % ──► motor
                I_med (INA240)
 ```
 
-**Partida:** `ALIGN` (500 ms) → `MOTOR_START_RUN` — PI de corrente ativo com rampa de comutação em malha aberta (5→300 Hz elétricos, motor A2212/10T — `MOTOR_POLE_PAIRS = 7U`, `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f`).
+**Partida:** `ALIGN` (100 ms) → `MOTOR_START_RUN` — PI de corrente ativo com rampa de comutação em malha aberta (5→300 Hz elétricos, motor A2212/10T — `MOTOR_POLE_PAIRS = 7U`, `MOTOR_OPEN_LOOP_COMM_HZ_MAX = 300.0f`).
 
 **Comportamento em regime:**
 
@@ -790,7 +855,7 @@ R2 ──► RPM_cmd (slew) ──┬─► feedforward: f_el = RPM × p / 60  �
                                 └── RPM_med (estimado)           └── I_med (INA240)
 ```
 
-**Partida:** `ALIGN` → `RUN_OPEN` (corrente fixa 0,5 A, rampa OPEN) → `RUN_SPEED` (handover quando RPM_med ≥ 600 por 200 ms).
+**Partida:** `ALIGN` (100 ms, duty 3 % rampa) → `RUN_OPEN` (corrente fixa 0,5 A, rampa OPEN até 18 Hz el.) → `RUN_SPEED` (handover quando RPM_med ≥ 600 por 200 ms).
 
 **Mecanismo do controle de velocidade** (fase `RUN_SPEED`, em `motor_control_tick()`):
 
@@ -900,7 +965,7 @@ flowchart LR
     end
     subgraph fw [Firmware]
         ISR[ISR_OC_imediata]
-        SW_OC[OC_software_8A]
+        SW_OC[OC_software_15A]
         UVLO[UVLO_4S_6S]
         STALL[Deteccao_stall]
         BT[Perda_sinal_PS4]
@@ -926,10 +991,10 @@ A resposta imediata em hardware (Fluxo C) e a consolidação em FAULT (Fluxo A) 
 | **Mecanismo** | Amplificadores INA240 → comparadores LM339 em wired-OR → GPIO 26 (OC Trip) |
 | **Referência** | DAC1 (GPIO 25) programado em `lm339_protection_init()` |
 | **Equação** | \(V_{dac} = 1{,}65 + I_{limit} \times 0{,}001 \times 20\) V (shunt 1 mΩ, ganho 20 V/V, offset 1,65 V) |
-| **Limiar padrão** | 8 A → \(V_{dac} \approx 1{,}81\) V |
-| **Tempo de resposta** | Microssegundos (ISR `IRAM_ATTR` em `hal_gpio.c`) |
-| **Ação** | Shutdown LOW nos três IR2110; PWM desarmado; `s_fault_pending = true` |
-| **Recuperação** | Botão Options após o pino OC Trip retornar a HIGH (hardware liberado) |
+| **Limiar padrão** | 25 A (`LM339_OCP_AMPS_LIMIT`) → \(V_{dac} \approx 2{,}15\) V via `LM339_OCP_DAC_RAW` |
+| **Tempo de resposta** | Microssegundos (ISR `IRAM_ATTR` → `hal_motor_emergency_shutdown()`) |
+| **Ação** | SD=HIGH nos três IR2110; PWM off; `s_fault_pending = true` |
+| **Recuperação** | Options (PS4) ou `c`/`C` (Serial HMI) após o pino OC Trip retornar a HIGH |
 
 A proteção em hardware opera **independentemente** do loop de controle e do estado da FSM, requisito essencial em aplicações de potência.
 
@@ -938,10 +1003,10 @@ A proteção em hardware opera **independentemente** do loop de controle e do es
 | Aspecto | Detalhe |
 |---------|---------|
 | **Mecanismo** | `motor_control_tick()` monitora \(\max(|I_a|, |I_b|, |I_c|)\) via INA240 |
-| **Limiar** | `MOTOR_SOFTWARE_OC_AMPS` = 8 A (com torque ativo) |
+| **Limiar** | `MOTOR_SOFTWARE_OC_AMPS` = 15 A (com torque ativo) |
 | **Tempo de resposta** | Até 1 ms (período da malha) |
 | **Ação** | `trip_software_overcurrent()` → `s_sw_fault_pending`; FSM transita a `FAULT` (`falha=OC_SW`) |
-| **Recuperação** | *Clear fault* via Options |
+| **Recuperação** | *Clear fault* via Options (PS4) ou `c`/`C` (Serial HMI) |
 
 Complementa o OCP hardware em cenários de bancada, por exemplo, corrente elevada durante ALIGN com duty fixo antes do disparo analógico, e permite coerência entre limiares SW e HW via `LM339_HW_OC_AMPS`.
 
@@ -987,13 +1052,11 @@ Em `RUN_SPEED`, se o erro de velocidade exceder 200 RPM por 300 ms, o sistema re
 
 A função `enter_fault_state()` em [`fsm_system.c`](src/fsm_system.c) centraliza a resposta:
 
-```25:32:Firmware/src/fsm_system.c
+```37:42:Firmware/src/fsm_system.c
 static void enter_fault_state(void)
 {
-    hal_shutdown_set_enabled(false);
+    hal_motor_disarm();
     motor_control_on_disarm();
-    hal_pwm_set_armed(false);
-    hal_pwm_disable_all();
     s_state = ESC_STATE_FAULT;
 }
 ```
@@ -1010,7 +1073,7 @@ A recuperação exige três condições simultâneas:
 2. Hardware OC liberado (`lm339_protection_clear_fault()` bem-sucedido).
 3. UVLO inativo (`battery_monitor_uvlo_active() == false`).
 
-O operador aciona o botão **Options**; a FSM transita a `IDLE` e impõe a flag `aguardando_R2=0`, o gatilho R2 deve ser liberado antes de nova armagem, evitando re-arme acidental com referência não nula.
+O operador aciona **Options** (PS4) ou **`c`/`C`** (Serial HMI); a FSM transita a `IDLE` e impõe a flag `aguardando_R2=0`, o gatilho/setpoint deve ser liberado antes de nova armagem, evitando re-arme acidental com referência não nula.
 
 ### 6.10 Análise de segurança: inversão automática de sentido com motor em movimento
 
@@ -1029,17 +1092,17 @@ Implementável em ~15 linhas, sem alterações em `motor_control.c` ou `fsm_syst
 
 #### 6.10.2 Riscos do re-arm imediato com rotor em movimento
 
-O principal problema é a **fase de alinhamento (ALIGN)** executada em todo re-arm. Nela, `begin_align_sequence()` aplica um vetor eletromagnético fixo ao estator por `MOTOR_ALIGN_DURATION_MS` = 500 ms a `MOTOR_ALIGN_DUTY_PERCENT` = 12 % de duty cycle, com o objetivo de posicionar mecanicamente o rotor antes da rampa em malha aberta.
+O principal problema é a **fase de alinhamento (ALIGN)** executada em todo re-arm. Nela, `begin_align_sequence()` aplica um vetor eletromagnético fixo ao estator por `MOTOR_ALIGN_DURATION_MS` = 100 ms a `MOTOR_ALIGN_DUTY_PERCENT` = 3 % de duty cycle (rampa 0→3 %), com o objetivo de posicionar mecanicamente o rotor antes da rampa em malha aberta.
 
 Se o rotor ainda estiver girando com RPM residual significativo no momento do re-arm:
 
 **a) BEMF presente durante o ALIGN**
 
-O motor girando gera FCEM nos terminais das fases não energizadas. Ao aplicar o vetor de ALIGN, o firmware impõe uma tensão de estator que pode atuar **em oposição** ao movimento, criando um efeito de frenagem regenerativa não controlada. A corrente resultante pode disparar a proteção OC de software (`MOTOR_SOFTWARE_OC_AMPS` = 8 A) em menos de 1 ms, transitando imediatamente para `FAULT`.
+O motor girando gera FCEM nos terminais das fases não energizadas. Ao aplicar o vetor de ALIGN, o firmware impõe uma tensão de estator que pode atuar **em oposição** ao movimento, criando um efeito de frenagem regenerativa não controlada. A corrente resultante pode disparar a proteção OC de software (`MOTOR_SOFTWARE_OC_AMPS` = 15 A) em menos de 1 ms, transitando imediatamente para `FAULT`.
 
 **b) Proteção de stall inativa durante o ALIGN**
 
-`trip_stall_high_current()` e `trip_stall_no_commutation()` só atuam quando `is_run_phase(s_start_phase)` é verdadeiro — o que **exclui** `MOTOR_START_ALIGN`. Durante o alinhamento, o único protetor ativo contra corrente elevada é o OC de software (8 A); correntes entre `MOTOR_STALL_CURRENT_AMPS` (6 A) e 8 A não disparam nenhum mecanismo.
+`trip_stall_high_current()` e `trip_stall_no_commutation()` só atuam quando `is_run_phase(s_start_phase)` é verdadeiro — o que **exclui** `MOTOR_START_ALIGN`. Durante o alinhamento, o único protetor ativo contra corrente elevada é o OC de software (15 A); correntes entre `MOTOR_STALL_CURRENT_AMPS` (6 A) e 15 A não disparam nenhum mecanismo.
 
 **c) Ausência de medição de RPM residual fora do ciclo ativo**
 
@@ -1051,7 +1114,7 @@ O motor girando gera FCEM nos terminais das fases não energizadas. Ao aplicar o
 |----------------------------------|-----------|
 | Motor parado ou < ~200 RPM | Seguro — inércia baixa, ALIGN domina o rotor sem corrente expressiva |
 | 200–600 RPM | Risco moderado — possível pico de corrente no início do ALIGN; OC pode ou não disparar |
-| > 600 RPM (handover ZCD / velocidade cruzeiro) | **Risco elevado** — BEMF suficiente para gerar corrente acima de 8 A durante o ALIGN; trip de OC provável |
+| > 600 RPM (handover ZCD / velocidade cruzeiro) | **Risco elevado** — BEMF suficiente para gerar corrente acima de 15 A durante o ALIGN; trip de OC provável |
 
 #### 6.10.4 Pré-requisitos para uma implementação segura
 
@@ -1087,12 +1150,12 @@ Seguir o fluxo de execução (boot → operação → falha):
 |-------|---------|---------------|
 | 1 | [`include/board_config.h`](include/board_config.h) | Pinos, limites, ganhos PI, modo SPEED/CURRENT |
 | 2 | [`lib/control/pid_regulator.c`](lib/control/pid_regulator.c) | Algoritmo PI + anti-windup (linha a linha) |
-| 3 | [`lib/hal/hal_adc.c`](lib/hal/hal_adc.c), [`hal_dac.c`](lib/hal/hal_dac.c), [`hal_pwm.c`](lib/hal/hal_pwm.c), [`hal_gpio.c`](lib/hal/hal_gpio.c) | Periféricos ESP32 e ISR de OCP |
+| 3 | [`lib/hal/hal_motor.c`](lib/hal/hal_motor.c), [`hal_adc.c`](lib/hal/hal_adc.c), [`hal_dac.c`](lib/hal/hal_dac.c), [`hal_pwm.c`](lib/hal/hal_pwm.c), [`hal_gpio.c`](lib/hal/hal_gpio.c) | Periféricos ESP32, SD/PWM seguros e ISR de OCP |
 | 4 | [`lib/drivers/ina240_current_sensors.c`](lib/drivers/ina240_current_sensors.c), [`battery_monitor.c`](lib/drivers/battery_monitor.c), [`lm339_protection.c`](lib/drivers/lm339_protection.c), [`bemf_zcd.c`](lib/drivers/bemf_zcd.c) | Sensores e proteções |
 | 5 | [`lib/control/motor_control.c`](lib/control/motor_control.c) | Tabela 6-step, `motor_control_tick` (11 etapas), partida e stall |
 | 6 | [`src/fsm_system.c`](src/fsm_system.c) | FSM INIT/IDLE/RUNNING/FAULT, init e `enter_fault_state` |
-| 7 | [`lib/input/ps4_input.cpp`](lib/input/ps4_input.cpp) | Mapeamento R2 → setpoint |
-| 8 | [`src/main.cpp`](src/main.cpp) | `setup`/`loop`, `apply_ps4_to_esc` (7 etapas), `push_wifi_telemetry` |
+| 7 | [`lib/input/serial_hmi.cpp`](lib/input/serial_hmi.cpp) ou [`ps4_input.cpp`](lib/input/ps4_input.cpp) | Entrada operador → setpoint |
+| 8 | [`src/esc_radio_quiet.c`](src/esc_radio_quiet.c), [`src/main.cpp`](src/main.cpp) | Boot seguro, `setup`/`loop`, `apply_ps4_to_esc` |
 | 9 | [`src/wifi_telemetry.cpp`](src/wifi_telemetry.cpp) | AP, LittleFS, rotas HTTP |
 | 10 | [`data/index.html`](data/index.html) | Polling, painel lateral, gráficos Chart.js, export CSV/PNG |
 
@@ -1135,9 +1198,9 @@ Setas **sólidas** = sequência interna; **tracejadas numeradas** = acoplamento 
 
 | Ordem de leitura | Fluxograma correspondente |
 |------------------|---------------------------|
-| `main.cpp`, `fsm_system.c`, `ps4_input.cpp` | Fluxo A · [`fluxograma1_documentacao_fluxo_A.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_A.mmd) |
+| `main.cpp`, `fsm_system.c`, `serial_hmi.cpp` ou `ps4_input.cpp` | Fluxo A · [`fluxograma1_documentacao_fluxo_A.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_A.mmd) |
 | `motor_control.c`, `pid_regulator.c` | Fluxo B · [`fluxograma1_documentacao_fluxo_B.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_B.mmd) |
-| `hal_gpio.c` (`oc_trip_isr_handler`), `lm339_protection.c` | Fluxo C · [`fluxograma1_documentacao_fluxo_C.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_C.mmd) |
+| `hal_gpio.c` (`oc_trip_isr_handler`), `lm339_protection.c`, `hal_motor.c` | Fluxo C · [`fluxograma1_documentacao_fluxo_C.mmd`](docs/fluxogramas/fluxograma1_documentacao_fluxo_C.mmd) |
 | Visão operacional para o TCC | [`fluxograma2_processo.mmd`](docs/fluxogramas/fluxograma2_processo.mmd) |
 
 ---
@@ -1167,7 +1230,7 @@ A implementação prioriza **baixo uso de RAM** e **ausência de internet**: Cha
 
 Após alterar `data/index.html` ou `chart.min.js`, é obrigatório `pio run -t uploadfs`. O browser pode cachear HTML antigo; use **Ctrl+Shift+R** (hard refresh) após o upload.
 
-**Ordem de inicialização no boot:** **`initVariant()`** → `esc_boot_early_calibrate()` (INA240 offset, 128 amostras, sem Serial) → **`setup()`**: early safety → Serial → diagnóstico INA240 (pré-Wi-Fi) → banners → **`fsm_system_init()`** → **`wifi_telemetry_init()`** → **`ina240_recalibrate_after_wifi(128)`** (opcional, delay 300 ms, log `[Post-WiFi]`) → **`ps4_input_init()`** → **`ina240_recalibrate_runtime(128)`** (opcional, `INA240_RECAL_AFTER_PS4=1`, delay 500 ms, log `[Post-PS4]`). Cal early antes do softAP; recals complementam `adc_zero`/`bench_corr` sem alterar offset serial manual. Canal A: mediana 8× em runtime (`INA240_A_MEDIAN_SAMPLES=8`), EMA α=0,05 (`INA240_MV_EMA_ALPHA_A`). `wifi_telemetry_init()` continua **antes** de `ps4_input_init()` — inverter Wi-Fi vs PS4 faz o `softAP` falhar silenciosamente por conflito no scheduler de coexistência BT+Wi-Fi do ESP-IDF.
+**Ordem de inicialização no boot:** `hal_motor_init()` → Serial → `esc_radio_quiet_init()` → banners → `wifi_telemetry_init()` (se flag) → `ps4_input_init()` ou `serial_hmi_init()` → `fsm_system_init()` → `hal_motor_reclaim_outputs()`. Perfil bancada: Wi-Fi e PS4 desligados; cal INA240 em `fsm_system_init()` com offset manual (`INA240_USE_MANUAL_OFFSET=1`). Canal A: mediana 16× em runtime, EMA α=0,05. Com Wi-Fi+PS4 ativos, invocar recals via `ina240_recalibrate_after_wifi()` / `ina240_recalibrate_runtime()` após init correspondente (APIs disponíveis; não wired no `main.cpp` atual).
 
 ### 8.3 Arquitetura HTTP polling
 
@@ -1252,7 +1315,7 @@ Quando o PS4 está desconectado (`ps4c=false`), `r2` e `circle` são forçados a
 
 O ESP32 compartilha o rádio entre Bluetooth Classic (PS4) e Wi-Fi AP via time-sharing do ESP-IDF. O **ADC2** torna-se indisponível ou não confiável com o rádio ativo; o **ADC1** (GPIO 34–36, 39) permanece operacional e sustenta leitura contínua a 1 kHz. A escolha de HTTP polling em vez de WebSocket reduz pressão sobre o heap (~55 KB livres típicos com BT+AP ativos).
 
-**Distinção importante:** ADC1 *funciona* com Wi-Fi/BT ativos (diferente do ADC2), porém o **GPIO 34** (fase A) pode apresentar deriva residual ou impulsos de RF nas leituras em repouso após boot completo. Mitigações firmware: calibração em 3 etapas (`initVariant`, pós-Wi-Fi, pós-PS4), `bench_corr`, mediana 8× e EMA α=0,05 só na fase A. Detalhes: [§4.3.4.1](#4341-ina240--canal-a-gpio-34).
+**Distinção importante:** ADC1 *funciona* com Wi-Fi/BT ativos (diferente do ADC2), porém o **GPIO 34** (fase A) pode apresentar deriva residual ou impulsos de RF nas leituras em repouso após boot completo. Mitigações firmware: `esc_radio_quiet` (BT off na bancada), offset manual, mediana 16× e EMA α=0,05 só na fase A. Detalhes: [§4.3.4.1](#4341-ina240--canal-a-gpio-34).
 
 ### 8.7 Protocolo de validação em bancada (TCC)
 

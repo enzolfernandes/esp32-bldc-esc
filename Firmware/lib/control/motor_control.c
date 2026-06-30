@@ -15,12 +15,13 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "hal_pwm.h"
+#include "hal_motor.h"
 #include "ina240_current_sensors.h"
 #include "pid_regulator.h"
 
 #include <math.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #define COMMUTATION_STEP_COUNT 6U
 
@@ -80,6 +81,7 @@ static uint32_t s_step_period_us = DEFAULT_STEP_PERIOD_US;
 static uint64_t s_last_comm_us = 0U;
 static uint64_t s_comm_deadline_us = 0U;
 static uint64_t s_align_end_us = 0U;
+static uint64_t s_align_start_us = 0U;
 static motor_start_phase_t s_start_phase = MOTOR_START_IDLE;
 static int8_t s_comm_direction = 1;
 static volatile bool s_sw_fault_pending = false;
@@ -256,10 +258,15 @@ static float read_bus_current_amps(void)
 static void apply_commutation_step(float duty_percent)
 {
     const commutation_pattern_t pattern = s_commutation_table[s_comm_step];
+    hal_pwm_conduction_t mode_b = pattern.phase_b;
+    hal_pwm_conduction_t mode_c = pattern.phase_c;
 
-    hal_pwm_set_phase_conduction(HAL_PWM_PHASE_A, pattern.phase_a, duty_percent);
-    hal_pwm_set_phase_conduction(HAL_PWM_PHASE_B, pattern.phase_b, duty_percent);
-    hal_pwm_set_phase_conduction(HAL_PWM_PHASE_C, pattern.phase_c, duty_percent);
+#if MOTOR_SWAP_PHASES_BC
+    mode_b = pattern.phase_c;
+    mode_c = pattern.phase_b;
+#endif
+
+    hal_motor_apply_step(pattern.phase_a, mode_b, mode_c, duty_percent);
 }
 
 static void reset_open_loop_ramp(void)
@@ -320,8 +327,9 @@ static void begin_align_sequence(void)
     s_comm_deadline_us = 0U;
     s_last_comm_us = 0U;
     reset_open_loop_ramp();
+    s_align_start_us = esp_timer_get_time();
     s_align_end_us =
-        esp_timer_get_time() + (uint64_t)s_align_duration_ms * 1000ULL;
+        s_align_start_us + (uint64_t)s_align_duration_ms * 1000ULL;
     s_stall_begin_us = 0U;
 }
 
@@ -342,11 +350,29 @@ static void finish_align_sequence(void)
     }
 }
 
+static float align_ramp_duty_percent(uint64_t now_us)
+{
+    if (s_align_start_us == 0U || s_align_duration_ms == 0U) {
+        return 0.0f;
+    }
+
+    const uint64_t duration_us = (uint64_t)s_align_duration_ms * 1000ULL;
+    const uint64_t elapsed_us = now_us - s_align_start_us;
+
+    if (elapsed_us >= duration_us) {
+        return s_align_duty_percent;
+    }
+
+    const float t = (float)elapsed_us / (float)duration_us;
+
+    return s_align_duty_percent * t;
+}
+
 static bool run_align_phase(void)
 {
     const uint64_t now_us = esp_timer_get_time();
 
-    s_duty_percent = s_align_duty_percent;
+    s_duty_percent = align_ramp_duty_percent(now_us);
     apply_commutation_step(s_duty_percent);
 
     if (now_us < s_align_end_us) {
@@ -481,6 +507,11 @@ static bool trip_stall_low_rpm(void)
 
 static bool check_stall_conditions(void)
 {
+    /* RUN_OPEN: comutação forçada por timer — não exige avanço mecânico; só OCP sustentada. */
+    if (s_start_phase == MOTOR_START_RUN_OPEN) {
+        return trip_stall_high_current();
+    }
+
     if (trip_stall_high_current()) {
         return true;
     }
@@ -501,10 +532,48 @@ static void ramp_open_loop_comm_hz(void)
     }
 }
 
+/** RUN_OPEN (SPEED): f_el segue R2 com slew — sem rampa automática por passo. */
+static void update_open_loop_hz_from_rpm_in_run_open(void)
+{
+    if (s_start_phase != MOTOR_START_RUN_OPEN || !is_speed_control_mode()) {
+        return;
+    }
+
+#if MOTOR_BENCH_FIX_RUN_OPEN_F_EL
+    const float f_cmd = MOTOR_BENCH_RUN_OPEN_F_EL_HZ;
+#else
+    float f_cmd = rpm_to_f_el_hz(s_target_rpm);
+
+    if (f_cmd > MOTOR_OPEN_LOOP_RUN_OPEN_RAMP_MAX_HZ) {
+        f_cmd = MOTOR_OPEN_LOOP_RUN_OPEN_RAMP_MAX_HZ;
+    }
+#endif
+
+    const float max_delta =
+        MOTOR_OPEN_LOOP_RUN_OPEN_F_EL_SLEW_HZ_PER_S / MOTOR_CONTROL_LOOP_HZ;
+
+    if (s_open_loop_comm_hz < f_cmd) {
+        s_open_loop_comm_hz += max_delta;
+
+        if (s_open_loop_comm_hz > f_cmd) {
+            s_open_loop_comm_hz = f_cmd;
+        }
+    } else if (s_open_loop_comm_hz > f_cmd) {
+        s_open_loop_comm_hz -= max_delta;
+
+        if (s_open_loop_comm_hz < f_cmd) {
+            s_open_loop_comm_hz = f_cmd;
+        }
+    }
+}
+
 static void advance_open_loop_if_due(bool ramp_step)
 {
+    const float steps_per_sec = 6.0f * s_open_loop_comm_hz;
     const uint32_t ticks_per_step =
-        (uint32_t)((MOTOR_CONTROL_LOOP_HZ / s_open_loop_comm_hz) + 0.5f);
+        (steps_per_sec > 0.0f)
+            ? (uint32_t)((MOTOR_CONTROL_LOOP_HZ / steps_per_sec) + 0.5f)
+            : 1U;
 
     if (ticks_per_step < 1U) {
         return;
@@ -520,7 +589,9 @@ static void advance_open_loop_if_due(bool ramp_step)
     advance_commutation_step();
 
     if (ramp_step) {
-        ramp_open_loop_comm_hz();
+        if (s_start_phase != MOTOR_START_RUN_OPEN) {
+            ramp_open_loop_comm_hz();
+        }
     }
 }
 
@@ -778,6 +849,7 @@ void motor_control_on_arm(void)
     s_duty_percent = 0.0f;
     s_start_phase = MOTOR_START_IDLE;
     s_align_end_us = 0U;
+    s_align_start_us = 0U;
     s_last_fault_reason = MOTOR_FAULT_NONE;
     s_stall_begin_us = 0U;
     s_last_step_change_us = 0U;
@@ -801,8 +873,9 @@ void motor_control_on_disarm(void)
     s_comm_deadline_us = 0U;
     s_start_phase = MOTOR_START_IDLE;
     s_align_end_us = 0U;
+    s_align_start_us = 0U;
     s_low_rpm_stall_begin_us = 0U;
-    hal_pwm_disable_all();
+    hal_motor_halt_outputs();
 }
 
 void motor_control_force_open_loop(void)
@@ -949,6 +1022,7 @@ void motor_control_tick(void)
     if (is_speed_control_mode() && s_start_phase == MOTOR_START_RUN_OPEN) {
         s_target_amps_cmd = MOTOR_SPEED_OPEN_LOOP_I_AMPS;
         update_target_slew();
+        update_open_loop_hz_from_rpm_in_run_open();
         s_measured_rpm = measure_rpm_from_commutation();
         try_speed_handover();
     } else if (is_speed_control_mode() && s_start_phase == MOTOR_START_RUN_SPEED) {
@@ -962,8 +1036,15 @@ void motor_control_tick(void)
         update_target_slew();
     }
 
-    // --- Etapa 9: PI de corrente — referência s_target_amps → duty cycle (%) ---
-    s_duty_percent = pi_compute(&s_current_pi, s_target_amps, s_measured_amps);
+    // --- Etapa 9: duty — ALIGN/RUN_OPEN usam tensão fixa; PI só em RUN / RUN_SPEED ---
+    if (s_start_phase == MOTOR_START_ALIGN ||
+        s_start_phase == MOTOR_START_RUN_OPEN) {
+        s_duty_percent = s_align_duty_percent;
+        s_current_pi.integral_term = 0.0f;
+    } else {
+        s_duty_percent =
+            pi_compute(&s_current_pi, s_target_amps, s_measured_amps);
+    }
 
     // --- Etapa 10: comutação — malha aberta (timer) ou fechada por ZCD/BEMF ---
     if (s_comm_mode == MOTOR_COMM_ZCD_CLOSED && bemf_zcd_is_ready()) {
@@ -971,9 +1052,7 @@ void motor_control_tick(void)
     } else {
         s_comm_mode = MOTOR_COMM_OPEN_LOOP;
         const bool ramp_step =
-            !is_speed_control_mode() ||
-            s_start_phase == MOTOR_START_RUN_OPEN ||
-            s_start_phase == MOTOR_START_RUN;
+            !is_speed_control_mode() || s_start_phase == MOTOR_START_RUN;
 
         run_open_loop_commutation(ramp_step);
     }
