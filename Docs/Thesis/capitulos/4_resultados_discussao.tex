@@ -9,8 +9,8 @@ Para a validação conceitual do hardware de potência antes da montagem física
 \begin{figure}[H]
     \centering
     \caption{Esquemático da simulação trifásica do ESC em estado estático de comutação.}
-    \includegraphics[width=17cm]{Simulation/trifasico.png}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \includegraphics[width=\textwidth]{Simulation/trifasico.png}
+    \legendafonte{Elaborado pelo autor (2026).}
     \label{fig:simulacao_trifasica}
 \end{figure}
 
@@ -26,7 +26,7 @@ A Figura \ref{fig:sim_correntes_motor} apresenta os resultados transitórios das
     \centering
     \caption{Dinâmica das correntes de fase do motor durante os primeiros $100 \: \mu s$ de simulação (Passo 1).}
     \includegraphics[width=0.8\textwidth]{Simulation/plot_simulacao/1_correntes_motor.png}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
     \label{fig:sim_correntes_motor}
 \end{figure}
 
@@ -40,7 +40,7 @@ A Figura \ref{fig:sim_tensoes_neutro} ilustra o comportamento dinâmico das tens
     \centering
     \caption{Tensões de fase em relação ao ponto neutro do motor durante o Passo 1.}
     \includegraphics[width=0.8\textwidth]{Simulation/plot_simulacao/3_tensoes_fase_neutro.png}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
     \label{fig:sim_tensoes_neutro}
 \end{figure}
 
@@ -68,7 +68,7 @@ A Figura \ref{fig:sim_bateria_esforco} demonstra o severo esforço transitório 
         \caption{Corrente drenada.}
         \label{fig:bateria_corrente}
     \end{subfigure}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{figure}
 
 A causa física para o decaimento gradual da tensão é a queda de potencial ôhmica intrínseca ($V_{drop} = I_a \cdot R_{ser}$) sobre a \textbf{resistência série equivalente} da bateria, que no modelo foi parametrizada como $19 \: m\Omega$. Por outro lado, os transientes agudos (\textit{spikes}) de corrente são consequência da elevadíssima taxa de variação ($di/dt$) exigida para carregar as capacitâncias parasitas dos MOSFETs e suprir a corrente de recuperação reversa (\textit{reverse recovery}) dos diodos corporais nos instantes de ativação (\textit{turn-on}). Como o circuito simulado neste ensaio possui apenas a bateria como fonte de energia, ela é forçada a fornecer instantaneamente toda a carga transitória.
@@ -89,7 +89,7 @@ A Figura \ref{fig:esquematico_supply} detalha a arquitetura de entrada e distrib
     \centering
     \caption{Esquemático do estágio de entrada, filtragem do barramento DC e regulação de tensão auxiliar (Folha \textit{Supply}).}
     \includegraphics[width=1\textwidth]{imagens/esquematico_supply.png}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
     \label{fig:esquematico_supply}
 \end{figure}
 
@@ -124,7 +124,7 @@ A Figura \ref{fig:esquematico_control} ilustra o núcleo de inteligência do ESC
         \caption{\textit{Drivers} de \textit{Gate} (IR2110).}
         \label{fig:control_drivers}
     \end{subfigure}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{figure}
 
 O isolamento contra ruídos é efetivado pela segregação dos planos de terra nos \textit{drivers} IR2110. O referencial lógico (\textit{VSS}) é conectado exclusivamente ao terra de sinal (\textbf{SGND}), enquanto o retorno de potência (\textit{COM}), que lida com os pulsos de alta corrente de carga e descarga dos MOSFETs, é roteado para o terra de potência (\textbf{PGND}). A comunicação de segurança entre o microcontrolador e os \textit{drivers} ocorre de forma redundante: o ESP32 gera os seis sinais do MCPWM ($AH, AL$, etc.) e possui controle direto sobre os pinos de \textit{Shutdown} ($SD$) de cada IR2110. Adicionalmente, o pino \textit{OC Trip} (\textit{Overcurrent Trip}) permite que um evento de falta detectado pelos sensores interrompa a geração de PWM no \textit{hardware} do ESP32 em microssegundos.
@@ -161,7 +161,7 @@ A Figura \ref{fig:esquematico_sensors} detalha a topologia de aquisição de dad
         \caption{Proteção via \textit{Hardware} (OCP).}
         \label{fig:sensor_ocp}
     \end{subfigure}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{figure}
 
 Foi adotado o circuito integrado \textbf{INA240A1DR} em cada fase (Figura \ref{fig:sensor_current}). Este componente é um amplificador de detecção de corrente, projetado especificamente com tecnologia de rejeição de PWM (\textit{Enhanced PWM Rejection}) para suprimir grandes variações de tensão ($dv/dt$) inerentes à comutação de motores. A versão A1DR possui um ganho fixo de $20 \: V/V$. Como as correntes nas bobinas de um motor BLDC são fisicamente alternadas (circulando nos dois sentidos), o microcontrolador seria incapaz de ler o semiciclo negativo, pois seu ADC suporta apenas tensões positivas ($0 \: V$ a $3,3 \: V$). Para viabilizar esta leitura, aplicou-se uma técnica de polarização diferencial: o pino \textit{REF1} foi ligado a $3,3 \: V$ (\textit{Vmicro Ref}) e o pino \textit{REF2} ao \textit{SGND} ($0 \: V$). O circuito do INA240 realiza a média aritmética dessas referências, estabelecendo um \textit{offset} interno exato de $1,65 \: V$ na saída. Consequentemente, uma corrente nula ($0 \: A$) repousa em $1,65 \: V$; correntes positivas elevam a saída em direção a $3,3 \: V$, enquanto correntes negativas a reduzem em direção a $0 \: V$. Este condicionamento garante a bidirecionalidade absoluta da medição, pré-requisito fundamental para a futura implementação de algoritmos avançados de Controle Orientado ao Campo (FOC).
@@ -180,7 +180,7 @@ A Figura \ref{fig:esquematico_power} expõe a topologia final da ponte inversora
     \centering
     \caption{Esquemático do estágio de potência contendo a ponte inversora trifásica e resistores \textit{shunt} individuais para medição de corrente.}
     \includegraphics[width=0.9\textwidth]{imagens/esquematico_power.png}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
     \label{fig:esquematico_power}
 \end{figure}
 
@@ -213,7 +213,7 @@ O projeto físico do protótipo de inversor, ilustrado na Figura \ref{fig:pcb_la
         \caption{Camada Inferior (\textit{Bottom Layer}).}
         \label{fig:pcb_bottom}
     \end{subfigure}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{figure}
 
 Embora as análises computacionais prévias tenham apontado transientes teóricos de comutação com picos próximos a $90 \: A$, ressalta-se que este protótipo inicial de bancada foi projetado para maximizar a capacidade de condução de corrente dentro das limitações físicas de fabricação local, não sendo esperado o regime de operação contínua sob esta magnitude extrema, já que o protótipo, em sua fase inicial, teve como objetivo demonstrar a viabilidade do \textit{design}, sendo os ensaios conduzidos com o motor A2212/10T 1400\,kV e bateria $4S$, simulada com uma fonte de bancada com corrente limitada a $3\,\text{A}$ e fusível de $20\,\text{A}$, como podemos observar na Figura \ref{fig:prototipo}.
@@ -235,7 +235,7 @@ Embora as análises computacionais prévias tenham apontado transientes teórico
         \caption{Visão Inferior.}
         \label{fig:prototipo_bottom}
     \end{subfigure}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{figure}
 
 Com o propósito de mitigar as perdas ôhmicas, o roteamento físico descartou o uso de trilhas convencionais em favor de grandes polígonos de preenchimento (\textit{copper pours}) sólidos. A camada superior (Figura \ref{fig:pcb_top}) acomoda as ilhas de comutação das fases e o barramento positivo, com gargalos projetados em um mínimo de $5 \: mm$ de largura. Contudo, como a espessura padrão do cobre de um laminado comum (tipicamente $1 \: oz/ft^2$ ou $35 \: \mu m$) possui uma secção transversal insuficiente para conduzir altas correntes, o sistema estaria sujeito à falha por superaquecimento térmico via Efeito Joule ($P = I^2 \cdot R_{trilha}$). Para contornar essa limitação e elevar o limite térmico do circuito, podemos tirar proveito da própria natureza do material de prototipagem utilizado: o laminado de cobre nu. A ausência da máscara de solda isolante deixou todos os polígonos de potência naturalmente expostos. Esta característica facilitou a deposição manual de espessas camadas de liga de estanho e o assentamento de condutores de cobre sólido diretamente sobre as malhas críticas, aumentando substancialmente a área da secção transversal ($A$) das trilhas e reduzindo a sua resistência ôhmica equivalente ($\rho \cdot \frac{L}{A}$).
@@ -362,7 +362,7 @@ O motor A2212/10T 1400\,kV foi selecionado como carga representativa para os ens
     \centering
     \caption{Motor BLDC A2212/10T 1400\,kV utilizado como carga de bancada (Prova de Conceito em escala reduzida).}
     \includegraphics[width=0.45\textwidth]{imagens/A2212-10t-1400-kv.jpg}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
     \label{fig:motor_a2212_bancada}
 \end{figure}
 
@@ -399,30 +399,30 @@ A depuração identificou três classes de defeito de software, resumidas na Tab
     \centering
     \caption{Regressões de firmware na coexistência Bluetooth, Wi-Fi AP e \texttt{RUNNING}.}
     \label{tab:regressoes_coexistencia_radio}
+    \resizebox{\textwidth}{!}{%
     \begin{tabular}{p{3.2cm}p{2.4cm}p{4.0cm}p{3.2cm}p{2.2cm}}
-        \hline
+        \toprule
         \textbf{Sintoma} & \textbf{Subsistema} & \textbf{Causa raiz} & \textbf{Mitigação} & \textbf{Malha $1\,\text{kHz}$} \\
-        \hline
+        \midrule
         Queda BT; serial travada em R2 &
         BT + Wi-Fi + \texttt{loop()} &
         Contenção de rádio e bloqueio do \texttt{loop()} por I/O UART/JSON &
         \texttt{BOARD\_ENABLE\_WIFI\_TELEMETRY}\,$= 0$; serial $500\,\text{ms}$ &
         Íntegra \\
-        \hline
         Fila TX UART cheia; só JSON na serial &
         UART / telemetria &
         \texttt{Serial.printf} de logs NDJSON competindo com telemetria a $115200\,\text{baud}$ &
         Remoção da instrumentação; telemetria textual enxuta &
         Íntegra \\
-        \hline
         \textit{Lightbar} inoperante com FSM OK &
         PS4 / Bluepad32 &
         \texttt{PS4\_SKIP\_LIGHTBAR\_ON\_CLONE}\,$= 1$ desativava todo \texttt{setColorLED}; filtro \texttt{battery()}\,$> 1$ bloqueava controles genuínos (\texttt{battery()}\,$= 0$ = desconhecido) &
         \texttt{PS4\_SKIP\_LIGHTBAR\_ON\_CLONE}\,$= 0$ &
         Íntegra \\
-        \hline
-    \end{tabular}
-    \caption*{Fonte: Elaborado pelo autor.}
+        \bottomrule
+    \end{tabular}%
+    }
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
 A configuração mitigada adotada nos ensaios subsequentes fixa \texttt{BOARD\_ENABLE\_WIFI\_TELEMETRY}\,$= 0$, telemetria serial a $500\,\text{ms}$ e \texttt{PS4\_SKIP\_LIGHTBAR\_ON\_CLONE}\,$= 0$. Sob essas condições, o pareamento Bluetooth permaneceu estável por vários minutos, a \textit{lightbar} restaurou o mapa de cores por estado da FSM e o motor operou em \texttt{RUNNING} sem regressão perceptível na malha de controle. Este relatório qualitativo substitui os ensaios comparativos formais Cenário\,A/Cenário\,B (Sub-teste~5.1) e a síntese quantitativa de estabilidade HTTP previstos originalmente para quantificar $\Delta t_{tick,max}$: a tentativa de operação simultânea BT\,+\,AP\,+\,dashboard\,+\,\texttt{RUNNING} constitui, por si, o resultado documentado da implementação.
@@ -444,36 +444,35 @@ Em sessões subsequentes, o padrão dominante foi ciclo \texttt{BT=OFF} $\to$ re
     \centering
     \caption{Regressões de enlace Bluetooth Classic (PS4 / Bluepad32) em ensaios de potência, Wi-Fi desligado.}
     \label{tab:regressoes_bluetooth_ps4}
+    \resizebox{\textwidth}{!}{%
     \begin{tabular}{p{3.2cm}p{2.8cm}p{3.8cm}p{3.0cm}p{2.2cm}}
-        \hline
+        \toprule
         \textbf{Sintoma} & \textbf{Subsistema} & \textbf{Causa raiz} & \textbf{Mitigação} & \textbf{Malha $1\,\text{kHz}$} \\
-        \hline
+        \midrule
         Loop connect/disconnect ($0{,}5$--$2\,\text{s}$) &
         BT / SDP--GAP &
         Pareamento corrompido; virtual device DS4 &
         \texttt{forgetBluetoothKeys}; perfil \texttt{BENCH\_STABLE} &
         Íntegra \\
-        \hline
         Calibração R2 interrompida &
         PS4 / \texttt{ps4\_input} &
         Queda BT zera estado de cal &
         Serial HMI (\texttt{BOARD\_ENABLE\_PS4\_BT}\,$= 0$) &
         Íntegra \\
-        \hline
         Desarme ao soltar R2 &
         PS4 / limiar R2 &
         Repouso $>$\,threshold original &
         \texttt{PS4\_R2\_ARM\_THRESHOLD}\,$= 28$ &
         Íntegra \\
-        \hline
         Partida não testável via PS4 &
         Integração BT + FSM &
         Soma dos itens acima &
         \texttt{BOARD\_ENABLE\_SERIAL\_HMI}\,$= 1$ &
         Íntegra \\
-        \hline
-    \end{tabular}
-    \caption*{Fonte: Elaborado pelo autor.}
+        \bottomrule
+    \end{tabular}%
+    }
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
 Para a bancada de junho de 2026, adotou-se \texttt{BOARD\_ENABLE\_PS4\_BT}\,$= 0$ e \texttt{BOARD\_ENABLE\_SERIAL\_HMI}\,$= 1$: comandos \texttt{A/a} (arm/disarm), \texttt{+}/\texttt{-} (setpoint), espaço (e-stop) e \texttt{c/C} (liberação de falha) via monitor USB a $115200\,\text{baud}$, com telemetria \texttt{HMI=SER}. Essa contingência removeu a variável RF da depuração de potência sem alterar a malha de controle a $1\,\text{kHz}$. Pareamento estável por vários minutos foi obtido na configuração mitigada com Wi-Fi desligado; o ensaio a vazio (Subseção~\ref{subsubsec:ensaio_vazio_falha}) prosseguiu sob interface serial.
@@ -539,27 +538,24 @@ O procedimento de depuração adotou a estratégia de \textit{divide et impera} 
     \caption{Resultados do isolamento de falha no braço B da ponte inversora (placa desenergizada).}
     \label{tab:depuracao_curto_fase_b}
     \begin{tabular}{p{4.2cm}p{5.8cm}p{4.5cm}}
-        \hline
+        \toprule
         \textbf{Hipótese / medição} & \textbf{Procedimento} & \textbf{Resultado} \\
-        \hline
+        \midrule
         Curto \textit{Vmicro Ref} $\leftrightarrow$ \textbf{SGND} &
         Remoção de C13 (desacoplamento de VDD do U5) &
         Continuidade entre pinos 9 e 13 do U5 desaparece; capacitor íntegro (capacitância nominal, sem curto interno) $\Rightarrow$ indício de ponte na \textit{footprint} ou trilha, não no componente \\
-        \hline
         Curto \textit{Phase B Low} $\leftrightarrow$ \textit{Isense B+} &
         Remoção de Q5; limpeza dos \textit{pads} de \textit{gate} e \textit{source} &
         Resistência $\approx 10\,\text{k}\Omega$ (via R17); Q5 testado fora da placa sem defeito \\
-        \hline
         Falha no U5 (VDD $\leftrightarrow$ VSS) &
         Medição pinos 9 e 13 com C13 removido &
         Sem continuidade $\Rightarrow$ alimentação lógica do CI preservada \\
-        \hline
         Falha interna LO $\leftrightarrow$ VSS do U5 &
         Medição pinos 1 e 13 com C13 removido &
         Continuidade persistente $\Rightarrow$ descarta-se C13 como única causa; investigar malha a jusante de LO \\
-        \hline
+        \bottomrule
     \end{tabular}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
 A continuidade medida entre o pino~1 (LO) e o pino~13 (VSS) do U5 (com o capacitor C13 removido e o CI aparentemente íntegro na alimentação lógica) configurou um falso indício de falha catastrófica no próprio IR2110. A interpretação correta exige considerar o caminho resistivo a jusante de LO: com R3 em curto, a net \textit{Phase B Low} é rigidamente amarrada ao referencial de terra de sinal; através de R17 ($10\,\text{k}\Omega$), do nó \textit{Isense B+} e do \textit{shunt} R20, existe caminho até \textbf{PGND}, interligado a \textbf{SGND} no ponto único de aterramento RJ1. O multímetro, ao sondar LO contra VSS ou contra qualquer referência de terra da placa, pode assim registrar continuidade sem que o CI U5 apresente defeito interno entre esses pinos.
@@ -582,27 +578,24 @@ O procedimento de depuração replicou a estratégia \textit{divide et impera} a
     \caption{Resultados do isolamento de falha no amplificador INA240 U9 (placa desenergizada, exceto onde indicado).}
     \label{tab:depuracao_curto_ina240_u9}
     \begin{tabular}{p{4.2cm}p{5.8cm}p{4.5cm}}
-        \hline
+        \toprule
         \textbf{Hipótese / medição} & \textbf{Procedimento} & \textbf{Resultado} \\
-        \hline
+        \midrule
         Offset \textit{OUT} $\ll 1{,}65\,\text{V}$ com corrente nula &
         Multímetro DC em \textit{OUT} vs.\ \textbf{SGND}; motor desconectado; PWM off &
         $\approx 5\,\text{mV}$ medidos (esperado $\approx 1{,}65\,\text{V}$) \\
-        \hline
         Falha de firmware / GPIO puxando nó &
         Revisão de \texttt{hal\_adc.c}, \texttt{ina240\_current\_sensors.c} e pinagem input-only (GPIO 34--36) &
         Descartada: firmware apenas lê ADC; calibração mascara erro sem alterar tensão analógica \\
-        \hline
         Colapso de \textit{Vmicro Ref} &
         Multímetro em \textit{Vmicro Ref} vs.\ \textbf{SGND} &
         $\approx 3{,}3\,\text{V}$, malha de referência preservada \\
-        \hline
         Curto resistivo na \textit{footprint} de U9 &
         Inspeção visual e limpeza mecânica dos \textit{pads}; medição de continuidade \textit{OUT} $\leftrightarrow$ \textbf{SGND} &
         Ponte de pasta de solda entre \textit{pads} adjacentes; após retrabalho, \textit{OUT} $\approx 1{,}65\,\text{V}$ \\
-        \hline
+        \bottomrule
     \end{tabular}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
 A causa raiz foi identificada como \textbf{ponte de pasta de solda} na \textit{footprint} do U9, compatível com resíduo de fluxo/pasta após montagem manual sobre laminado FR4 fresado CNC sem máscara de solda comercial e \textit{clearance} reduzido, mesma classe de defeito de processo já observada na região do braço B (Ensaio~0b). O curto amarrava o nó de saída do amplificador (ou nets adjacentes críticas do encapsulamento) ao referencial de terra de sinal, impedindo o estabelecimento do \textit{offset} diferencial de $1{,}65\,\text{V}$ e propagando leituras próximas a zero tanto no multímetro quanto no ADC1. A remoção mecânica da ponte e o retrabalho da solda restabeleceram o patamar de repouso esperado em \textit{OUT}; após \textit{power-cycle}, a telemetria serial passou a exibir \texttt{INA240 offset} na ordem de $1650\,\text{mV}$ e coerência entre a leitura física e o valor armazenado por \texttt{ina240\_calibrate\_offset()}.
@@ -621,23 +614,21 @@ A Tabela~\ref{tab:depuracao_rtc_sd} resume a depuração. A correção em \textt
     \caption{Depuração dos pinos SD em RTC GPIO (placa energizada, motor desconectado).}
     \label{tab:depuracao_rtc_sd}
     \begin{tabular}{p{4.2cm}p{5.8cm}p{4.5cm}}
-        \hline
+        \toprule
         \textbf{Hipótese / medição} & \textbf{Procedimento} & \textbf{Resultado} \\
-        \hline
+        \midrule
         IR2110 em \textit{shutdown} permanente &
         Telemetria \texttt{RUNNING}; scope nos \textit{gates} sem PWM &
         SD físicos não respondiam a \texttt{GPIO.out}; HO/LO em High-Z \\
-        \hline
         Polaridade SD (datasheet IR2110) &
         SD HIGH = \textit{shutdown}; LOW = segue HIN/LIN &
         Firmware coerente com datasheet; pinos não eram acionados \\
-        \hline
         Correção RTC GPIO &
         \texttt{rtc\_gpio\_set\_level()} + ISR OCP via RTC IO &
         Primeira condução real na ponte; inrush subsequente documentado \\
-        \hline
+        \bottomrule
     \end{tabular}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
 \subsubsection{Ensaio 1: Calibração de Tensão de Referência e Ganho dos Amplificadores INA240}
@@ -668,27 +659,24 @@ A depuração firmware identificou, adicionalmente, um bug de calibração: a ro
     \caption{Evolução das mitigações firmware e comportamento de $I_A$ em \texttt{IDLE} (motor desconectado, boot completo com Wi-Fi AP e PS4).}
     \label{tab:evolucao_mitigacao_ina240_a}
     \begin{tabular}{p{3.8cm}p{5.2cm}p{5.5cm}}
-        \hline
+        \toprule
         \textbf{Iteração} & \textbf{Mitigação adicionada} & \textbf{$I_A$ observado em IDLE} \\
-        \hline
+        \midrule
         Baseline &
         Cal early legado (\texttt{initVariant}), 64 amostras &
         $\pm 14\,\text{A}$; depois viés $+2$--$4\,\text{A}$ \\
-        \hline
         Pós-WiFi &
         \texttt{ina240\_recalibrate\_after\_wifi()}, 128 amostras (perfil PS4+AP) &
         Oscilação $\pm 2{,}8\,\text{A}$ \\
-        \hline
         Pós-PS4 + mediana &
         Recal após BT; mediana $4\times$ fase A &
         $\approx \pm 2\,\text{A}$, convergindo a $\pm 0{,}5\,\text{A}$ \\
-        \hline
         Tier 1 (final) &
         128 cal; mediana $16\times$; EMA $\alpha=0{,}05$; BT off (Serial HMI) &
         1ª linha $+0{,}01\,\text{A}$; típico $+0{,}3$--$0{,}9\,\text{A}$; regime $\pm 0{,}1\,\text{A}$; pico $+1{,}07\,\text{A}$ \\
-        \hline
+        \bottomrule
     \end{tabular}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
 O Ensaio~1 foi conduzido com a configuração Tier 1 e \texttt{INA240\_USE\_MANUAL\_OFFSET=1}. A telemetria de boot confirmou \texttt{INA240 offset: A=1670 B=1480 C=1510 mV}, coerente com o multímetro. Após \texttt{[Post-WiFi]}, registrou-se \texttt{adc\_zero=1660 mV} e \texttt{bench\_corr=+10 mV}; após \texttt{[Post-PS4]}, \texttt{adc\_zero=1640 mV} e \texttt{bench\_corr=+30 mV}, a segunda passada deslocou ligeiramente a média ADC abaixo da referência manual, compatível com viés positivo residual de $+0{,}3$--$0{,}9\,\text{A}$ em regime estacionário. Em observação de 30\,s em \texttt{IDLE} com boot completo, $I_B$ e $I_C$ permaneceram tipicamente dentro de $\pm 0{,}5\,\text{A}$; $I_A$ apresentou primeira linha de telemetria em $+0{,}01\,\text{A}$, convergência final em torno de $\pm 0{,}1\,\text{A}$ e pico isolado de $+1{,}07\,\text{A}$.
@@ -766,10 +754,9 @@ Do ponto de vista analítico, em circuito aberto (sem carga indutiva do motor) a
 
 \begin{figure}[H]
     \centering
-
     \caption{Oscilograma na perna de R13 (\textit{gate} High-Side da Fase A) durante tentativa de ALIGN: subida até $V_{max} \approx 14{,}5\,\text{V}$ (saída do IR2110) seguida de colapso abrupto quando a fonte de bancada aciona OCP e remove $V_{DC}$ da placa ($V_{pp} = 11{,}8\,\text{V}$; evento não periódico; escala $20\,\text{ms/div}$, $5\,\text{V/div}$, sonda $\times 1$).}
     \includegraphics[width=0.65\textwidth]{imagens/bancada_align_gate_r13_ocp.png}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
     \label{fig:bancada_align_gate_r13_ocp}
 \end{figure}
 
@@ -780,23 +767,18 @@ A Figura~\ref{fig:bancada_align_gate_r13_ocp} evidencia que o pico no \textit{ga
     \caption{Cronologia de correções de firmware na depuração do OCP na fase ALIGN (junho de 2026).}
     \label{tab:cronologia_align_ocp}
     \begin{tabular}{p{0.8cm}p{3.5cm}p{4.0cm}p{4.5cm}}
-        \hline
+        \toprule
         \textbf{\#} & \textbf{Defeito} & \textbf{Correção} & \textbf{Efeito no OCP da fonte} \\
-        \hline
+        \midrule
         1 & SD via \texttt{GPIO.out} & RTC GPIO em \texttt{hal\_gpio.c} & Primeira condução real; expôs \textit{inrush} \\
-        \hline
         2 & Mapa AH incorreto & \texttt{board\_config.h} (AH\,=\,19) & PWM no pino físico correto \\
-        \hline
         3 & SINK em B com duty $= 0$ & \texttt{force\_all\_phases\_off()} & Sem SINK fantasma no início do ALIGN \\
-        \hline
         4 & Inrush instantâneo (12--25\,\%) & 3\,\%, $100\,\text{ms}$, rampa $0 \to 3\,\%$ & Reduz pico; OCP persiste \\
-        \hline
         5 & \texttt{OC\_SW} em $8\,\text{A}$ & Limiar $15\,\text{A}$ & Fonte ainda desarma primeiro \\
-        \hline
         6 & Sem liberação de falha serial & Comando \texttt{c/C} no Serial HMI & Operacional; não altera causa física \\
-        \hline
+        \bottomrule
     \end{tabular}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
 Para isolar a camada lógica do estágio de potência, repetiu-se o arm com a \textbf{fonte DC desligada} e a placa alimentada apenas por USB: o osciloscópio foi posicionado em GPIO\,22 (AL) e nos demais pinos \textit{low-side}. Nenhum pino LOW apresentou tensão positiva ativa; leituras cravadas em $-1{,}5\,\text{V}$ interpretam-se como artefato de referência de terra flutuante (USB da placa versus borne da fonte, sem $V_{DC}$ comum), com a garra de terra no GND do ESP32, o nível efetivo é $0\,\text{V}$ (LOW). Conclui-se que \textbf{\textit{shoot-through} lógico no MCPWM foi descartado} na última sessão instrumentada.
@@ -900,6 +882,7 @@ O relatório de \textit{build} do PlatformIO (\texttt{pio run}, 29/06/2026, plat
     \centering
     \caption{Uso de memória reportado pelo PlatformIO (Identificador de ensaio~30, 29/06/2026).}
     \label{tab:pio_memory}
+    \resizebox{\textwidth}{!}{%
     \begin{tabular}{lrrr}
         \toprule
         \textbf{Segmento / perfil} & \textbf{Bytes} & \textbf{\% SRAM/Flash} & \textbf{Notas} \\
@@ -915,8 +898,9 @@ O relatório de \textit{build} do PlatformIO (\texttt{pio run}, 29/06/2026, plat
         RAM total, perfil Wi-Fi & 110\,880 & 33{,}8\,\% & \texttt{BOARD\_ENABLE\_WIFI\_TELEMETRY}\,$= 1$ \\
         Flash app, perfil Wi-Fi & 1\,252\,121 & 95{,}5\,\% & margem $\approx 58\,599\,\text{B}$ \\
         \bottomrule
-    \end{tabular}
-    \caption*{Fonte: Repositório~\cite{esp32BldcEscRepo}; \texttt{Docs/Thesis/ensaio\_bancada/2026-06-29/30\_pio\_memory.txt}; seções ELF do \texttt{firmware.elf} (build local).}
+    \end{tabular}%
+    }
+    \legendafonte{Repositório~\cite{esp32BldcEscRepo}; \texttt{Docs/Thesis/ensaio\_bancada/2026-06-29/30\_pio\_memory.txt}; seções ELF do \texttt{firmware.elf} (build local).}
 \end{table}
 
 A comparação entre o consumo total de RAM estática (\texttt{.data} + \texttt{.bss}) e a \textit{heap} livre em regime confirma a viabilidade de adição de novos módulos de algoritmo sem risco de esgotamento de memória. A margem disponível define, em particular, o limite superior do vetor de estado que um observador ou filtro de Kalman poderia manter em SRAM para estimação em tempo real da posição e velocidade do rotor.

@@ -41,10 +41,11 @@
     format=plain,
     justification=justified,
     singlelinecheck=false,
-    font=small,
+    font=normalsize,
     labelfont=bf,
     labelsep=period
 }
+\newcommand{\legendafonte}[1]{{\footnotesize\caption*{Fonte: #1}}}
 
 % --- PACOTES ADICIONAIS ---
 \usepackage{ragged2e}
@@ -99,8 +100,7 @@
   Departamento de Engenharia Elétrica
 }
 \local{Ilha Solteira}
-\data{2025}
-\tipotrabalho{Trabalho de Conclusão de Curso}
+\data{2026}
 \orientador{Prof. Dr. Guilherme de Azevedo e Melo}
 \tipotrabalho{monografia}
 \preambulo{Trabalho de Conclusão de Curso apresentado ao Departamento de Engenharia Elétrica da Faculdade de Engenharia de Ilha Solteira, da Universidade Estadual Paulista "Júlio de Mesquita Filho", como parte dos requisitos para obtenção do título de Bacharel em Engenharia Elétrica.}
@@ -108,13 +108,34 @@
 \begin{document}
 
 % --- ELEMENTOS PRÉ-TEXTUAIS --
-\begin{center}
-\includegraphics[width=9cm]{imagens/logoUNESP.jpg} 
-\end{center}
+\begin{capa}
+    \centering
+    {\ABNTEXchapterfont\large\imprimirinstituicao}
+    \vspace{1.5cm}
+    \includegraphics[width=9cm]{imagens/logoUNESP.jpg}
+    \vfill
+    {\ABNTEXchapterfont\large\imprimirautor}
+    \vfill
+    \begin{center}
+    {\ABNTEXchapterfont\bfseries\LARGE\imprimirtitulo}
+    \end{center}
+    \vfill
+    {\large\imprimirlocal}
+    \par
+    {\large\imprimirdata}
+    \vspace*{1cm}
+\end{capa}
 
-\vspace{1.5cm} 
-\imprimircapa
-%\imprimirfolhaderosto
+\imprimirfolhaderostonostar{\folhaderostoname}
+\begin{fichacatalografica}
+    % PLACEHOLDER -- substituir pelo texto gerado em
+    % https://www.biblioteca.unesp.br/ficha/
+    \vfill
+    \begin{center}
+        \textbf{[Ficha catalogr\'afica -- inserir texto da Biblioteca FEIS/Unesp]}
+    \end{center}
+    \vfill
+\end{fichacatalografica}
 
 % Folha de Aprovação
 \begin{folhadeaprovacao} 
@@ -136,28 +157,22 @@ Trabalho aprovado. \imprimirlocal, \imprimirdata:
 \assinatura{Assinatura 2\\ UNESP} 
 \assinatura{Assinatura 3 \\ UNESP} 
 
-\begin{center} 
-\vfill 
-{\large\imprimirlocal} 
-\par 
-{\large\imprimirdata} 
-\end{center} 
 \end{folhadeaprovacao}
 
 % RESUMO E ABSTRACT
-\begin{abstract}
+\begin{resumo}
     Este trabalho aborda o desenvolvimento e a análise de um controlador eletrônico de velocidade (ESC) para motores de corrente contínua sem escovas (BLDC). A investigação inicia com uma robusta fundamentação teórica sobre os princípios de funcionamento, construção e os parâmetros chave dos motores BLDC, como as constantes de torque ($K_T$) e de velocidade ($K_V$), cuja equivalência intrínseca é demonstrada por meio de um balanço de potência. Em seguida, são detalhados os algoritmos de controle, com foco na comutação de seis passos e na modulação por largura de pulso (PWM). A metodologia do projeto é delineada em três fases: simulação computacional para validação do conceito, projeto do circuito eletrônico com seleção criteriosa de componentes incluindo o microcontrolador ESP32 e uma bateria LiPo dimensionada para a aplicação e, por fim, a prototipagem e testes experimentais para verificar o desempenho do controlador. O objetivo é produzir um protótipo funcional que ofereça uma operação suave e precisa, validando os conceitos teóricos e as escolhas de projeto.
-    \par\vspace{\onelineskip} % Espaço antes das palavras-chave
-    \noindent\textbf{Palavras-chave:} Motor BLDC. Controlador Eletrônico de Velocidade. Controle de Motores. ESP32.
-\end{abstract}
+    \par\vspace{\onelineskip}
+    \noindent\textbf{Palavras-chave:} Motor BLDC; Controlador Eletrônico de Velocidade; Controle de Motores; ESP32.
+\end{resumo}
 
-\begin{abstract} 
+\begin{resumo}[Abstract]
 \begin{otherlanguage*}{english}
 This work addresses the development and analysis of an electronic speed controller (ESC) for brushless direct current (BLDC) motors. The investigation begins with a robust theoretical foundation on the operating principles, construction, and key parameters of BLDC motors, such as the torque ($K_T$) and velocity ($K_V$) constants, whose intrinsic equivalence is demonstrated through a power balance analysis. Subsequently, control algorithms are detailed, focusing on six-step commutation and pulse-width modulation (PWM). The project methodology is outlined in three phases: computational simulation for concept validation, electronic circuit design with careful selection of components—including the ESP32 microcontroller and a LiPo battery sized for the application—and finally, prototyping and experimental testing to verify the controller's performance. The objective is to produce a functional prototype that offers smooth and precise operation, validating the theoretical concepts and design choices.
     \par\vspace{\onelineskip}
-    \noindent\textbf{Keywords:} BLDC Motor. Electronic Speed Controller. Motor Control. ESP32.
+    \noindent\textbf{Keywords:} BLDC Motor; Electronic Speed Controller; Motor Control; ESP32.
 \end{otherlanguage*}
-\end{abstract}
+\end{resumo}
 
 % LISTAS E SUMÁRIO
 
@@ -181,6 +196,7 @@ This work addresses the development and analysis of an electronic speed controll
 \input{capitulos/2_objetivos.tex}
 \input{capitulos/3_metodologia.tex}
 \input{capitulos/4_resultados_discussao.tex}
+\input{capitulos/5_conclusao.tex}
 
 % --- ELEMENTOS PÓS-TEXTUAIS ---
 \postextual

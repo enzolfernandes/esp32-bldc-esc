@@ -16,7 +16,7 @@ O motor BLDC Turnigy XK3674-$2200KV$ é um modelo comercial projetado principalm
     \centering
     \caption{Motor Brushless Turnigy XK3674-$2200KV$.}
     \includegraphics[width=8cm]{imagens/Turnigy XK3674-2200KV.jpg}
-    \caption*{Fonte:\cite{turnigyMotor}.}
+    \legendafonte{\cite{turnigyMotor}.}
  \label{Motor Brushless Turnigy XK3674-2200KV}
 \end{figure}
 
@@ -51,7 +51,7 @@ Uma bateria comercial que atende as especificações do projeto é o modelo Turn
     \centering
     \caption{Turnigy Graphene Panther $1300mAh$ $6S$ $75C$.}
     \includegraphics[width=9cm]{imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg}
-    \caption*{Fonte:\cite{turnigyBattery}.}
+    \legendafonte{\cite{turnigyBattery}.}
  \label{Turnigy Graphene Panther 1300mAh 6S 75C}
 \end{figure}
 
@@ -197,11 +197,11 @@ Existem duas abordagens possíveis para a alimentação do microcontrolador e dr
 
 Dentre as topologias disponíveis, destacam-se os conversores buck (step-down). O conversor Buck é amplamente utilizado para a redução de tensão, operando com elevada eficiência (tipicamente superior a $85\%$) \cite{TIBuckCalculation}. No projeto será aplicado o módulo comercial de baixo custo \textbf{LM2596}, um conversor buck de $150kHz$ e $3A$. O sistema é configurado em cascata: a tensão da bateria ($22,2V - 25,2V$) é regulada para $15V$ para alimentar os drivers IR2110, e subsequentemente reduzida para $5V/3,3V$ para o microcontrolador ESP32.
 
-\begin{figure}[h] 
-    \centering 
-    \caption{Módulo Comercial LM2596.} 
-    \includegraphics[width=7cm]{imagens/Módulo LM2596.jpg} 
-    \caption*{Fonte:\cite{usinaInfoLM2596}.}
+\begin{figure}[h]
+    \centering
+    \caption{Módulo Comercial LM2596.}
+    \includegraphics[width=7cm]{imagens/Módulo LM2596.jpg}
+    \legendafonte{\cite{usinaInfoLM2596}.}
 \end{figure}
 
 \subsection{Sensoriamento de Corrente e Proteção (Shunt)}
@@ -259,15 +259,15 @@ Para essa aplicação, foi selecionado o ESP32-DevKit C. Utilizando como princip
     \centering
     \caption{Visão Geral do Microcontrolador ESP32-DevKit C.}
     \includegraphics[width=10cm]{imagens/esp32-devkitc-v4-functional-overview.jpg}
-    \caption*{Fonte:\cite{ESP32-DevKitCOverview}.}
+    \legendafonte{\cite{ESP32-DevKitCOverview}.}
  \label{esp32DevkitC}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \caption{Pinagem do Microcontrolador ESP32-DevKit C.}
-    \includegraphics[width=16cm]{imagens/esp32_devkitC_v4_pinlayout.png}
-    \caption*{Fonte:\cite{ESP32-DevKitCOverview}.}
+    \includegraphics[width=\textwidth]{imagens/esp32_devkitC_v4_pinlayout.png}
+    \legendafonte{\cite{ESP32-DevKitCOverview}.}
  \label{esp32DevkitCPinLayout}
 \end{figure}
 
@@ -280,6 +280,7 @@ O controle lógico do inversor é centralizado no microcontrolador, responsável
 
 \begin{figure}[H]
 \centering
+\caption{Arquitetura em camadas do firmware do ESC com invers\~ao de depend\^encia.}
 \begin{tikzpicture}[
     camada/.style={
         draw, rounded corners=5pt,
@@ -314,8 +315,7 @@ O controle lógico do inversor é centralizado no microcontrolador, responsável
 \draw[seta] (drivers.south)   -- (hal.north);
 \draw[seta] (hal.south)       -- (silicio.north);
 \end{tikzpicture}
-\caption{Arquitetura em camadas do firmware do ESC com invers\~ao de depend\^encia.}
-\caption*{Fonte: Elaborado pelo autor.}
+\legendafonte{Elaborado pelo autor (2026).}
 \label{fig:hal_camadas}
 \end{figure}
 
@@ -356,7 +356,7 @@ Corrente (\texttt{s\_current\_pi}) & 8{,}0 & 120{,}0 \\
 Velocidade (\texttt{s\_speed\_pi}) & 0{,}02 & 0{,}5 \\
 \bottomrule
 \end{tabular}
-\caption*{Fonte: Elaborado pelo autor.}
+\legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
 A saída do PI de corrente é limitada a 0--95\,\% de \textit{duty cycle} (margem para recarga do \textit{bootstrap} IR2110). O integrador de cada malha possui limites próprios (\texttt{MOTOR\_PI\_INTEG\_MIN/MAX} para corrente; \texttt{MOTOR\_SPEED\_PI\_INTEG\_MIN/MAX} para velocidade), implementando anti-windup por \textit{clamping} conforme a Equação~\ref{eq:pi_saida}. Em eventos de falha ou desarme (\texttt{motor\_control\_on\_disarm()}), os estados integrais são zerados para evitar \textit{windup} residual na re-armagem.
@@ -450,6 +450,7 @@ A lógica de chaveamento constitui o núcleo funcional do ESC. Nesta abordagem, 
     \centering
     \caption{Sequência de Comutação de Seis Passos e Estado dos MOSFETs}
     \label{tab:logica_seis_passos}
+    \resizebox{\textwidth}{!}{%
     \begin{tabular}{@{}cccccccc@{}} 
         \toprule
         \textbf{Passo} & \textbf{Pos. Elétrica} & \textbf{High A} & \textbf{Low B} & \textbf{High C} & \textbf{Low A} & \textbf{High B} & \textbf{Low C} \\ \midrule
@@ -459,8 +460,9 @@ A lógica de chaveamento constitui o núcleo funcional do ESC. Nesta abordagem, 
         4 & 180° -- 240° & OFF& OFF & ON  & ON  & OFF & OFF \\
         5 & 240° -- 300° & OFF& ON  & OFF & ON  & OFF & OFF \\
         6 & 300° -- 360° & OFF& OFF & OFF & OFF & ON  & ON  \\ \bottomrule
-    \end{tabular}
-    \caption*{Fonte: Elaborado pelo autor.}
+    \end{tabular}%
+    }
+    \legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
 % ------------------------------------------------------------
@@ -487,8 +489,8 @@ A configuração segue o mapeamento da Tabela \ref{tab:mcpwm_map}, onde o \texti
             6 & C+ B- & T5 & T4 & Hi-Z / Hi-Z & LOW / ACTIVE & PWM / LOW \\ \bottomrule
         \end{tabular}
     }
-    \flushleft
-    \footnotesize{\textit{Nota:} "PWM / LOW" indica modulação. "LOW / ACTIVE" indica condução ao terra. "Hi-Z" alta impedância.} 
+    \legendafonte{Elaborado pelo autor (2026).}
+    {\footnotesize\textit{Nota:} "PWM / LOW" indica modulação. "LOW / ACTIVE" indica condução ao terra. "Hi-Z" alta impedância.}
 \end{table}
 
 Os \textit{drivers} IR2110 operam com lógica \textit{Active-High}: nível lógico alto no pino de entrada habilita a condução do MOSFET correspondente. A configuração do gerador PWM deve respeitar essa polaridade, qualquer inversão lógica (\textit{Active-Low}) comprometeria a segurança da ponte. Adicionalmente, o ciclo de trabalho inicial de ambas as pernas de cada braço deve ser nulo ($0\,\%$) até que o operador autorize explicitamente a operação do inversor.
@@ -624,7 +626,7 @@ A técnica de detecção de cruzamento por zero da FCEM possui uma limitação f
 \label{fig:fsm_sem_zcd}
 \end{subfigure}
 
-\caption*{Fonte: Elaborado pelo autor.}
+\legendafonte{Elaborado pelo autor (2026).}
 \end{figure}
 
 \begin{enumerate}

@@ -9,7 +9,7 @@ O princípio de funcionamento dos motores BLDC é baseado em campos magnéticos 
 	\centering
 	\caption{Configuração de um motor DC convencional (A) e motor BLDC (B).}
 	\includegraphics[width=8cm]{imagens/Comparativo.png}
-	\caption*{Fonte:\cite{kim2017electric}.}
+	\legendafonte{\cite{kim2017electric}.}
  \label{Configuração de um motor DC convencional (A) e motor BLDC (B).}
 \end{figure}
 
@@ -136,8 +136,7 @@ Esta fórmula é derivada diretamente da equivalência $K_T = K_e = 1/K_V$ após
 \caption{Unidades de Constantes de Motor e Fatores de Conversão para o SI}
 \label{tab:unidades}
 
-\resizebox{\columnwidth}{!}{
-
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{llll}
 \toprule
 \textbf{Parâmetro} & \textbf{Unidade SI} & \textbf{Unidades Comuns Não-SI} & \textbf{Fórmula de Conversão para SI} \\
@@ -149,9 +148,9 @@ Esta fórmula é derivada diretamente da equivalência $K_T = K_e = 1/K_V$ após
 \addlinespace
 \textbf{Constante de Velocidade ($K_V$)} & rad/(V·s) & RPM/V & 1 RPM/V = 0.10472 rad/(V·s) \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
 }
-\caption*{Fonte:Elaborado pelo autor.}
+\legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
 \subsection{A Constante do Motor ($K_m$) como Figura de Mérito}
@@ -201,13 +200,13 @@ Embora chamadas de "constantes", $K_T$ e $K_e$ são afetadas pela temperatura. O
 
  A comutação de seis passos demanda um sincronismo de disparo dos transistores, de modo que sempre dois deles estejam fechados, formando um circuito tal que a cada $60 ^\circ$ elétricos o par de fases percorridas pela corrente se alterne (Figura \ref{Sequência de acionamento para um BLDC trifásico}). Cada transistor permanece em condução durante $120 ^\circ$ elétricos. Vale ressaltar que os eventos de condução e bloqueio, denominados comutações dos transistores, geram variações na corrente e isso é responsável pelas oscilações no torque do motor \cite{kim2017electric}.  
 
- \begin{figure}[p] 
-     \centering 
-     \caption{Sequência de acionamento para um BLDC trifásico.} 
-     \includegraphics[width=10cm]{imagens/acionamento.png} 
-     \caption*{Fonte:\cite{kim2017electric}.} 
-  \label{Sequência de acionamento para um BLDC trifásico} 
- \end{figure} 
+\begin{figure}[p]
+    \centering
+    \caption{Sequência de acionamento para um BLDC trifásico.}
+    \includegraphics[width=10cm]{imagens/acionamento.png}
+    \legendafonte{\cite{kim2017electric}.}
+    \label{Sequência de acionamento para um BLDC trifásico}
+\end{figure}
 
 Esse algoritmo de acionamento dos transistores, também chamado de Controle Trapezoidal, é a base para o funcionamento do motor BLDC. Embora seja possível operá-lo em malha aberta (sequência fixa), esta abordagem é ineficiente e propensa a perda de sincronismo sob variações de carga. Portanto, neste trabalho, projeta-se e implementa-se a infraestrutura de \textit{hardware} e \textit{firmware} para um \textbf{ESC trapezoidal \textit{sensorless}}, incluindo os circuitos de reconstrução de neutro virtual, filtragem RC e comparadores LM339 destinados à detecção de cruzamento por zero (ZCD) da FCEM. Nesta etapa de validação, a comutação opera em \textbf{malha aberta} (alinhamento e rampa forçada); a \textbf{transição para comutação em malha fechada orientada por ZCD} permanece como passo subsequente, após a confirmação da sequência 6-step e do condicionamento do sinal, conforme detalhado no Capítulo 4.
 
@@ -230,13 +229,13 @@ A ondulação de torque não é apenas um efeito colateral indesejado; é a mani
 
  Fontes de tensão fixa, como baterias, são as mais acessíveis do mercado. A partir delas, é possível gerar uma tensão média de alimentação variável utilizando uma técnica conhecida como PWM (Modulação por Largura de Pulso), permitindo o controle de velocidade de um BLDC. Para isso, utiliza-se um circuito simples capaz de transformar a tensão contínua em uma onda quadrada de frequência fixa e amplitude igual à tensão da fonte de alimentação. A própria ponte trifásica pode ajustar a largura dos pulsos, fazendo com que a tensão média entregue à ponte inversora seja proporcional à velocidade desejada (Figura \ref{Modulação por largura de pulso utilizando uma fonte de 100V}). 
 
- \begin{figure}[h] 
-     \centering 
-     \caption{Modulação por largura de pulso utilizando uma fonte de $100V$.} 
-     \includegraphics[width=13cm]{imagens/PWM.png} 
-     \caption*{Fonte:\cite{matlabBLDC}.} 
-  \label{Modulação por largura de pulso utilizando uma fonte de 100V} 
- \end{figure} 
+\begin{figure}[h]
+    \centering
+    \caption{Modulação por largura de pulso utilizando uma fonte de $100V$.}
+    \includegraphics[width=0.85\textwidth]{imagens/PWM.png}
+    \legendafonte{\cite{matlabBLDC}.}
+    \label{Modulação por largura de pulso utilizando uma fonte de 100V}
+\end{figure}
 
  \subsection{Estratégia de Partida em Malha Aberta para Operação \textit{Sensorless}}
 
@@ -289,6 +288,7 @@ Um ESC trifásico opera com \textbf{duas camadas de controle independentes}, que
 \centering
 \caption{Duas camadas de controle no ESC deste trabalho}
 \label{tab:camadas_controle}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{p{3.2cm}p{4.8cm}p{3.2cm}p{3.8cm}}
 \toprule
 \textbf{Camada} & \textbf{Grandeza regulada} & \textbf{Realimentação} & \textbf{Estado neste projeto} \\
@@ -296,8 +296,9 @@ Um ESC trifásico opera com \textbf{duas camadas de controle independentes}, que
 Comutação 6-step & Instante de troca de fase (posição do rotor) & FCEM/ZCD ou temporizador & Malha \textbf{aberta} na validação atual (rampa por temporizador; ver Subseções anteriores deste capítulo) \\
 Malha PI & Corrente de fase e/ou velocidade (RPM) & INA240 + ADC1; intervalo entre passos & Malha \textbf{fechada} sempre que o PI está ativo \\
 \bottomrule
-\end{tabular}
-\caption*{Fonte: Elaborado pelo autor.}
+\end{tabular}%
+}
+\legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
 Três esclarecimentos estruturam o uso desses termos ao longo deste trabalho:
@@ -393,7 +394,7 @@ A frequência de chaveamento ($f_{sw}$) do PWM que modula os MOSFETs da ponte in
 \centering
 \caption{Panorama de frequências de chaveamento PWM em acionamentos BLDC e afins}
 \label{tab:panorama_fsw_industria}
-\resizebox{\columnwidth}{!}{%
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lll}
 \toprule
 \textbf{Faixa típica} & \textbf{Segmento / aplicação} & \textbf{Característica principal} \\
@@ -408,7 +409,7 @@ A frequência de chaveamento ($f_{sw}$) do PWM que modula os MOSFETs da ponte in
 \bottomrule
 \end{tabular}%
 }
-\caption*{Fonte: Elaborado pelo autor, com base em \cite{rashid2014power, hanselman2003brushless, mohan2003}.}
+\legendafonte{Elaborado pelo autor (2026), com base em \cite{rashid2014power, hanselman2003brushless, mohan2003}.}
 \end{table}
 
 Neste trabalho adota-se \textbf{20 kHz} como compromisso de engenharia para o par MOSFET/driver IRFS7530--IR2110: a carga de gate elevada dos transistores automotivos selecionados torna inviável, com dissipação passiva no volume da placa, as faixas de alta performance do aeromodelismo (48 kHz ou 96 kHz, comuns em ESCs \textit{racing}), enquanto valores inferiores a 16 kHz reintroduziriam ruído audível. O dimensionamento quantitativo, perdas de comutação, \textit{ripple} de corrente e corrente média de \textit{gate} do driver, encontra-se na Subseção de Determinação da Frequência de Chaveamento do Capítulo de Metodologia.
