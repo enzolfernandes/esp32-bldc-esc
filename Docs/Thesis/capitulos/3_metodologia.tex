@@ -12,7 +12,7 @@ A escolha dos componentes de potência baseia-se nas especificações do motor s
 \subsection{Especificações do Motor e Carga}
 O motor BLDC Turnigy XK3674-$2200KV$ é um modelo comercial projetado principalmente para Automodelismo, sendo do tipo Inrunner possui quatro polos, $2200KV$, Tensão Nominal de $25,2V$, Corrente Nominal de $70A$ e sendo capaz de produzir até $1750W$ de potência. A velocidade e torque a vazio do motor, como já vistos nos segmentos anteriores, é de $55440 RPM$ e $0,3 Nm$, desconsiderando efeitos dissipativos, como o atrito.
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
     \caption{Motor Brushless Turnigy XK3674-$2200KV$.}
     \includegraphics[width=8cm]{imagens/Turnigy XK3674-2200KV.jpg}
@@ -47,7 +47,7 @@ I = C-rate \cdot Capacidade
 
 Uma bateria comercial que atende as especificações do projeto é o modelo Turnigy Graphene Panther $1300mAh$ $6S$ $75C$, capaz de fornecer por volta de $97,5A$, superior a margem de segurança estabelecida. Vale ressaltar que a baterias entrega de tensão nominal $22,2V$, inferior a tensão nominal o que para motores BLDC não é um problema, resultando apenas na redução da  sua velocidade nominal de $55440 RPM$ para $48840RPM$ a vazio, uma redução de aproximadamente $12\%$. 
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
     \caption{Turnigy Graphene Panther $1300mAh$ $6S$ $75C$.}
     \includegraphics[width=9cm]{imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg}
@@ -103,7 +103,11 @@ Embora o encapsulamento D2PAK-7 suporte altas correntes, a dissipação de aprox
 
 
 \subsection{Driver de Gate e Circuito de Bootstrap}
-O microcontroladores no geral operam com lógica de $3,3V$ ou $5V$, tensão insuficiente para saturar o gate dos MOSFETs de potência, que requerem tipicamente entre $10V$ e $15V$ para garantir a mínima resistência $R_{DS(on)}$. Além disso, o acionamento dos MOSFETs do lado alto (\textit{High-Side}) exige uma tensão flutuante superior à tensão da bateria.
+Os microcontroladores operam tipicamente com níveis lógicos de $3,3 V$ ou $5 V$ e possuem pinos de entrada e saída (GPIO) com capacidade de fornecimento e dreno de corrente (\textit{source/sink}) severamente limitada, situando-se na casa das dezenas de miliamperes. O acionamento eficiente de MOSFETs de potência impõe dois desafios elétricos simultâneos. O primeiro refere-se à elevação de tensão: o terminal de porta (\textit{gate}) desses transistores requer um potencial nominal entre $10 V$ e $15 V$ para assegurar a saturação completa do canal de condução, minimizando a resistência intrínseca no estado ligado ($R_{DS(on)}$). 
+
+O segundo desafio, e o mais crítico sob regimes de alta frequência, é a demanda de corrente transiente. Fisicamente, o terminal de porta de um MOSFET comporta-se como uma carga capacitiva ($C_{iss}$). Durante os eventos de comutação, a transição em alta velocidade entre os estados de corte e saturação exige que essa capacitância parasita seja carregada e descarregada de forma quase instantânea para evitar perdas térmicas elevadas. Devido à relação que rege o comportamento capacitivo da malha, essa dinâmica demanda injeção e dreno de correntes de pico da ordem de amperes, extrapolando em múltiplas ordens de grandeza o limite físico de um microcontrolador. 
+
+Por conseguinte, a inclusão de um estágio intermediário dedicado (\textit{Gate Driver}) é estritamente mandatória em inversores trifásicos. Este componente atua não apenas como um conversor de nível lógico (\textit{level shifter}), mas fundamentalmente como um amplificador de corrente de pico, isolando o controlador lógico do estresse dinâmico demandado pela etapa de potência. Além disso, o acionamento dos MOSFETs do lado alto (\textit{High-Side}) exige uma tensão flutuante superior à tensão da bateria.
 
 Para solucionar essa interface, foi selecionado o driver de meia-ponte \textbf{IR2110}, capaz de fornecer correntes de pico de até $2A$ para carga e descarga rápida da capacitância de gate ($Q_g$). O driver é alimentado com $15V$ (derivados do circuito BEC), garantindo a saturação completa dos transistores.
 
@@ -154,7 +158,7 @@ Essa queda de apenas $36mV$ (0,24\% da tensão de alimentação) assegura que a 
 \subsection{Determinação da Frequência de Chaveamento}
 \label{subsec:determinacao_fsw}
 
-A definição da frequência de chaveamento ($f_{sw}$) é um parâmetro crítico no projeto de inversores de frequência de alta corrente, pois representa um \textit{trade-off} direto entre eficiência térmica, qualidade da forma de onda e conforto acústico. O panorama de faixas adotadas pela indústria (desde ESCs audíveis de 8--12 kHz até conversores \textit{racing} de 48--96 kHz) encontra-se sintetizado na Tabela~\ref{tab:panorama_fsw_industria} da Introdução Teórica (Subseção~\ref{subsec:freq_chaveamento_pwm}). Dentro desse contexto, a seleção de \textbf{20 kHz} para este protótipo fundamenta-se na compatibilidade com os MOSFETs IRFS7530 (elevado $Q_g$), o driver IR2110 e a dissipação passiva disponível no \textit{layout} da placa, descartando as frequências de aeromodelismo de alta performance em favor de um ponto de operação silencioso e termicamente gerenciável.
+A definição da frequência de chaveamento ($f_{sw}$) é um parâmetro crítico no projeto de inversores de frequência de alta corrente, pois representa um \textit{trade-off} direto entre rendimento térmico, qualidade da forma de onda e conforto acústico. O panorama de faixas adotadas pela indústria (desde ESCs audíveis de 8--12 kHz até conversores \textit{racing} de 48--96 kHz) encontra-se sintetizado na Tabela~\ref{tab:panorama_fsw_industria} da Introdução Teórica (Subseção~\ref{subsec:freq_chaveamento_pwm}). Dentro desse contexto, a seleção de \textbf{20 kHz} para este protótipo fundamenta-se na compatibilidade com os MOSFETs IRFS7530 (elevado $Q_g$), o driver IR2110 e a dissipação passiva disponível no \textit{layout} da placa, descartando as frequências de aeromodelismo de alta performance em favor de um ponto de operação silencioso e termicamente gerenciável.
 
 Para este projeto, optou-se pela frequência de \textbf{20 kHz}.
 
@@ -195,9 +199,9 @@ A frequência de $20 kHz$ foi validada teoricamente como o ponto ótimo de opera
 \subsection{Fonte de Alimentação Auxiliar}
 Existem duas abordagens possíveis para a alimentação do microcontrolador e drivers: utilizar uma segunda bateria ou reduzir o nível de tensão da bateria principal. Para otimizar peso e volume, optou-se por um circuito BEC (\textit{Battery Elimination Circuit}).
 
-Dentre as topologias disponíveis, destacam-se os conversores buck (step-down). O conversor Buck é amplamente utilizado para a redução de tensão, operando com elevada eficiência (tipicamente superior a $85\%$) \cite{TIBuckCalculation}. No projeto será aplicado o módulo comercial de baixo custo \textbf{LM2596}, um conversor buck de $150kHz$ e $3A$. O sistema é configurado em cascata: a tensão da bateria ($22,2V - 25,2V$) é regulada para $15V$ para alimentar os drivers IR2110, e subsequentemente reduzida para $5V/3,3V$ para o microcontrolador ESP32.
+Dentre as topologias disponíveis, destacam-se os conversores buck (step-down). O conversor Buck é amplamente utilizado para a redução de tensão, operando com elevado rendimento (tipicamente superior a $85\%$) \cite{TIBuckCalculation}. No projeto será aplicado o módulo comercial de baixo custo \textbf{LM2596}, um conversor buck de $150kHz$ e $3A$. O sistema é configurado em cascata: a tensão da bateria ($22,2V - 25,2V$) é regulada para $15V$ para alimentar os drivers IR2110, e subsequentemente reduzida para $5V/3,3V$ para o microcontrolador ESP32.
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
     \caption{Módulo Comercial LM2596.}
     \includegraphics[width=7cm]{imagens/Módulo LM2596.jpg}
@@ -206,7 +210,7 @@ Dentre as topologias disponíveis, destacam-se os conversores buck (step-down). 
 
 \subsection{Sensoriamento de Corrente e Proteção (Shunt)}
 
-Para implementar a proteção contra sobrecorrente e monitorar o consumo do sistema em tempo real, adotou-se a topologia de sensoriamento resistivo no lado baixo (\textit{Low-Side Current Sensing}). A escolha por um resistor \textit{shunt} em detrimento de sensores baseados em Efeito Hall (como a família ACS7xx) justifica-se pela necessidade de resposta em frequência instantânea para a proteção de curto-circuito, eliminando os atrasos de propagação e as não-linearidades típicas de sensores magnéticos integrados.
+Para implementar a proteção contra sobrecorrente e monitorar o consumo do sistema em tempo real, adotou-se a topologia de sensoriamento resistivo no lado baixo (\textit{Low-Side Current Sensing}). A escolha por um resistor \textit{shunt} em detrimento de sensores baseados em Efeito Hall (como a família ACS7xx) justifica-se pela necessidade de uma \textbf{elevada largura de banda e de um tempo de resposta minimizado} para a atuação da proteção de curto-circuito. Esta abordagem reduz drasticamente os atrasos de propagação inerentes aos estágios de processamento interno dos sensores magnéticos e elimina as não-linearidades e a histerese típicas desses componentes integrados.
 
 O dimensionamento do resistor $R_{shunt}$ buscou minimizar as perdas por condução sem comprometer a relação sinal-ruído. Selecionou-se um resistor de liga metálica de \textbf{$0,5 m\Omega$}. Considerando a corrente de pico de projeto ($I_{peak} \approx 91A$), a potência dissipada por efeito Joule no elemento sensor é:
 
@@ -214,7 +218,7 @@ O dimensionamento do resistor $R_{shunt}$ buscou minimizar as perdas por conduç
     P_{shunt} = I_{peak}^2 \cdot R_{shunt} = 91^2 \cdot 0,0005 \approx 4,14 W
 \end{equation}
 
-Embora a dissipação de aproximadamente $4W$ exija um componente com encapsulamento de potência (formato 3920 ou 5930), a análise de impacto na eficiência global do sistema demonstra a viabilidade da solução. Comparando a perda no sensor com a potência elétrica total entregue ao motor na tensão nominal ($22,2V$):
+Embora a dissipação de aproximadamente $4W$ exija um componente com encapsulamento de potência (formato 3920 ou 5930), a análise de impacto no rendimento global do sistema demonstra a viabilidade da solução. Comparando a perda no sensor com a potência elétrica total entregue ao motor na tensão nominal ($22,2V$):
 
 \begin{equation}
     P_{sys} \approx V_{bat} \cdot I_{peak} = 22,2V \cdot 91A \approx 2020 W
@@ -255,7 +259,7 @@ Todos os materiais produzidos neste trabalho, monografia, firmware, projeto de h
 % ------------------------------------------------------------
 Para essa aplicação, foi selecionado o ESP32-DevKit C. Utilizando como principal elemento o módulo ESP32-WROOM-32, ele apresenta uma solução robusta para controle em tempo real. Capaz de operar em velocidades de clock de até $240 MHz$, permite a execução paralela de tarefas, característica crítica para sistemas ESC. A resolução de 16 bits dos geradores PWM amplia a precisão no controle da velocidade.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Visão Geral do Microcontrolador ESP32-DevKit C.}
     \includegraphics[width=10cm]{imagens/esp32-devkitc-v4-functional-overview.jpg}
@@ -263,7 +267,7 @@ Para essa aplicação, foi selecionado o ESP32-DevKit C. Utilizando como princip
  \label{esp32DevkitC}
 \end{figure}
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Pinagem do Microcontrolador ESP32-DevKit C.}
     \includegraphics[width=\textwidth]{imagens/esp32_devkitC_v4_pinlayout.png}
@@ -278,7 +282,7 @@ Apesar dessas vantagens, os níveis lógicos de $3,3V$ exigem o uso de drivers d
 % ------------------------------------------------------------
 O controle lógico do inversor é centralizado no microcontrolador, responsável pela leitura de sinais, implementação da máquina de estados de comutação e geração dos sinais PWM. Para garantir a manutenibilidade e o determinismo temporal exigidos por um controlador de potência em tempo real, o firmware é concebido segundo uma arquitetura em camadas com inversão de dependência, na qual o acesso direto ao silício do ESP32 fica concentrado exclusivamente na Camada de Abstração de Hardware (HAL), conforme ilustrado na Figura~\ref{fig:hal_camadas}.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \caption{Arquitetura em camadas do firmware do ESC com invers\~ao de depend\^encia.}
 \begin{tikzpicture}[
@@ -339,12 +343,12 @@ Dois modos operacionais, selecionados em tempo de compilação pela macro \textt
 
 \begin{itemize}
     \item \textbf{Modo corrente (\texttt{MOTOR\_CONTROL\_USE\_SPEED\_MODE\,=\,0}):} um único PI de corrente (\texttt{s\_current\_pi}) compara a referência $I_{cmd}$ (mapeada do gatilho R2) com a corrente de fase medida pelo INA240 e produz o \textit{duty cycle} do PWM. A velocidade mecânica resultante depende da carga e da rampa de comutação em malha aberta.
-    \item \textbf{Modo velocidade (\texttt{MOTOR\_CONTROL\_USE\_SPEED\_MODE\,=\,1}):} estrutura \textbf{cascata} em dois níveis. O PI externo de velocidade (\texttt{s\_speed\_pi}) compara $RPM_{cmd}$ com o RPM estimado a partir do intervalo entre passos 6-step e gera a referência de corrente $I_{cmd}$ (limitada a 5\,A). O PI interno de corrente regula o \textit{duty cycle} para atingir $I_{cmd}$. Um \textit{feedforward} de frequência elétrica ($f_{el} = RPM \cdot p / 60$) sincroniza a taxa de comutação com a referência de velocidade.
+    \item \textbf{Modo velocidade (\texttt{MOTOR\_CONTROL\_USE\_SPEED\_MODE\,=\,1}):} estrutura \textbf{cascata} em dois níveis. O PI externo de velocidade (\texttt{s\_speed\_pi}) compara $RPM_{cmd}$ (velocidade de comando) com a velocidade estimada a partir do intervalo entre passos e gera a referência de corrente $I_{cmd}$ (limitada a 5\,A). O PI interno de corrente regula o \textit{duty cycle} para atingir $I_{cmd}$. Um \textit{feedforward} de frequência elétrica ($f_{el} = RPM \cdot p / 60$) sincroniza a taxa de comutação com a referência de velocidade.
 \end{itemize}
 
 Os ganhos padrão, definidos em \texttt{board\_config.h} e utilizados na inicialização de \texttt{motor\_control\_init()}, são:
 
-\begin{table}[h!]
+\begin{table}[htbp]
 \centering
 \caption{Ganhos PI padrão do firmware}
 \label{tab:pi_ganhos_default}
@@ -367,7 +371,7 @@ A taxa de variação das referências é limitada por limitadores de taxa de var
 \subsection{Interface de Entrada: Controle DualShock 4 via Bluetooth}
 % ------------------------------------------------------------
 
-Para a etapa de validação experimental do protótipo em bancada, a definição de uma interface de entrada de dados ágil e ergonômica é um requisito funcional tão relevante quanto a arquitetura do inversor em si. O operador necessita enviar setpoints de comando ao ESC de forma contínua, graduada e segura, sem impedir o acesso físico ao conjunto motor-placa durante os ensaios.
+Para a etapa de validação experimental do protótipo em bancada, a definição de uma interface de entrada de dados ágil e ergonômica é um requisito funcional tão relevante quanto a arquitetura do inversor em si. O operador necessita enviar \textit{setpoints} de comando ao ESC de forma contínua, graduada e segura, sem impedir o acesso físico ao conjunto motor-placa durante os ensaios.
 
 Nesse contexto, foi adotado o controle \textit{DualShock 4} (PS4) como dispositivo de entrada principal do sistema. A escolha fundamenta-se em três critérios de engenharia de sistemas: (1) o controle disponibiliza dois gatilhos analógicos de alta resolução (R2 para aceleração), com curso contínuo que permite mapear linearmente toda a faixa de referência de corrente ou velocidade do ESC sem os degraus discretos de um potenciômetro rotativo; (2) sua interface de comunicação é \textbf{Bluetooth Low Energy (BLE)}, eliminando cabos entre o operador e o banco de ensaios e, consequentemente, removendo qualquer risco de choque elétrico por conexão direta a um circuito de alta tensão em operação; (3) o controle expõe pinos de LED colorido (\textit{lightbar}) e botões de ação nomeados (Circle, Options), os quais foram aproveitados como canal de diagnóstico visual e como comandos de arme/desarme e liberação de falha (\textit{clear fault}) da Máquina de Estados do ESC, respectivamente, dispensando interface serial durante ensaios de campo.
 
@@ -446,7 +450,7 @@ A regra de projeto adotada complementa essa estrutura: cada módulo expõe exata
 % ------------------------------------------------------------
 A lógica de chaveamento constitui o núcleo funcional do ESC. Nesta abordagem, utiliza-se a comutação de seis passos em malha aberta, dentro de uma estratégia \textit{sensorless} (sem sensores Hall ou encoder de posição). A ponte inversora trifásica é acionada de forma que apenas dois MOSFETs conduzam simultaneamente a cada passo, criando um campo magnético giratório que avança em incrementos de $60^{\circ}$.
 
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
     \caption{Sequência de Comutação de Seis Passos e Estado dos MOSFETs}
     \label{tab:logica_seis_passos}
@@ -469,11 +473,11 @@ A lógica de chaveamento constitui o núcleo funcional do ESC. Nesta abordagem, 
 \subsection{Periférico MCPWM e Sequência de Inicialização Segura}
 \label{subsec:mcpwm_metodo_inicializacao}
 % ------------------------------------------------------------
-Propõe-se utilizar o periférico dedicado \textit{Motor Control Pulse Width Modulator} (MCPWM) do ESP32 \cite{esp32-technical-reference-manual} para a geração dos seis sinais de comutação. Este módulo desonera a CPU da modulação em alta frequência e permite inserir, por hardware, o tempo morto (\textit{Dead Time}) necessário para evitar curto-circuitos na ponte H (\textit{shoot-through}).
+Propõe-se utilizar o periférico dedicado \textit{Motor Control Pulse Width Modulator} (MCPWM) do ESP32 \cite{esp32-technical-reference-manual} para a geração dos seis sinais de comutação, desonerando a CPU da modulação em alta frequência. Embora o controle trapezoidal convencional de seis passos em modo unipolar (\textit{H-PWM / L-ON}) prescinda de tempo morto devido ao hiato natural de $60^\circ$ elétricos de alta impedância entre as janelas de condução superior e inferior de uma mesma perna, o módulo MCPWM oferece a capacidade de inserção de tempo morto (\textit{Dead Time}) via \textit{hardware}. Este recurso atua como um mecanismo de blindagem e segurança indispensável caso o \textit{firmware} adote estratégias avançadas de modulação complementar — tais como a retificação síncrona ou frenagem regenerativa ativa —, prevenindo curto-circuitos transientes no barramento CC por intercondução (\textit{shoot-through}) decorrentes dos tempos de desligamento (\textit{turn-off delay}) dos transistores de potência.
 
 A configuração segue o mapeamento da Tabela \ref{tab:mcpwm_map}, onde o \textit{Duty Cycle} é aplicado ao transistor do lado alto (High-Side) para controle de corrente, enquanto o lado baixo (Low-Side) é mantido em condução plena ou chaveado de forma complementar, dependendo da estratégia de frenagem regenerativa desejada.
 
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
     \caption{Mapeamento dos Estados de Comutação para os Geradores MCPWM do ESP32}
     \label{tab:mcpwm_map}
@@ -520,114 +524,117 @@ Como o motor especificado (Turnigy XK3674) possui fechamento interno em triângu
 
 A técnica de detecção de cruzamento por zero da FCEM possui uma limitação física intrínseca: a amplitude da FCEM é proporcional à velocidade do rotor ($e = K_e \cdot \omega$). Na partida ($t=0$), a FCEM é nula, impossibilitando a determinação da posição do rotor pelos comparadores. Para contornar isso, projeta-se uma máquina de estados finitos composta por estágios sequenciais de partida, conforme ilustrado na Figura~\ref{fig:fsm_estados}:
 
-\begin{figure}[H]
-\centering
-\caption{M\'aquinas de estados finitas do ESC: (a) com ZCD habilitado; (b) sem ZCD (implementa\c{c}\~ao validada em bancada).}
-\label{fig:fsm_estados}
-
-% --- (a) Com ZCD ---
-\begin{subfigure}[b]{\textwidth}
-\centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-    >=Stealth,
-    shorten >=1pt,
-    auto,
-    node distance=2.7cm,
-    every state/.style={
-        draw, circle, minimum size=1.3cm,
-        align=center, font=\scriptsize\sffamily\bfseries
-    },
-    falha/.style={
-        draw, circle, minimum size=1.3cm,
-        align=center, font=\scriptsize\sffamily\bfseries,
-        fill=gray!30
-    },
-    lbl/.style={font=\tiny\sffamily, inner sep=1.5pt}
-]
-\node[state, initial above, initial text={}]         (INIT)    {INIT};
-\node[state, right=of INIT]                          (IDLE)    {IDLE};
-\node[state, right=of IDLE]                          (ALIGN)   {ALIGN};
-\node[state, right=of ALIGN]                         (RUNOPEN) {RUN\\OPEN};
-\node[state, accepting, right=of RUNOPEN]             (CLOSED)  {CLOSED\\LOOP};
-\node[falha, below=2.2cm of ALIGN]                   (FAULT)   {FAULT};
-
-\path[->]
-    (INIT)    edge node[lbl, above] {inicializa\c{c}\~ao OK}  (IDLE)
-    (IDLE)    edge node[lbl, above] {arme}                    (ALIGN)
-    (ALIGN)   edge node[lbl, above] {500\,ms}                 (RUNOPEN)
-    (RUNOPEN) edge node[lbl, above] {ZCD detectado}           (CLOSED)
-    (CLOSED)  edge[bend right=22] node[lbl, below] {desarme}  (IDLE);
-
-\path[->]
-    (IDLE)    edge[bend right=10] node[lbl, left]  {falha HW}          (FAULT)
-    (ALIGN)   edge               node[lbl, right] {OCP / UVLO}         (FAULT)
-    (RUNOPEN) edge[bend left=10] node[lbl, right] {stall / OCP / UVLO} (FAULT)
-    (CLOSED)  edge[bend left=22] node[lbl, right] {OCP / UVLO}         (FAULT);
-
-\path[->]
-    (FAULT) edge[bend right=10] node[lbl, below left] {\textit{clear fault} (Options)} (IDLE);
-\end{tikzpicture}
-}%
-\caption{Com ZCD.}
-\label{fig:fsm_zcd}
-\end{subfigure}
-
-\vspace{1em}
-
-% --- (b) Sem ZCD ---
-\begin{subfigure}[b]{\textwidth}
-\centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-    >=Stealth,
-    shorten >=1pt,
-    auto,
-    node distance=2.7cm,
-    every state/.style={
-        draw, circle, minimum size=1.3cm,
-        align=center, font=\scriptsize\sffamily\bfseries
-    },
-    falha/.style={
-        draw, circle, minimum size=1.3cm,
-        align=center, font=\scriptsize\sffamily\bfseries,
-        fill=gray!30
-    },
-    lbl/.style={font=\tiny\sffamily, inner sep=1.5pt}
-]
-\node[state, initial above, initial text={}]          (INIT)     {INIT};
-\node[state, right=of INIT]                           (IDLE)     {IDLE};
-\node[state, right=of IDLE]                           (ALIGN)    {ALIGN};
-\node[state, right=of ALIGN]                          (RUNOPEN)  {RUN\\OPEN};
-\node[state, accepting, right=of RUNOPEN]              (RUNSPEED) {RUN\\SPEED};
-\node[falha, below=2.2cm of ALIGN]                    (FAULT)    {FAULT};
-
-\path[->]
-    (INIT)     edge node[lbl, above] {inicializa\c{c}\~ao OK}  (IDLE)
-    (IDLE)     edge node[lbl, above] {arme}                    (ALIGN)
-    (ALIGN)    edge node[lbl, above] {500\,ms}                 (RUNOPEN)
-    (RUNOPEN)  edge node[lbl, above] {RPM $\geq$ limiar}        (RUNSPEED)
-    (RUNSPEED) edge[bend right=22] node[lbl, below] {desarme}   (IDLE);
-
-\path[->]
-    (RUNSPEED) edge[bend left=35] node[lbl, below] {dessincronismo} (RUNOPEN);
-
-\path[->]
-    (IDLE)     edge[bend right=10] node[lbl, left]  {falha HW}          (FAULT)
-    (ALIGN)    edge               node[lbl, right] {OCP / UVLO}         (FAULT)
-    (RUNOPEN)  edge[bend left=10] node[lbl, right] {stall / OCP / UVLO} (FAULT)
-    (RUNSPEED) edge[bend left=22] node[lbl, right] {stall / OCP / UVLO} (FAULT);
-
-\path[->]
-    (FAULT) edge[bend right=10] node[lbl, below left] {\textit{clear fault} (Options)} (IDLE);
-\end{tikzpicture}
-}%
-\caption{Sem ZCD.}
-\label{fig:fsm_sem_zcd}
-\end{subfigure}
-
-\legendafonte{Elaborado pelo autor (2026).}
-\end{figure}
+\begin{figure}[htbp]
+    \centering
+    % Trava a centralização especificamente para as sublegendas (a) e (b)
+    \captionsetup[subfigure]{justification=centering}
+    
+    \caption{Máquinas de estados finitas do ESC: (a) com ZCD habilitado; (b) sem ZCD (implementação validada em bancada).}
+    \label{fig:fsm_estados}
+    
+    % --- (a) Com ZCD ---
+    \begin{subfigure}[b]{\textwidth}
+    \centering
+    \resizebox{0.95\textwidth}{!}{%
+    \begin{tikzpicture}[
+        >=Stealth,
+        shorten >=1pt,
+        auto,
+        node distance=2.7cm,
+        every state/.style={
+            draw, circle, minimum size=1.3cm,
+            align=center, font=\scriptsize\sffamily\bfseries
+        },
+        falha/.style={
+            draw, circle, minimum size=1.3cm,
+            align=center, font=\scriptsize\sffamily\bfseries,
+            fill=gray!30
+        },
+        lbl/.style={font=\tiny\sffamily, inner sep=1.5pt}
+    ]
+    \node[state, initial above, initial text={}]         (INIT)    {INIT};
+    \node[state, right=of INIT]                          (IDLE)    {IDLE};
+    \node[state, right=of IDLE]                          (ALIGN)   {ALIGN};
+    \node[state, right=of ALIGN]                         (RUNOPEN) {RUN\\OPEN};
+    \node[state, accepting, right=of RUNOPEN]             (CLOSED)  {CLOSED\\LOOP};
+    \node[falha, below=2.2cm of ALIGN]                   (FAULT)   {FAULT};
+    
+    \path[->]
+        (INIT)    edge node[lbl, above] {inicialização OK}  (IDLE)
+        (IDLE)    edge node[lbl, above] {arme}                    (ALIGN)
+        (ALIGN)   edge node[lbl, above] {500\,ms}                 (RUNOPEN)
+        (RUNOPEN) edge node[lbl, above] {ZCD detectado}           (CLOSED)
+        (CLOSED)  edge[bend right=22] node[lbl, below] {desarme}  (IDLE);
+    
+    \path[->]
+        (IDLE)    edge[bend right=10] node[lbl, left]  {falha HW}          (FAULT)
+        (ALIGN)   edge                node[lbl, right] {OCP / UVLO}         (FAULT)
+        (RUNOPEN) edge[bend left=10] node[lbl, right] {stall / OCP / UVLO} (FAULT)
+        (CLOSED)  edge[bend left=22] node[lbl, right] {OCP / UVLO}         (FAULT);
+    
+    \path[->]
+        (FAULT) edge[bend right=10] node[lbl, below left] {\textit{clear fault} (Options)} (IDLE);
+    \end{tikzpicture}
+    }%
+    \caption{Com ZCD.}
+    \label{fig:fsm_zcd}
+    \end{subfigure}
+    
+    \vspace{1em}
+    
+    % --- (b) Sem ZCD ---
+    \begin{subfigure}[b]{\textwidth}
+    \centering
+    \resizebox{0.95\textwidth}{!}{%
+    \begin{tikzpicture}[
+        >=Stealth,
+        shorten >=1pt,
+        auto,
+        node distance=2.7cm,
+        every state/.style={
+            draw, circle, minimum size=1.3cm,
+            align=center, font=\scriptsize\sffamily\bfseries
+        },
+        falha/.style={
+            draw, circle, minimum size=1.3cm,
+            align=center, font=\scriptsize\sffamily\bfseries,
+            fill=gray!30
+        },
+        lbl/.style={font=\tiny\sffamily, inner sep=1.5pt}
+    ]
+    \node[state, initial above, initial text={}]          (INIT)     {INIT};
+    \node[state, right=of INIT]                           (IDLE)     {IDLE};
+    \node[state, right=of IDLE]                           (ALIGN)    {ALIGN};
+    \node[state, right=of ALIGN]                          (RUNOPEN)  {RUN\\OPEN};
+    \node[state, accepting, right=of RUNOPEN]              (RUNSPEED) {RUN\\SPEED};
+    \node[falha, below=2.2cm of ALIGN]                    (FAULT)    {FAULT};
+    
+    \path[->]
+        (INIT)     edge node[lbl, above] {inicialização OK}  (IDLE)
+        (IDLE)     edge node[lbl, above] {arme}                    (ALIGN)
+        (ALIGN)    edge node[lbl, above] {500\,ms}                 (RUNOPEN)
+        (RUNOPEN)  edge node[lbl, above] {velocidade $\geq$ limiar}        (RUNSPEED)
+        (RUNSPEED) edge[bend right=22] node[lbl, below] {desarme}   (IDLE);
+    
+    \path[->]
+        (RUNSPEED) edge[bend left=35] node[lbl, below] {dessincronismo} (RUNOPEN);
+    
+    \path[->]
+        (IDLE)     edge[bend right=10] node[lbl, left]  {falha HW}          (FAULT)
+        (ALIGN)    edge                node[lbl, right] {OCP / UVLO}         (FAULT)
+        (RUNOPEN)  edge[bend left=10] node[lbl, right] {stall / OCP / UVLO} (FAULT)
+        (RUNSPEED) edge[bend left=22] node[lbl, right] {stall / OCP / UVLO} (FAULT);
+    
+    \path[->]
+        (FAULT) edge[bend right=10] node[lbl, below left] {\textit{clear fault} (Options)} (IDLE);
+    \end{tikzpicture}
+    }%
+    \caption{Sem ZCD.}
+    \label{fig:fsm_sem_zcd}
+    \end{subfigure}
+    
+    \legendafonte{Elaborado pelo autor (2026).}
+    \end{figure}
 
 \begin{enumerate}
     \item \textbf{Alinhamento (Estágio Estático):} 
@@ -642,11 +649,11 @@ A técnica de detecção de cruzamento por zero da FCEM possui uma limitação f
     O comportamento após \textit{RUN\_OPEN} depende da configuração de compilação (Figura~\ref{fig:fsm_estados}):
     \begin{itemize}
         \item \textbf{Com ZCD} (Figura~\ref{fig:fsm_zcd}): assim que o microcontrolador detecta uma sequência válida de cruzamentos por zero nos comparadores, o sistema realiza a transição de malha. O temporizador de malha aberta é desativado e o controle passa a ser orientado a eventos: cada ZCD dispara, após um atraso de $30^\circ$ elétricos, a próxima comutação de fase.
-        \item \textbf{Sem ZCD} (Figura~\ref{fig:fsm_sem_zcd}, implementação validada): a comutação permanece em malha aberta por temporizador. Quando o RPM medido supera o limiar de transição de malha, o estado evolui para \textit{RUN\_SPEED}, em que um PI de velocidade comanda a corrente. Dessincronismo provoca retorno a \textit{RUN\_OPEN}, sem entrada em falha.
+        \item \textbf{Sem ZCD} (Figura~\ref{fig:fsm_sem_zcd}, implementação validada): a comutação permanece em malha aberta por temporizador. Quando a velocidade medida supera o limiar de transição de malha, o estado evolui para \textit{RUN\_SPEED}, em que um PI de velocidade comanda a corrente. Dessincronismo provoca retorno a \textit{RUN\_OPEN}, sem entrada em falha.
     \end{itemize}
 \end{enumerate}
 
-Essa abordagem híbrida elimina a necessidade de rampas longas e ineficientes, garantindo uma partida robusta; com ZCD habilitado, a operação contínua é auto-sincronizada por FCEM.
+Essa abordagem híbrida elimina a necessidade de rampas longas e de baixo rendimento, garantindo uma partida robusta; com ZCD habilitado, a operação contínua é auto-sincronizada por FCEM.
 
 \subsection{Reconstrução do Neutro Virtual e Divisores de Tensão}
 
@@ -673,13 +680,13 @@ O sinal de tensão proveniente das fases contém componentes de alta frequência
 A introdução do capacitor $C_f$ no circuito divisor de tensão, embora essencial para a integridade do sinal, insere um polo no sistema que causa um atraso de fase ($\phi$) dependente da frequência. Em um filtro RC de primeira ordem, o atraso de fase entre o sinal de entrada (BEMF real) e o sinal de saída (lido pelo comparador) é dado por \cite{ti2013sensorless}:
 
 \begin{equation}
-    \phi = \arctan(2\pi f_{el} R_{eq} C_f) = \arctan\left(\frac{f_{el}}{f_c}\right)
+    \phi = \arctan(2\pi \cdot f_{el} \cdot R_{eq} \cdot C_f) = \arctan\left(\frac{f_{el}}{f_c}\right)
     \label{eq:phase_lag}
 \end{equation}
 
 \noindent onde $f_{el}$ é a frequência elétrica fundamental do motor e $f_c$ é a frequência de corte do filtro ($\approx 5,3kHz$).
 
-Este atraso angular é crítico para o sincronismo da comutação. Na estratégia \textit{sensorless} ideal, a comutação das fases deve ocorrer $30^{\circ}$ elétricos após o cruzamento por zero da BEMF. No entanto, devido ao filtro, o comparador detecta o evento de cruzamento com um atraso de $\phi$ graus. Se o microcontrolador aguardar os $30^{\circ}$ teóricos após essa detecção tardia, a comutação efetiva ocorrerá em $30^{\circ} + \phi$, resultando em uma aplicação de torque fora do ponto de máxima eficiência.
+Este atraso angular é crítico para o sincronismo da comutação. Na estratégia \textit{sensorless} ideal, a comutação das fases deve ocorrer $30^{\circ}$ elétricos após o cruzamento por zero da BEMF. No entanto, devido ao filtro, o comparador detecta o evento de cruzamento com um atraso de $\phi$ graus. Se o microcontrolador aguardar os $30^{\circ}$ teóricos após essa detecção tardia, a comutação efetiva ocorrerá em $30^{\circ} + \phi$, resultando em uma aplicação de torque fora do ponto de máximo rendimento.
 
 Considerando as especificações do motor Turnigy XK3674 ($2200KV$, 4 polos) operando à tensão nominal de $22,2V$, a velocidade máxima teórica aproxima-se de $48.840$ RPM. A frequência elétrica máxima correspondente é:
 
@@ -735,7 +742,7 @@ A relação entre frequência elétrica de comutação e velocidade mecânica ob
 
 \subsubsection{Ensaio dinâmico 4.1: Sequência de partida e comutação trapezoidal com carga}
 
-Este ensaio teria como objetivo registrar, com pinças de corrente nos três terminais de fase, a evolução temporal das correntes de estator durante o ciclo completo de partida, comandado pelo gatilho R2 do DualShock\,4 ou pela interface serial (\texttt{A} + setpoint). Verificar-se-ia a integridade da sequência \texttt{ALIGN} $\to$ \texttt{RUN\_OPEN} $\to$ \texttt{RUN\_SPEED} no domínio elétrico (formas trapezoidais de corrente) e temporal (duração de cada estado).
+Este ensaio teria como objetivo registrar, com pinças de corrente nos três terminais de fase, a evolução temporal das correntes de estator durante o ciclo completo de partida, comandado pelo gatilho R2 do DualShock\,4 ou pela interface serial (\texttt{A} + \textit{setpoint}). Verificar-se-ia a integridade da sequência \texttt{ALIGN} $\to$ \texttt{RUN\_OPEN} $\to$ \texttt{RUN\_SPEED} no domínio elétrico (formas trapezoidais de corrente) e temporal (duração de cada estado).
 
 Na fase \texttt{ALIGN}, aplicar-se-ia o vetor estático do Passo\,0 com rampa de ciclo de trabalho de $0\,\%$ a $3\,\%$ em $100\,\text{ms}$. Em regime estacionário ao final da rampa, a corrente de alinhamento aproximar-se-ia de:
 \begin{equation}
@@ -744,7 +751,7 @@ Na fase \texttt{ALIGN}, aplicar-se-ia o vetor estático do Passo\,0 com rampa de
 \end{equation}
 \noindent onde $R_{eq}$ englobaria resistência de armadura em série e $R_{DS(on)}$ dos MOSFETs condutores. O resultado esperado seria um pulso de corrente estável nas fases A e B, referenciando $\theta_0$ antes de \texttt{RUN\_OPEN}.
 
-Em \texttt{RUN\_OPEN}, a frequência elétrica incrementar-se-ia linearmente até $300\,\text{Hz}$; as correntes de fase apresentariam o padrão trapezoidal característico da comutação de seis passos (pulsos de $120°$ elétricos, intervalo Hi-Z de $60°$). A transição para \texttt{RUN\_SPEED} ocorreria quando o RPM estimado superasse 600\,RPM por 200\,ms consecutivos.
+Em \texttt{RUN\_OPEN}, a frequência elétrica incrementar-se-ia linearmente até $300\,\text{Hz}$; as correntes de fase apresentariam o padrão trapezoidal característico da comutação de seis passos (pulsos de $120°$ elétricos, intervalo Hi-Z de $60°$). A transição para \texttt{RUN\_SPEED} ocorreria quando a velocidade estimada superasse 600\,RPM por 200\,ms consecutivos.
 
 \subsubsection{Ensaio dinâmico 4.2: Determinismo temporal do PWM sob carga do escalonador FreeRTOS}
 
@@ -756,7 +763,7 @@ Com o motor em regime estável, aplicar-se-ia um degrau brusco no gatilho R2; a 
 
 \subsubsection{Ensaio dinâmico 4.4: Limite inferior em malha aberta e motivação do ZCD}
 
-Reduzir-se-ia progressivamente a referência de corrente até mapear a frequência elétrica mínima $f_{el,min}$ em que o rotor ainda acompanharia o campo do estator sem escorregamento. Abaixo desse limiar, esperar-se-ia perda de sincronismo, vibração audível e disparo da proteção de \textit{stall} por corrente sustentada. O resultado teórico motivaria a ativação futura de \texttt{BOARD\_ENABLE\_BEMF\_ZCD}\,$= 1$, eliminando a ``zona cega'' entre $0\,\text{RPM}$ e a velocidade mínima de sincronismo em malha aberta.
+Reduzir-se-ia progressivamente a referência de corrente até mapear a frequência elétrica mínima $f_{el,min}$ em que o rotor ainda acompanharia o campo do estator sem escorregamento. Abaixo desse limiar, esperar-se-ia perda de sincronismo, vibração audível e disparo da proteção de \textit{stall} por corrente sustentada. O resultado teórico motivaria a ativação futura de \texttt{BOARD\_ENABLE\_BEMF\_ZCD}\,$= 1$, eliminando a ``zona cega'' entre velocidade nula e a velocidade mínima de sincronismo em malha aberta.
 
 \subsubsection{Ensaio dinâmico 4.5: Proteção de \textit{stall} por travamento mecânico}
 

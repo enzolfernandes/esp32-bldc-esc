@@ -6,13 +6,13 @@
 
 > **REGRA DE MANUTENÇÃO:** Toda vez que o código C++ for alterado ou o texto em LaTeX sofrer revisões de escopo (ex.: mudança de motores, adição de sensores, alteração de limiares de proteção, inclusão de novos módulos de firmware), a IA atuante DEVE obrigatoriamente atualizar esta Documentação de Programação e a Memória do TCC (`MEMORIA_TCC.md`) em paralelo para evitar defasagem técnica entre o estado real do código e os documentos de referência do trabalho.
 
-Esta regra é válida para toda e qualquer sessão de trabalho futura com assistência de IA neste projeto. A defasagem entre código e documentação invalida a rastreabilidade do projeto e compromete a integridade do Trabalho de Conclusão de Curso.
+Esta regra é válida para toda e qualquer sessão de trabalho futura com assistência de IA neste projeto. A defasagem entre código e documentação invalida a rastreabilidade do projeto e compromete a integridade do Trabalho de Graduação.
 
 ---
 
 ## Prefácio
 
-Este documento descreve a arquitetura, os paradigmas de programação e o fluxo de execução do firmware de um **Controlador Eletrônico de Velocidade (ESC)** trifásico para motores **BLDC** (Brushless DC), implementado no microcontrolador **ESP32**. O texto destina-se a subsidiar o Trabalho de Conclusão de Curso (TCC) em Engenharia Elétrica, servindo como referência teórica e prática para leitores com conhecimentos básicos de C/C++ e eletrônica de potência.
+Este documento descreve a arquitetura, os paradigmas de programação e o fluxo de execução do firmware de um **Controlador Eletrônico de Velocidade (ESC)** trifásico para motores **BLDC** (Brushless DC), implementado no microcontrolador **ESP32**. O texto destina-se a subsidiar o Trabalho de Graduação (TCC) em Engenharia Elétrica, servindo como referência teórica e prática para leitores com conhecimentos básicos de C/C++ e eletrônica de potência.
 
 O firmware controla a comutação do inversor, as malhas de corrente e velocidade, a leitura de sensores e as rotinas de proteção, utilizando uma arquitetura em camadas que separa a lógica de controle do acesso direto ao hardware. A especificação funcional de produto encontra-se em [`Docs/especificacao_esc.md`](../Docs/especificacao_esc.md); o roteamento de pinos da placa encontra-se em [`Hardware/PCB_Project/ESP32_PINMAP.md`](../Hardware/PCB_Project/ESP32_PINMAP.md).
 

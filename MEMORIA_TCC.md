@@ -1,5 +1,5 @@
 # MEMORIA_TCC.md
-## Memória Unificada do Trabalho de Conclusão de Curso
+## Memória Unificada do Trabalho de Graduação
 
 ---
 
@@ -7,7 +7,7 @@
 
 > **REGRA DE MANUTENÇÃO:** Toda vez que o código C++ for alterado ou o texto em LaTeX sofrer revisões de escopo (ex.: mudança de motores, adição de sensores, alteração de limiares de proteção, inclusão de novos módulos de firmware), a IA atuante DEVE obrigatoriamente atualizar a Documentação de Programação (`Firmware/DOCUMENTACAO_PROGRAMACAO.md`) e esta Memória do TCC em paralelo para evitar defasagem técnica entre o estado real do código e os documentos de referência do trabalho.
 
-Esta regra é válida para toda e qualquer sessão de trabalho futura com assistência de IA neste projeto. A defasagem entre código e documentação invalida a rastreabilidade do projeto e compromete a integridade do Trabalho de Conclusão de Curso.
+Esta regra é válida para toda e qualquer sessão de trabalho futura com assistência de IA neste projeto. A defasagem entre código e documentação invalida a rastreabilidade do projeto e compromete a integridade do Trabalho de Graduação.
 
 ---
 

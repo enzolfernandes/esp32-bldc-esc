@@ -1,11 +1,11 @@
 \chapter{Introdução Teórica}
 
-Os motores BLDC (\textit{Brushless Direct Current Motor}) representam um avanço significativo em relação aos motores CC tradicionais porque eliminam a necessidade de escovas mecânicas para a conversão de energia, resultando em maior rendimento energético, menos desgaste e maior vida útil \cite{hanselman2003brushless}. Esses avanços tecnológicos estão sendo impulsionados pela crescente demanda por sistemas de acionamento mais eficientes, confiáveis e de baixa manutenção em diversas aplicações industriais, comerciais e de consumo. A precisão e controlabilidade dos motores BLDC os tornam ideais para aplicações que exigem alta exatidão de movimento, velocidade e controle de torque, como robótica, automação industrial, veículos elétricos e eletrônicos de consumo.
+Os motores BLDC (\textit{Brushless Direct Current Motor}) representam um avanço significativo em relação aos motores CC tradicionais porque eliminam a necessidade de escovas mecânicas para a conversão de energia, resultando em maior rendimento energético, menos desgaste e maior vida útil \cite{hanselman2003brushless}. Esses avanços tecnológicos estão sendo impulsionados pela crescente demanda por sistemas de acionamento de maior rendimento, confiáveis e de baixa manutenção em diversas aplicações industriais, comerciais e de consumo. A precisão e controlabilidade dos motores BLDC os tornam ideais para aplicações que exigem alta exatidão de movimento, velocidade e controle de torque, como robótica, automação industrial, veículos elétricos e eletrônicos de consumo.
 
 \section{Motores CC Sem Escova}
 O princípio de funcionamento dos motores BLDC é baseado em campos magnéticos gerados por ímãs permanentes e enrolamentos de  (Figura \ref{Configuração de um motor DC convencional (A) e motor BLDC (B).}). A comutação da corrente para gerar movimento ocorre eletronicamente, por meio de um controlador dedicado normalmente chamado de ESC (Eletronic Speed Controller), que pode usar ou não sensores durante o processo, eliminando assim a necessidade de escovas mecânicas utilizadas em motores DC tradicionais. Esta abordagem resulta em uma diminuição significativa do desgaste mecânico, aumentando a vida útil do motor e reduzindo a necessidade de manutenção.
 
-\begin{figure}[h]
+\begin{figure}[htbp]
 	\centering
 	\caption{Configuração de um motor DC convencional (A) e motor BLDC (B).}
 	\includegraphics[width=8cm]{imagens/Comparativo.png}
@@ -31,15 +31,15 @@ A operação de um motor elétrico é governada por dois princípios físicos in
 
 A produção de força mecânica em um motor origina-se na Força de Lorentz. Esta lei descreve a força ($\vec{F}$) sobre um condutor de comprimento vetorial ($\vec{L}$) percorrido por uma corrente ($I$) e imerso em um campo magnético ($\vec{B}$). A relação vetorial é:
 \begin{equation}
-    \vec{F} = I(\vec{L} \times \vec{B})
+    \vec{F} = I \cdot (\vec{L} \times \vec{B})
 \end{equation}
-A magnitude desta força, $F = I L B \sin(\theta)$, onde $\theta$ é o ângulo entre o condutor e o campo magnético, é maximizada quando $\sin(\theta) = 1$, o que ocorre precisamente quando $\theta = 90^{\circ}$. Esta condição de ortogonalidade é o princípio mais elementar para a máxima conversão de energia.
+A magnitude desta força, $F = I \cdot L \cdot B \cdot \sin(\theta)$, onde $\theta$ é o ângulo entre o condutor e o campo magnético, é maximizada quando $\sin(\theta) = 1$, o que ocorre precisamente quando $\theta = 90^{\circ}$. Esta condição de ortogonalidade é o princípio mais elementar para a máxima conversão de energia.
 
 Em um motor rotativo, o objetivo é o torque, que pode ser entendido como a interação entre o campo magnético gerado pelo estator ($\vec{B}_{\text{estator}}$) e o campo gerado pelos ímãs permanentes do rotor ($\vec{B}_{\text{rotor}}$). O torque eletromagnético ($\vec{T}_{em}$) é o produto vetorial desses dois campos \cite{vas1998vector}:
 \begin{equation}
     \vec{T}_{em} \propto \vec{B}_{\text{estator}} \times \vec{B}_{\text{rotor}}
 \end{equation}
-A magnitude do torque é, portanto, diretamente proporcional ao seno do ângulo elétrico ($\theta_e$) entre os dois vetores de campo. O torque máximo é alcançado quando este ângulo é mantido em 90 graus elétricos. Manter esta condição de ortogonalidade de forma contínua é o objetivo central das estratégias de controle de alto desempenho, como o Controle Orientado por Campo (FOC), pois garante não apenas o torque máximo para uma dada corrente, mas também a máxima eficiência na conversão eletromecânica.
+A magnitude do torque é, portanto, diretamente proporcional ao seno do ângulo elétrico ($\theta_e$) entre os dois vetores de campo. O torque máximo é alcançado quando este ângulo é mantido em 90 graus elétricos. Manter esta condição de ortogonalidade de forma contínua é o objetivo central das estratégias de controle de alto desempenho, como o Controle Orientado por Campo (FOC), pois garante não apenas o torque máximo para uma dada corrente, mas também o máximo rendimento na conversão eletromecânica.
 
 \subsubsection{A Lei de Faraday}
 Simultaneamente à produção de torque, um motor em rotação atua como um gerador. A Lei da Indução de Faraday afirma que a variação do fluxo magnético através de uma espira de fio induz uma força eletromotriz (FEM). Em um motor, o movimento dos ímãs do rotor em relação aos enrolamentos do estator induz uma tensão conhecida como \textbf{força contraeletromotriz (FCEM)}, ou \textit{back-EMF}.
@@ -52,15 +52,15 @@ Os princípios de Lorentz e Faraday são sintetizados em um modelo matemático q
 
 \textbf{Equação Elétrica (Lei de Kirchhoff):}
 \begin{equation}
-    V = e_a + I_a R_a + L_a \frac{dI_a}{dt}
+    V = e_a + I_a \cdot R_a + L_a \cdot \frac{dI_a}{dt}
 \end{equation}
-Onde $V$ é a tensão aplicada, $e_a$ é a FCEM de Armadura, $I_a R_a$ é a queda de tensão resistiva de Armadura e $L_a \frac{dI_a}{dt}$ é a queda de tensão indutiva de Armadura \parencite{maquinasEletricasFitzgerald}. Vale ressaltar que Armadura é o termo técnico para o enrolamento em motores elétricos, onde a principal conversão de energia acontece.
+Onde $V$ é a tensão aplicada, $e_a$ é a FCEM de Armadura, $I_a \cdot R_a$ é a queda de tensão resistiva de Armadura e $L_a \cdot \frac{dI_a}{dt}$ é a queda de tensão indutiva de Armadura \parencite{maquinasEletricasFitzgerald}. Vale ressaltar que Armadura é o termo técnico para o enrolamento em motores elétricos, onde a principal conversão de energia acontece.
 
 \textbf{Equação Mecânica (2ª Lei de Newton para Rotação):}
 \begin{equation}
-    T_e = T_l + J \frac{d\omega}{dt} + B\omega
+    T_e = T_l + J \cdot \frac{d\omega}{dt} + B \cdot \omega
 \end{equation}
-Onde $T_e$ é o torque eletromagnético, $T_l$ é o torque de carga, $J\frac{d\omega}{dt}$ é o torque inercial e $B\omega$ é o torque de atrito viscoso \parencite{maquinasEletricasFitzgerald}.
+Onde $T_e$ é o torque eletromagnético, $T_l$ é o torque de carga, $J \cdot \frac{d\omega}{dt}$ é o torque inercial e $B \cdot \omega$ é o torque de atrito viscoso \parencite{maquinasEletricasFitzgerald}.
 
 Dentro deste modelo, as constantes do motor surgem como os fatores de proporcionalidade que conectam os domínios elétrico e mecânico.
 
@@ -68,7 +68,7 @@ Dentro deste modelo, as constantes do motor surgem como os fatores de proporcion
 \label{KT}
 A constante de torque ($K_T$) define a capacidade de um motor de converter corrente elétrica em torque mecânico. É formalmente definida como a relação linear:
 \begin{equation}
-    T_e = K_T I_a
+    T_e = K_T \cdot I_a
 \end{equation}
 O valor de $K_T$ não é arbitrário, mas determinado pelas características construtivas do motor \parencite{hendershot1994design}:
 \begin{itemize}
@@ -76,7 +76,7 @@ O valor de $K_T$ não é arbitrário, mas determinado pelas características con
     \item \textbf{Configuração do Enrolamento:} É diretamente proporcional ao número de espiras ($N$) nos enrolamentos.
     \item \textbf{Geometria do Motor:} Dimensões como o comprimento e o raio do estator influenciam diretamente seu valor.
 \end{itemize}
-Para um dado torque de carga, um motor com $K_T$ maior demandará uma corrente menor, resultando em menores perdas por efeito Joule ($P = I^2 R$) e, portanto, maior eficiência.
+Para um dado torque de carga, um motor com $K_T$ maior demandará uma corrente menor, resultando em menores perdas por efeito Joule ($P = I^2 \cdot R$) e, portanto, maior rendimento.
 
 \subsection{\texorpdfstring{As constantes de Velocidade $K_V$}{As constantes de Velocidade KV}}
 \label{KV}
@@ -85,7 +85,7 @@ De forma análoga, a relação entre a FCEM e a velocidade é quantificada por c
 \begin{itemize}
     \item \textbf{Constante de FCEM ($K_e$):} É a constante física que relaciona a FCEM gerada ($e_a$) com a velocidade angular do motor ($\omega$):
     \begin{equation}
-        e_a = K_e \omega
+        e_a = K_e \cdot \omega
     \end{equation}
     Assim como $K_T$, $K_e$ (também denotado como $k_b$) depende do projeto físico do motor \parencite{zoltan2012understanding}.
 
@@ -93,7 +93,7 @@ De forma análoga, a relação entre a FCEM e a velocidade é quantificada por c
     \begin{equation}
         K_V = \frac{1}{K_e}
     \end{equation}
-    A FCEM é o mecanismo que limita a velocidade máxima do motor. O motor acelera até que a FCEM ($e_a = K_e \omega$) se aproxime da tensão de alimentação ($V$), ponto no qual a corrente resultante é apenas suficiente para vencer o atrito.
+    A FCEM é o mecanismo que limita a velocidade máxima do motor. O motor acelera até que a FCEM ($e_a = K_e \cdot \omega$) se aproxime da tensão de alimentação ($V$), ponto no qual a corrente resultante é apenas suficiente para vencer o atrito.
 \end{itemize}
 
 \subsection{A Equivalência entre $K_T$ e $K_e$}
@@ -107,15 +107,39 @@ Esta equivalência não é uma coincidência, mas uma consequência da \textbf{l
 \textbf{Demonstração por Balanço de Potência:}
 \begin{enumerate}
     \item A potência elétrica convertida em potência mecânica ($P_{\text{conv}}$) é a parte da potência de entrada que não é perdida como calor nos enrolamentos.
-    \
-    \item Usando a equação elétrica ($V = e_a + I_a R_a$), substituímos $V$:
-    \
-    \item A potência mecânica de saída ($P_{\text{mec}}$) é o produto do torque e da velocidade angular:
-    \
-    \item Pela conservação de energia, $P_{\text{conv}} = P_{\text{mec}}$:
-    \
-    \item Agora, substituímos as definições de $K_e$ e $K_T$ ($e_a = K_e \omega$ e $T_e = K_T I_a$):
-    \
+
+    \item A potência elétrica fornecida à armadura é
+    \begin{equation}
+        P_{\text{in}} = V \cdot I_a
+    \end{equation}
+    Substituindo a equação elétrica $V = e_a + I_a R_a$:
+    \begin{equation}
+        P_{\text{in}} = (e_a + I_a R_a) I_a = e_a I_a + I_a^2 R_a
+    \end{equation}
+    A parcela $I_a^2 R_a$ corresponde às perdas Joule nos enrolamentos; descontando-as, a potência eletromecanicamente convertida é
+    \begin{equation}
+        P_{\text{conv}} = e_a I_a
+    \end{equation}
+
+    \item A potência mecânica de saída ($P_{\text{mec}}$) é o produto do torque eletromagnético e da velocidade angular:
+    \begin{equation}
+        P_{\text{mec}} = T_e \cdot \omega
+    \end{equation}
+
+    \item Pela conservação de energia, a potência convertida iguala-se à potência mecânica de saída:
+    \begin{equation}
+        P_{\text{conv}} = P_{\text{mec}}
+    \end{equation}
+
+    \item Combinando os itens anteriores, $P_{\text{conv}} = P_{\text{mec}}$ implica
+    \begin{equation}
+        e_a I_a = T_e \omega
+    \end{equation}
+    Substituindo as definições $e_a = K_e \omega$ e $T_e = K_T I_a$:
+    \begin{equation}
+        (K_e \omega) I_a = (K_T I_a) \omega
+    \end{equation}
+
     \item Para qualquer condição de operação não nula, podemos cancelar $\omega$ e $I_a$ de ambos os lados, provando que:
     \begin{equation}
         K_e = K_T
@@ -127,11 +151,11 @@ Esta prova revela que o mesmo mecanismo de acoplamento eletromagnético que prod
 
 A elegância teórica é frequentemente obscurecida pelo uso de unidades inconsistentes na prática. A habilidade de converter valores de folhas de dados para o padrão SI é indispensável. A relação prática mais importante é entre $K_T$ e $K_V$:
 \begin{equation}
-    K_T \text{ [N·m/A]} = \frac{2\pi }{60 \: K_V \text{ [RPM/V]}}
+    K_T \text{ [N·m/A]} = \frac{2\pi }{60 \cdot K_V \text{ [RPM/V]}}
 \end{equation}
-Esta fórmula é derivada diretamente da equivalência $K_T = K_e = 1/K_V$ após a conversão de RPM para rad/s \parencite{infineon2011bldc}. A tabela abaixo resume as conversões chave.
+Esta fórmula é derivada diretamente da equivalência $K_T = K_e = 1/K_V$ após a conversão da velocidade para rad/s \parencite{infineon2011bldc}. A tabela abaixo resume as conversões chave.
 
-\begin{table}[h!]
+\begin{table}[htbp]
 \centering
 \caption{Unidades de Constantes de Motor e Fatores de Conversão para o SI}
 \label{tab:unidades}
@@ -159,7 +183,7 @@ Uma constante mais fundamental para avaliar a qualidade do projeto de um motor �
 \begin{equation}
     K_m = \frac{K_T}{\sqrt{R_a}}
 \end{equation}
-Sua unidade no SI é \textbf{N·m/$\sqrt{\text{W}}$}. $K_m$ representa a capacidade do motor de produzir torque por watt de potência dissipada como calor. Um $K_m$ mais alto indica um motor mais eficiente na conversão de energia. Notavelmente, $K_m$ é invariante a alterações no enrolamento para um mesmo tamanho de carcaça, tornando-se uma excelente figura de mérito para comparar a qualidade de diferentes projetos de motores \parencite{infineon2011bldc}.
+Sua unidade no SI é \textbf{N·m/$\sqrt{\text{W}}$}. $K_m$ representa a capacidade do motor de produzir torque por watt de potência dissipada como calor. Um $K_m$ mais alto indica um motor com maior rendimento na conversão de energia. Notavelmente, $K_m$ é invariante a alterações no enrolamento para um mesmo tamanho de carcaça, tornando-se uma excelente figura de mérito para comparar a qualidade de diferentes projetos de motores \parencite{infineon2011bldc}.
 
 \subsection{Influência da Temperatura}
 
@@ -189,28 +213,32 @@ Embora chamadas de "constantes", $K_T$ e $K_e$ são afetadas pela temperatura. O
  A seleção de $K_V$ é uma decisão de projeto crítica que estabelece um compromisso fundamental: 
  \begin{itemize} 
  \item \textbf{Motores de Alto $K_V$:} Possuem menos espiras de fio mais grosso. Resultam em baixo $K_T$, baixa resistência e baixa indutância. Para produzir torque, exigem alta corrente, mas atingem altas velocidades. Ideais para aplicações de alta velocidade e baixo torque, como drones de corrida e fusos de usinagem \parencite{tmotor2019kv}. 
- \item \textbf{Motores de Baixo $K_V$:} Possuem mais espiras de fio mais fino. Resultam em alto $K_T$, alta resistência e alta indutância. Geram alto torque com baixas correntes, sendo mais eficientes para essa finalidade, mas com menor velocidade máxima. Ideais para aplicações de acionamento direto e alto torque, como drones de carga, guinchos e atuadores robóticos \parencite{byod2018kv}. 
+ \item \textbf{Motores de Baixo $K_V$:} Possuem mais espiras de fio mais fino. Resultam em alto $K_T$, alta resistência e alta indutância. Geram alto torque com baixas correntes, apresentando maior rendimento para essa finalidade, mas com menor velocidade máxima. Ideais para aplicações de acionamento direto e alto torque, como drones de carga, guinchos e atuadores robóticos \parencite{byod2018kv}. 
  \end{itemize} 
 
  \subsection{Princípios de Operação} 
 
-  O controlador do motor deve fornecer corrente e tensão adequadas às bobinas do estator do motor, a fim de controlar a velocidade e o torque do motor \cite{jahns1996pulsating}. O circuito básico que realiza esse papel é o de uma ponte inversora trifásica, onde o motor BLDC pode estar conectado em Estrela ou Delta. O controle do circuito de disparo dos transistores do inversor deve ser feito de forma que cada fase do estator seja percorrida por uma corrente com a forma de onda senoidal ou trapezoidal, voltadas respectively para alto rendimento e baixo custo. As formas de onda de cada uma das fases devem estar defasadas entre si, permitindo que o motor gire de forma contínua. 
+ O controlador eletrônico tem a função de fornecer tensão e corrente adequadas às bobinas do estator, visando o controle preciso da velocidade e do torque da máquina \cite{jahns1996pulsating}. A topologia fundamental para esta finalidade é a ponte inversora trifásica, à qual o motor BLDC pode ser acoplado em configuração estrela ou triângulo. O chaveamento dos transistores do inversor deve ser orquestrado de forma que cada fase seja percorrida por uma corrente com forma de onda senoidal ou trapezoidal. A excitação senoidal é voltada para um acionamento de alto desempenho e suavidade, enquanto a trapezoidal destaca-se pela simplicidade de controle e baixo custo de implementação. Para garantir a geração de um campo magnético girante e a rotação contínua do rotor, as formas de onda das três fases devem ser defasadas em 120 graus elétricos entre si.
 
  \subsubsection{Comutação de Seis Passos} 
 
- A comutação de seis passos demanda um sincronismo de disparo dos transistores, de modo que sempre dois deles estejam fechados, formando um circuito tal que a cada $60 ^\circ$ elétricos o par de fases percorridas pela corrente se alterne (Figura \ref{Sequência de acionamento para um BLDC trifásico}). Cada transistor permanece em condução durante $120 ^\circ$ elétricos. Vale ressaltar que os eventos de condução e bloqueio, denominados comutações dos transistores, geram variações na corrente e isso é responsável pelas oscilações no torque do motor \cite{kim2017electric}.  
+ A comutação de seis passos demanda um sincronismo de disparo dos transistores de modo que sempre dois deles estejam fechados, formando um circuito tal que, a cada $60^\circ$ elétricos, o par de fases percorridas pela corrente se alterne (Figura \ref{Sequência de acionamento para um BLDC trifásico}). Cada transistor permanece em condução durante $120^\circ$ elétricos. 
 
-\begin{figure}[p]
-    \centering
-    \caption{Sequência de acionamento para um BLDC trifásico.}
-    \includegraphics[width=10cm]{imagens/acionamento.png}
-    \legendafonte{\cite{kim2017electric}.}
-    \label{Sequência de acionamento para um BLDC trifásico}
-\end{figure}
-
-Esse algoritmo de acionamento dos transistores, também chamado de Controle Trapezoidal, é a base para o funcionamento do motor BLDC. Embora seja possível operá-lo em malha aberta (sequência fixa), esta abordagem é ineficiente e propensa a perda de sincronismo sob variações de carga. Portanto, neste trabalho, projeta-se e implementa-se a infraestrutura de \textit{hardware} e \textit{firmware} para um \textbf{ESC trapezoidal \textit{sensorless}}, incluindo os circuitos de reconstrução de neutro virtual, filtragem RC e comparadores LM339 destinados à detecção de cruzamento por zero (ZCD) da FCEM. Nesta etapa de validação, a comutação opera em \textbf{malha aberta} (alinhamento e rampa forçada); a \textbf{transição para comutação em malha fechada orientada por ZCD} permanece como passo subsequente, após a confirmação da sequência 6-step e do condicionamento do sinal, conforme detalhado no Capítulo 4.
-
-Nesta topologia de comutação em malha fechada, a sequência de comutação não é fixa no tempo, mas sincronizada dinamicamente com a posição do rotor. A detecção da posição é realizada monitorando-se a Força Contraeletromotriz (FCEM) na fase não energizada. Assim, o microcontrolador detecta o momento exato em que o rotor cruzou uma posição angular específica e dispara a próxima comutação, garantindo que o ângulo entre os campos magnéticos permaneça próximo de $90^\circ$ elétricos (torque máximo).
+ Embora o modelo idealizado assuma a condução de apenas dois transistores simultaneamente, a natureza indutiva dos enrolamentos do estator impede que a corrente se extinga instantaneamente durante as transições de estado. Na prática, existe um intervalo de comutação transitório (overlap temporal) onde a corrente da fase que está sendo bloqueada continua fluindo através do seu diodo de roda livre intrínseco para o barramento de alimentação. Concomitantemente, o transistor da nova fase a ser magnetizada entra em condução. Durante esta fração de tempo, o circuito equivalente intermediário conta com três semicondutores conduzindo simultaneamente. 
+ 
+ Vale ressaltar que esses eventos de condução e bloqueio, e a consequente distorção transiente da tensão de fase gerada por esse terceiro caminho de corrente, são as principais causas das oscilações no torque do motor (\textit{torque ripple}) características deste método \cite{kim2017electric}.
+ 
+ \begin{figure}[htbp]
+     \centering
+     \caption{Sequência de acionamento para um BLDC trifásico.}
+     \includegraphics[width=11cm]{imagens/acionamento.png}
+     \legendafonte{\cite{kim2017electric}.}
+     \label{Sequência de acionamento para um BLDC trifásico}
+ \end{figure}
+ 
+ Esse algoritmo de acionamento dos transistores, também chamado de Controle Trapezoidal, é a base para o funcionamento do motor BLDC. Embora seja possível operá-lo em malha aberta (sequência fixa), esta abordagem apresenta baixo rendimento e é propensa à perda de sincronismo sob variações de carga. Portanto, neste trabalho, projeta-se e implementa-se a infraestrutura de \textit{hardware} e \textit{firmware} para um \textbf{ESC trapezoidal \textit{sensorless}}, incluindo os circuitos de reconstrução de neutro virtual, filtragem RC e comparadores LM339 destinados à detecção de cruzamento por zero (ZCD) da FCEM. 
+ 
+ Nesta etapa de validação, a comutação opera em \textbf{malha aberta} (alinhamento e rampa forçada); a \textbf{transição para comutação em malha fechada orientada por ZCD} permanece como passo subsequente, após a confirmação da sequência 6-step e do condicionamento do sinal, conforme detalhado no Capítulo 4.
 
  Quando a aplicação necessita que o motor possua apenas uma velocidade, a fonte de alimentação de tensão fixa é suficiente. Para casos onde é necessário variar a velocidade do motor, a técnica de Modulação por Largura de Pulso (PWM) é normalmente empregada. Um ESC, por exemplo, utiliza PWM para ajustar a tensão média aplicada ao motor, controlando assim sua velocidade. Essa técnica, no entanto, pode demandar a utilização de controladores que comparem a velocidade desejada com a medida no rotor para um controle preciso, estratégia desenvolvida teoricamente na Seção~\ref{sec:controle_pi}. 
 
@@ -218,18 +246,53 @@ Nesta topologia de comutação em malha fechada, a sequência de comutação nã
 A principal desvantagem intrínseca à comutação forçada de seis passos (malha aberta) é a geração de uma ondulação de torque (\textit{torque ripple}), que se manifesta como pulsações no torque de saída do motor \cite{jahns1984torque, ali2017implementation}. Essas pulsações podem causar oscilações na velocidade, ruído acústico e vibrações mecânicas, sendo particularmente prejudiciais em aplicações que exigem alta precisão de movimento \cite{jahns1996pulsating}. A frequência desta ondulação é seis vezes a frequência elétrica fundamental do motor, correspondendo a uma pulsação a cada evento de comutação \cite{jahns1984torque}. Conforme analisado em trabalhos seminais como os de Jahns (1984) e Hendershot \& Miller (1994), este fenômeno é consequência de dois fatores principais \cite{kim2017electric, hendershot1994design}.
 
 \begin{enumerate}
-    \item \textbf{Incompatibilidade de Formas de Onda:} O modelo ideal do controle trapezoidal assume uma forma de onda de corrente perfeitamente retangular e uma FCEM perfeitamente trapezoidal. Na prática, a FCEM dos motores reais raramente é um trapézio ideal, e a corrente injetada não é perfeitamente retangular. Qualquer desalinhamento ou incompatibilidade entre a forma de onda da corrente e a da FCEM resulta em variações no torque produzido, conforme a equação $T_{e} = (e_{a}i_{a} + e_{b}i_{b} + e_{c}i_{c}) / \omega$ \cite{hendershot1994design}.
+    \item \textbf{Incompatibilidade de Formas de Onda:} O modelo ideal do controle trapezoidal assume uma forma de onda de corrente perfeitamente retangular e uma FCEM perfeitamente trapezoidal. Na prática, a FCEM dos motores reais raramente é um trapézio ideal, e a corrente injetada não é perfeitamente retangular. Qualquer desalinhamento ou incompatibilidade entre a forma de onda da corrente e a da FCEM resulta em variações no torque produzido, conforme a equação $T_{e} = (e_{a} \cdot i_{a} + e_{b} \cdot i_{b} + e_{c} \cdot i_{c}) / \omega$ \cite{hendershot1994design}.
 
-    \item \textbf{Transientes de Comutação:} A causa mais significativa da ondulação de torque é o próprio processo de comutação. Devido à indutância presente nos enrolamentos do motor, a corrente não pode variar instantaneamente. Quando o controlador comuta de um passo para o outro (por exemplo, de A-B para A-C), há um período de tempo finito durante o qual a corrente na fase que está sendo desligada (fase B) decai, e a corrente na fase que está sendo ligada (fase C) aumenta \cite{jahns1996pulsating, joice2013compensation}. Durante este intervalo de comutação, o torque eletromagnético total produzido pelo motor não é constante. A taxa de variação da corrente na fase de entrada e na de saída não é necessariamente simétrica, resultando em um mergulho ou pico de torque a cada $60^{\circ}$ elétricos \cite{choi1998commutation, chen2019commutation}.
+    \item \textbf{Transientes de Comutação:} A causa mais significativa da ondulação de torque é o próprio processo de comutação. Devido à indutância presente nos enrolamentos do motor, a corrente não pode variar instantaneamente. Quando o controlador comuta de um passo para o outro (por exemplo, de A-B para A-C), há um período de tempo finito durante o qual a corrente na fase que está sendo desligada (fase B) decai através do diodo de roda livre, e a corrente na fase que está sendo ligada (fase C) aumenta através da chave ativa \cite{jahns1996pulsating, joice2013compensation}. Durante este intervalo de comutação, o torque eletromagnético total produzido pelo motor não é constante. A taxa de variação da corrente na fase de entrada ($\frac{di_{in}}{dt}$) e na de saída ($\frac{di_{out}}{dt}$) é assimétrica devido à diferença de potencial aplicada em cada malha. Enquanto o crescimento da corrente na fase de entrada é retardado pela oposição da sua Força Contra-Eletromotriz (FCEM), o decaimento da corrente na fase de saída é acelerado pela soma da tensão do barramento com a sua respectiva FCEM durante a condução pelo diodo de roda livre. Essa diferença nas derivadas de corrente gera uma perturbação transitória na soma total das correntes do estator, resultando em um mergulho (\textit{dip}) ou pico de torque a cada $60^{\circ}$ elétricos \cite{choi1998commutation, chen2019commutation}.
+
 \end{enumerate}
 
-A ondulação de torque não é apenas um efeito colateral indesejado; é a manifestação mecânica de uma conversão de energia eletromecânica periodicamente ineficiente. O objetivo do motor é converter potência elétrica em potência mecânica (torque vezes velocidade) de forma contínua e suave. Durante os intervalos de comutação, o vetor de corrente do estator está em transição entre duas posições estáveis. Neste período, o alinhamento entre o campo magnético do estator e o campo magnético do rotor desvia-se momentaneamente da orientação ótima de $90^{\circ}$ elétricos necessária para a produção máxima de torque. Consequentemente, para uma mesma magnitude de corrente de entrada, o torque de saída é reduzido, representando uma queda transitória na eficiência da conversão de energia. A ondulação de torque observada é, portanto, o resultado direto desses intervalos de conversão sub-ótima, inerentes à natureza discreta do chaveamento de seis passos.
+A ondulação de torque não é apenas um efeito colateral indesejado; é a manifestação mecânica de uma conversão de energia eletromecânica periodicamente de baixo rendimento. O objetivo do motor é converter potência elétrica em potência mecânica (torque vezes velocidade) de forma contínua e suave. Durante os intervalos de comutação, o vetor de corrente do estator está em transição entre duas posições estáveis. Neste período, o alinhamento entre o campo magnético do estator e o campo magnético do rotor desvia-se momentaneamente da orientação ótima de $90^{\circ}$ elétricos necessária para a produção máxima de torque. Consequentemente, para uma mesma magnitude de corrente de entrada, o torque de saída é reduzido, representando uma queda transitória no rendimento da conversão de energia. A ondulação de torque observada é, portanto, o resultado direto desses intervalos de conversão sub-ótima, inerentes à natureza discreta do chaveamento de seis passos.
 
- \subsubsection{Modulação por Largura de Pulso} 
+\subsubsection{Modulação por Largura de Pulso (PWM)} 
 
- Fontes de tensão fixa, como baterias, são as mais acessíveis do mercado. A partir delas, é possível gerar uma tensão média de alimentação variável utilizando uma técnica conhecida como PWM (Modulação por Largura de Pulso), permitindo o controle de velocidade de um BLDC. Para isso, utiliza-se um circuito simples capaz de transformar a tensão contínua em uma onda quadrada de frequência fixa e amplitude igual à tensão da fonte de alimentação. A própria ponte trifásica pode ajustar a largura dos pulsos, fazendo com que a tensão média entregue à ponte inversora seja proporcional à velocidade desejada (Figura \ref{Modulação por largura de pulso utilizando uma fonte de 100V}). 
+O controle de velocidade e torque de motores BLDC exige a imposição de uma tensão terminal variável nos enrolamentos do estator. Dado que as fontes de alimentação primárias disponíveis na maioria das aplicações (como baterias e fontes de bancada) operam com uma tensão contínua fixa ($V_{DC}$), faz-se necessária a aplicação da técnica de Modulação por Largura de Pulso (PWM, \textit{Pulse Width Modulation}). Esta técnica consiste no chaveamento periódico de alta frequência dos semicondutores de potência da ponte inversora, aplicando pulsos de tensão retangulares de amplitude fixa e largura variável à carga indutiva.
 
-\begin{figure}[h]
+O parâmetro fundamental que rege o comportamento do PWM é a razão cíclica (\textit{duty cycle}, $D$), definida matematicamente como a relação entre o tempo em que o sinal permanece em nível lógico alto ($t_{on}$) e o período total do ciclo de chaveamento ($T$), conforme expresso na Equação \ref{eq:duty_cycle}:
+
+\begin{equation}
+D = \frac{t_{on}}{T} = t_{on} \cdot f_c
+\label{eq:duty_cycle}
+\end{equation}
+
+Em que $f_c$ representa a frequência de portadora ou frequência de chaveamento. A tensão média efetiva entregue aos enrolamentos do estator ($V_{m\text{é}dia}$) é obtida por meio da integração do sinal de tensão instantâneo ao longo de um período completo, resultando em uma relação linear direta com a razão cíclica, explicitada na Equação \ref{eq:v_media}:
+
+\begin{equation}
+V_{m\text{é}dia} = \frac{1}{T} \int_{0}^{t_{on}} V_{DC} \, dt = \frac{t_{on}}{T} V_{DC} = D \cdot V_{DC}
+\label{eq:v_media}
+\end{equation}
+
+A seleção da frequência de chaveamento ($f_c$) constitui um compromisso crítico de projeto de engenharia, governado por restrições de ordem magnética, acústica e térmica. Motores BLDC de alto desempenho e tamanho reduzido comumente apresentam resistência estatórica e indutância de fase extremamente baixas. Sob frequências de chaveamento reduzidas, a baixa constante de tempo indutiva ($\tau = L/R$) resulta em uma elevada ondulação de corrente (\textit{current ripple}), o que culmina em perdas excessivas por efeito Joule no cobre e geração de ruído acústico na faixa audível humana (20 Hz a 20 kHz). 
+
+Por outro lado, a elevação excessiva de $f_c$ acarreta o aumento linear das perdas por comutação (\textit{switching losses}) nos MOSFETs de potência, dadas pela transição periódica entre os estados de condução e bloqueio, conforme modelado simplificadamente na Equação \ref{eq:perdas_comutacao}:
+
+\begin{equation}
+P_{sw} = V_{DC} \cdot I_{out} \cdot f_c \cdot \left( \frac{t_r + t_f}{2} \right)
+\label{eq:perdas_comutacao}
+\end{equation}
+
+Em que $I_{out}$ é a corrente de saída, e $t_r$ e $t_f$ são os tempos de subida (\textit{rise time}) e descida (\textit{fall time}) do transistor, respectivamente. No desenvolvimento de inversores voltados a protótipos de ESC, adota-se rotineiramente uma frequência de portadora de aproximadamente 20 kHz. Esse valor se posiciona no limiar superior da audição humana, mitigando poluição sonora decorrente do magnetostritismo, ao mesmo tempo em que preserva a integridade térmica dos transistores e minimiza a ondulação da corrente contínua através do estator.
+
+No âmbito da comutação trapezoidal de seis passos, o sinal PWM gerado pelo periférico de controle (como o módulo MCPWM) pode ser aplicado de diferentes formas aos braços do inversor trifásico durante o setor de condução de $120^\circ$ elétricos. Destacam-se as seguintes estratégias de modulação unipolar:
+
+\begin{itemize}
+    \item \textbf{Estratégia H\_PWM - L\_ON:} O sinal PWM de alta frequência é aplicado exclusivamente ao transistor do lado da alta (\textit{High-Side}), enquanto o dispositivo correspondente do lado da baixa (\textit{Low-Side}) permanece permanentemente conduzindo em nível contínuo (SINK) durante todo o intervalo de $120^\circ$. Esta abordagem reduz sensivelmente as perdas por comutação totais da ponte, uma vez que apenas uma das chaves ativas sofre transições rápidas a cada período.
+    \item \textbf{Estratégia H\_ON - L\_PWM:} Configuração inversa à anterior, na qual a chave superior é mantida saturada em nível lógico alto e a chave inferior modula a corrente em alta frequência.
+\end{itemize}
+
+Durante os períodos de desligamento do PWM ($t_{off}$) na estratégia H\_PWM - L\_ON, a energia armazenada no campo magnético indutivo da bobina força a circulação da corrente através do diodo de roda livre intrínseco do MOSFET complementar, estabelecendo um circuito de recirculação. A correta temporização e o entendimento de que a largura de pulso atua diretamente na magnetização do estator formam o alicerce para o controle de torque do sistema.
+
+\begin{figure}[htbp]
     \centering
     \caption{Modulação por largura de pulso utilizando uma fonte de $100V$.}
     \includegraphics[width=0.85\textwidth]{imagens/PWM.png}
@@ -251,7 +314,7 @@ O primeiro passo para uma partida confiável é estabelecer uma posição inicia
 
 Com o rotor devidamente alinhado, o controlador inicia a fase de comutação forçada. Nesta etapa, o sistema opera em malha aberta, comutando as fases em uma sequência predefinida, sem qualquer realimentação da posição do rotor \cite{nxp2023sensorless}. A frequência de comutação não é aplicada abruptamente; em vez disso, ela é aumentada gradualmente a partir de um valor inicial baixo, seguindo um perfil de aceleração pré-programado, conhecido como "curva de partida em malha aberta" (\textit{open-loop starting curve}) \cite{ti2022minimizing}. Esta rampa de aceleração é definida por coeficientes pré-definidos \cite{ti2022minimizing}.
 
-Durante esta fase, o controlador essencialmente comanda a rotação do campo magnético do estator e "assume" que o rotor, devido à sua inércia e ao torque gerado, conseguirá acompanhar este campo giratório. O processo continua, com a frequência de comutação aumentando progressivamente, até que a velocidade de rotação do motor seja alta o suficiente (tipicamente em torno de $5\%$ da velocidade nominal) para que a FCEM gerada nos enrolamentos atinja uma amplitude que possa ser medida de forma confiável \cite{ti2022minimizing, nxp2023sensorless}. Neste ponto, o sistema realiza a transição (\textit{handoff}) do controle em malha aberta para um modo de controle em malha fechada (por exemplo, baseado na detecção de cruzamento por zero da FCEM), que é mais eficiente e robusto para a operação contínua.
+Durante esta fase, o controlador essencialmente comanda a rotação do campo magnético do estator e "assume" que o rotor, devido à sua inércia e ao torque gerado, conseguirá acompanhar este campo giratório. O processo continua, com a frequência de comutação aumentando progressivamente, até que a velocidade de rotação do motor seja alta o suficiente (tipicamente em torno de $5\%$ da velocidade nominal) para que a FCEM gerada nos enrolamentos atinja uma amplitude que possa ser medida de forma confiável \cite{ti2022minimizing, nxp2023sensorless}. Neste ponto, o sistema realiza a transição (\textit{handoff}) do controle em malha aberta para um modo de controle em malha fechada (por exemplo, baseado na detecção de cruzamento por zero da FCEM), que é de maior rendimento e robusto para a operação contínua.
 
 \subsection{Desafios e Limitações da Partida Forçada}
 
@@ -269,10 +332,10 @@ Além do risco de perda de passo, a partida forçada apresenta outras desvantage
 
 \begin{itemize}
     \item \textbf{Picos de Corrente:} No início da partida, a velocidade do motor é baixa ou nula, o que significa que a FCEM, que normalmente se opõe à tensão de alimentação e limita a corrente, também é baixa ou inexistente. Sem essa oposição, a corrente que flui para os enrolamentos é limitada apenas pela resistência ôhmica e pela tensão aplicada, podendo atingir valores muito elevados se não for cuidadosamente controlada pelo \textit{duty cycle} do PWM. Estes picos de corrente podem estressar a bateria e os componentes da ponte inversora.
-    \item \textbf{Vibração e Ineficiência:} Como o controle é feito "às cegas", o alinhamento entre o campo do estator e o rotor durante a rampa de aceleração nunca é perfeito. Este desalinhamento constante é a fonte da ondulação de torque discutida anteriormente, que se manifesta como vibração mecânica e resulta em uma operação ineficiente, onde uma parte da energia elétrica consumida é dissipada em vez de ser convertida em torque útil.
+    \item \textbf{Vibração e Baixo Rendimento:} Como o controle é feito "às cegas", o alinhamento entre o campo do estator e o rotor durante a rampa de aceleração nunca é perfeito. Este desalinhamento constante é a fonte da ondulação de torque discutida anteriormente, que se manifesta como vibração mecânica e resulta em uma operação de baixo rendimento, onde uma parte da energia elétrica consumida é dissipada em vez de ser convertida em torque útil.
 \end{itemize}
 
-É fundamental reiterar que a partida forçada em malha aberta é uma fase transitória e um meio para um fim. É uma estratégia de \textit{bootstrap} projetada exclusivamente para levar o motor de um estado de repouso para uma velocidade operacional mínima, onde métodos de controle em malha fechada, mais eficientes, precisos e robustos, podem ser ativados para a operação contínua do sistema \cite{ti2022minimizing, nxp2023sensorless}.
+É fundamental reiterar que a partida forçada em malha aberta é uma fase transitória e um meio para um fim. É uma estratégia de \textit{bootstrap} projetada exclusivamente para levar o motor de um estado de repouso para uma velocidade operacional mínima, onde métodos de controle em malha fechada, de maior rendimento, precisos e robustos, podem ser ativados para a operação contínua do sistema \cite{ti2022minimizing, nxp2023sensorless}.
 
 \section{Controle Proporcional-Integral em Malhas Fechadas de ESC}
 \label{sec:controle_pi}
@@ -284,7 +347,7 @@ Além da comutação trapezoidal e da modulação PWM, a operação precisa de u
 
 Um ESC trifásico opera com \textbf{duas camadas de controle independentes}, que não devem ser confundidas. A primeira decide \textit{quando} comutar as fases (sincronismo angular com o rotor); a segunda decide \textit{quanto} esforço elétrico aplicar em cada passo (corrente ou velocidade desejada). A nomenclatura ``malha aberta'' e ``malha fechada'' aplica-se separadamente a cada camada, e não ao sistema como um todo.
 
-\begin{table}[h!]
+\begin{table}[htbp]
 \centering
 \caption{Duas camadas de controle no ESC deste trabalho}
 \label{tab:camadas_controle}
@@ -294,7 +357,7 @@ Um ESC trifásico opera com \textbf{duas camadas de controle independentes}, que
 \textbf{Camada} & \textbf{Grandeza regulada} & \textbf{Realimentação} & \textbf{Estado neste projeto} \\
 \midrule
 Comutação 6-step & Instante de troca de fase (posição do rotor) & FCEM/ZCD ou temporizador & Malha \textbf{aberta} na validação atual (rampa por temporizador; ver Subseções anteriores deste capítulo) \\
-Malha PI & Corrente de fase e/ou velocidade (RPM) & INA240 + ADC1; intervalo entre passos & Malha \textbf{fechada} sempre que o PI está ativo \\
+Malha PI & Corrente de fase e/ou velocidade & INA240 + ADC1; intervalo entre passos & Malha \textbf{fechada} sempre que o PI está ativo \\
 \bottomrule
 \end{tabular}%
 }
@@ -304,7 +367,7 @@ Malha PI & Corrente de fase e/ou velocidade (RPM) & INA240 + ADC1; intervalo ent
 Três esclarecimentos estruturam o uso desses termos ao longo deste trabalho:
 
 \begin{enumerate}
-    \item \textbf{O controlador PI é malha fechada, e não aberta.} Por definição, o PI exige comparar referência $r$ com medição $y$ (Equação~\ref{eq:pi_continuo} adiante). No firmware, a corrente de fase é medida pelos amplificadores INA240 e convertida pelo ADC1; no modo velocidade, o RPM é estimado a partir do intervalo entre passos de comutação. Sem essa realimentação, não haveria erro $e = r - y$ nem termo integral, tratar-se-ia apenas de um \textit{duty cycle} fixo ou de uma rampa pré-programada, o que não caracteriza um regulador PI.
+    \item \textbf{O controlador PI é malha fechada, e não aberta.} Por definição, o PI exige comparar referência $r$ com medição $y$ (Equação~\ref{eq:pi_continuo} adiante). No firmware, a corrente de fase é medida pelos amplificadores INA240 e convertida pelo ADC1; no modo velocidade, a velocidade é estimada a partir do intervalo entre passos de comutação. Sem essa realimentação, não haveria erro $e = r - y$ nem termo integral, tratar-se-ia apenas de um \textit{duty cycle} fixo ou de uma rampa pré-programada, o que não caracteriza um regulador PI.
     \item \textbf{O sistema ESC como um todo não é inteiramente malha fechada.} Na fase de validação descrita neste trabalho, a comutação trapezoidal avança em \textbf{malha aberta}: a sequência 6-step progride por temporizador (rampa de frequência elétrica), sem usar o cruzamento por zero da FCEM para sincronizar o rotor. A infraestrutura de \textit{hardware} para comutação em malha fechada por ZCD (comparadores LM339, neutro virtual) está projetada, mas o \textit{handover} para essa modalidade permanece como etapa subsequente (Subseção anterior sobre comutação \textit{sensorless} e Capítulo de Resultados). Enquanto isso, as malhas PI de corrente e velocidade operam em paralelo, em malha fechada, regulando o esforço elétrico dentro de cada passo comutado.
     \item \textbf{Onde cada conceito é tratado neste texto.} A comutação e a partida em malha aberta alinhamento, rampa forçada, risco de \textit{stall} e transição futura para ZCD, são desenvolvidas na Seção anterior (Controlador Eletrônico de Velocidade). A presente seção trata exclusivamente das malhas PI em malha fechada (corrente e velocidade). A implementação no firmware, ganhos $K_p$ e $K_i$, e os resultados de bancada encontram-se nos Capítulos de Metodologia e de Resultados e Discussão.
 \end{enumerate}
@@ -339,15 +402,15 @@ Quando a saída $u_k$ atinge os limites físicos do atuador (por exemplo, o teto
 
 \subsection{Limitações do Controle Proporcional Puro}
 
-Um controlador puramente proporcional ($u = K_p e$) reage instantaneamente ao erro, mas apresenta uma limitação estrutural: na presença de perturbações constantes ou de plantas com comportamento integrador, o sistema estabiliza com \textbf{erro estacionário} não nulo. Intuitivamente, um ganho $K_p$ finito exige um erro residual para produzir a ação de controle necessária ao equilíbrio.
+Um controlador puramente proporcional ($u = K_p \cdot e$) reage instantaneamente ao erro, mas apresenta uma limitação estrutural: na presença de perturbações constantes ou de plantas com comportamento integrador, o sistema estabiliza com \textbf{erro estacionário} não nulo. Intuitivamente, um ganho $K_p$ finito exige um erro residual para produzir a ação de controle necessária ao equilíbrio.
 
-No contexto de um ESC trapezoidal, essa limitação manifesta-se de forma concreta. Para manter uma corrente de fase constante $I_{cmd}$, o \textit{duty cycle} do PWM deve compensar não apenas a queda ôhmica nos enrolamentos, mas também a FCEM, cujo valor cresce linearmente com a velocidade ($e_a = K_e \omega$). À medida que o motor acelera ou a tensão do barramento decai, o duty necessário para o mesmo $I_{cmd}$ aumenta. Um controlador P puro, com ganho fixo, não possui mecanismo para ajustar esse \textit{offset} operacional: a corrente medida estabilizaria abaixo da referência. O termo integral supre exatamente essa lacuna, acumulando a ação necessária até anular o erro residual.
+No contexto de um ESC trapezoidal, essa limitação manifesta-se de forma concreta. Para manter uma corrente de fase constante $I_{cmd}$, o \textit{duty cycle} do PWM deve compensar não apenas a queda ôhmica nos enrolamentos, mas também a FCEM, cujo valor cresce linearmente com a velocidade ($e_a = K_e \cdot \omega$). À medida que o motor acelera ou a tensão do barramento decai, o duty necessário para o mesmo $I_{cmd}$ aumenta. Um controlador P puro, com ganho fixo, não possui mecanismo para ajustar esse \textit{offset} operacional: a corrente medida estabilizaria abaixo da referência. O termo integral supre exatamente essa lacuna, acumulando a ação necessária até anular o erro residual.
 
-De forma análoga, na regulagem de velocidade, variações de carga mecânica (atrito, inércia da carga) exigem correntes distintas para manter o mesmo RPM. Sem integral, um controlador P de velocidade deixaria um desvio permanente entre a referência e a rotação medida sempre que a carga se alterasse.
+De forma análoga, na regulagem de velocidade, variações de carga mecânica (atrito, inércia da carga) exigem correntes distintas para manter a mesma velocidade. Sem integral, um controlador P de velocidade deixaria um desvio permanente entre a referência e a rotação medida sempre que a carga se alterasse.
 
 \subsection{Exclusão do Termo Derivativo: por que PI e não PID}
 
-O controlador PID acrescenta um termo derivativo $K_d \, de/dt$, sensível à taxa de variação do erro. Embora possa melhorar a resposta transitória em plantas bem modeladas e pouco ruidosas, a inclusão do termo D neste ESC traz desvantagens que superam os benefícios esperados:
+O controlador PID acrescenta um termo derivativo $K_d \cdot de/dt$, sensível à taxa de variação do erro. Embora possa melhorar a resposta transitória em plantas bem modeladas e pouco ruidosas, a inclusão do termo D neste ESC traz desvantagens que superam os benefícios esperados:
 
 \begin{itemize}
     \item \textbf{Amplificação de ruído:} A corrente de fase é medida por amplificadores INA240 e convertida pelo ADC1 a $1\,\text{kHz}$, em ambiente de comutação PWM a $20\,\text{kHz}$ e de sequência trapezoidal de seis passos. O termo derivativo amplificaria as componentes de alta frequência (ripple de corrente, transientes de comutação), degradando a qualidade do sinal de realimentação e podendo induzir oscilações na saída do controlador.
@@ -364,7 +427,7 @@ A estratégia de controle PI adapta-se diretamente à topologia do ESC desenvolv
 
 \begin{itemize}
     \item \textbf{Malha interna de corrente:} O PI de corrente compara a referência $I_{cmd}$ (limitada pelo operador ou pela malha externa) com a corrente de fase medida e produz o \textit{duty cycle} do PWM (0 a 95\,\%). Essa malha regula o esforço elétrico do motor, aproximando torque $\propto I$, e constitui a primeira linha de defesa contra sobrecorrente antes das proteções analógicas e de software.
-    \item \textbf{Malha externa de velocidade (modo cascata):} Quando habilitado o modo de controle por velocidade, um segundo PI compara $RPM_{cmd}$ com o RPM estimado a partir do intervalo entre passos de comutação 6-step e gera a referência de corrente para o PI interno. A corrente adapta-se automaticamente à carga mecânica, dentro do limite de 5\,A configurado.
+    \item \textbf{Malha externa de velocidade (modo cascata):} Quando habilitado o modo de controle por velocidade, um segundo PI compara $RPM_{cmd}$ com a velocidade estimada a partir do intervalo entre passos de comutação 6-step e gera a referência de corrente para o PI interno. A corrente adapta-se automaticamente à carga mecânica, dentro do limite de 5\,A configurado.
     \item \textbf{Modo corrente direta:} Com apenas o PI de corrente ativo, a velocidade resultante depende da carga e da rampa de comutação em malha aberta, útil para ensaios de bancada com esforço elétrico limitado.
 \end{itemize}
 
@@ -379,7 +442,7 @@ A implementação física do inversor exige a compreensão de componentes e téc
 \subsection{O MOSFET de Potência e Perdas}
 O MOSFET (\textit{Metal-Oxide-Semiconductor Field-Effect Transistor}) é o dispositivo de chaveamento predominante em aplicações de baixa e média tensão devido à sua alta velocidade de comutação e facilidade de acionamento \cite{rashid2014power}. Em um inversor para controle de motores, o MOSFET não atua na região linear (amplificação), mas alterna entre os estados de corte (chave aberta) e saturação (chave fechada).
 
-A eficiência do inversor é limitada por dois mecanismos principais de perda no MOSFET \cite{kim2017electric}:
+O rendimento do inversor é limitado por dois mecanismos principais de perda no MOSFET \cite{kim2017electric}:
 \begin{itemize}
     \item \textbf{Perdas por Condução ($P_{cond}$):} Quando o transistor está ligado, ele apresenta uma resistência interna residual entre dreno e fonte, denominada $R_{DS(on)}$. A potência dissipada é dada por $P_{cond} = I_{D}^2 \cdot R_{DS(on)}$. Componentes modernos buscam minimizar o $R_{DS(on)}$ para reduzir o aquecimento.
     \item \textbf{Perdas por Comutação ($P_{sw}$):} Ocorrem durante a transição entre ligado e desligado. Como a tensão e a corrente não variam instantaneamente, há um breve período em que ambas são não-nulas, gerando um pico de potência dissipada. Esta perda é diretamente proporcional à frequência de chaveamento ($f_{sw}$) e à carga total de gate ($Q_g$) que o driver deve fornecer \cite{rashid2014power}.
@@ -390,7 +453,7 @@ A eficiência do inversor é limitada por dois mecanismos principais de perda no
 
 A frequência de chaveamento ($f_{sw}$) do PWM que modula os MOSFETs da ponte inversora é um parâmetro de projeto que acopla diretamente os mecanismos de perda descritos acima (em particular, $P_{sw} \propto f_{sw}$) à ondulação de corrente (\textit{ripple}) nas bobinas do motor e ao ruído acústico gerado por magnetostrição no estator \cite{mohan2003, hanselman2003brushless}. Não existe um valor universalmente ótimo: a indústria opera em faixas distintas conforme a aplicação, a dissipação térmica disponível no inversor e a carga de gate ($Q_g$) dos semicondutores selecionados \cite{rashid2014power}.
 
-\begin{table}[h!]
+\begin{table}[htbp]
 \centering
 \caption{Panorama de frequências de chaveamento PWM em acionamentos BLDC e afins}
 \label{tab:panorama_fsw_industria}
@@ -431,7 +494,7 @@ Embora o cálculo analítico da capacitância mínima ($C_{min}$) seja classicam
     \label{eq:cap_calc}
 \end{equation}
 
-\noindent onde $f_{sw}$ é a frequência de chaveamento e $D$ é o ciclo de trabalho (\textit{Duty Cycle}) do inversor. Observa-se que o esforço máximo sobre o capacitor ocorre quando $D=0,5$, ponto em que o produto $D(1-D)$ é máximo.
+\noindent onde $f_{sw}$ é a frequência de chaveamento e $D$ é o ciclo de trabalho (\textit{Duty Cycle}) do inversor. Observa-se que o esforço máximo sobre o capacitor ocorre quando $D=0,5$, ponto em que o produto $D \cdot (1-D)$ é máximo.
 
 Entretanto, em aplicações de baixa tensão e alta corrente (como em VANTs), o fator limitante do projeto não é apenas a armazenagem de carga ($C_{min}$), mas sim a capacidade de condução de corrente de ripple ($I_{Ripple,RMS}$) e a dissipação térmica. Capacitores eletrolíticos comerciais apresentam uma correlação inversa entre capacitância nominal e Resistência Série Equivalente (ESR).
 
@@ -556,18 +619,15 @@ A implementação de algoritmos avançados, como o FOC e os Observadores de Esta
 
 O levantamento desses parâmetros geralmente requer equipamentos de precisão ou rotinas de auto-comissionamento implementadas no próprio inversor, destacando a complexidade superior dessas técnicas em comparação à comutação trapezoidal \textit{sensorless} por ZCD prevista neste projeto.
 
- \pagebreak 
 
  \section{Vantagens e Desvantagens no uso de motores BLDC} 
- Os motores sem escovas, ou BLDC, apresentam diversas vantagens que contribuem para seu destaque em várias aplicações. O rendimento é uma característica proeminente, uma vez que convertem mais eficientemente a energia elétrica em torque quando comparados aos motores com escovas. Isso implica em uma demanda menor de energia para gerar a mesma quantidade de torque, resultando em um melhor desempenho global. A durabilidade é significativamente aprimorada, visto que a vida útil estendida desses motores está relacionada à ausência das escovas, componentes propensos a desgaste em motores convencionais. 
+ Os motores sem escovas, ou BLDC, apresentam diversas vantagens que contribuem para seu destaque em várias aplicações. O rendimento é uma característica proeminente, uma vez que convertem com maior rendimento a energia elétrica em torque quando comparados aos motores com escovas. Isso implica em uma demanda menor de energia para gerar a mesma quantidade de torque, resultando em um melhor desempenho global. A durabilidade é significativamente aprimorada, visto que a vida útil estendida desses motores está relacionada à ausência das escovas, componentes propensos a desgaste em motores convencionais. 
 
  Os motores de indução trifásicos (MIT) são concorrentes diretos dos motores BLDC, sendo que ambos são amplamente utilizados em diversas aplicações, cada uma com suas características distintas e vantagens específicas. Os motores de indução trifásicos são conhecidos pela sua confiabilidade, simplicidade de construção e custo relativamente baixo, quando comparado aos BLDC, utilizando os princípios da indução eletromagnética para gerar o torque e velocidade necessários para a aplicação. Embora tenham menor custo de produção quando comparados com os motores BLDC e podem ser controlados utilizando os mesmos protocolos, os MITs tendem a ter uma densidade de potência e torque menor em comparação com os motores BLDC, principalmente em baixas velocidades, o que pode ser uma consideração importante em aplicações que requerem alta potência em um espaço limitado. No entanto, os MITs apresentam melhor rendimento em operações de baixo torque, o que pode ser relevante em aplicações de mobilidade, como em veículos elétricos. 
 
- Os motores BLDC são conhecidos por seu rendimento energético superior, controle preciso de velocidade e torque, além de uma vida útil mais longa devido à ausência de escovas mecânicas \cite{gieras2009permanent}. Embora os BLDCs tenham um custo inicial mais elevado em comparação com os MITs, eles oferecem uma operação mais eficiente, especialmente em condições de carga variável e velocidade ajustável. 
+ Os motores BLDC são conhecidos por seu rendimento energético superior, controle preciso de velocidade e torque, além de uma vida útil mais longa devido à ausência de escovas mecânicas \cite{gieras2009permanent}. Embora os BLDCs tenham um custo inicial mais elevado em comparação com os MITs, eles oferecem uma operação de maior rendimento, especialmente em condições de carga variável e velocidade ajustável. 
 
  Em resumo, os motores sem escovas oferecem um conjunto de vantagens notáveis, incluindo rendimento aprimorado, operação mais silenciosa, maior durabilidade e menor necessidade de manutenção. Contudo, esses benefícios vêm com um custo inicial mais elevado e a exigência de um controlador de velocidade, o que pode tornar sua implementação menos acessível em certos contextos. A escolha entre motores com escovas e sem escovas dependerá das prioridades específicas de uma aplicação, considerando tanto os benefícios quanto as limitações de cada tecnologia. 
-
- \pagebreak 
 
  \section{Aplicações} 
  Os motores BLDC são amplamente utilizados em diversas aplicações devido às suas características únicas, como elevado rendimento, alta densidade de potência, baixo ruído, baixa manutenção e longa vida útil. Esses motores são preferidos em aplicações que necessitam de controle preciso de torque com oscilações inferiores em comparação com outros motores. 

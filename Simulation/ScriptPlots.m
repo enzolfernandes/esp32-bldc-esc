@@ -124,33 +124,61 @@ grid on; grid minor; set(gca, 'Color', 'white', 'FontSize', 11, 'LineWidth', 1.2
 exportgraphics(fig6, fullfile(pasta_saida, '6_vgs_fase_C.png'), 'Resolution', 300, 'BackgroundColor', 'white');
 
 %% ========================================================================
-% Figura 7a: Bateria - Tensão
+% Figura 7a: Bateria - Tensão (Escala Ajustada / Sem Picos)
 % =========================================================================
-fig7a = figure('Name', 'Bateria DC - Tensao', 'Color', 'white', 'Position', [220, 220, 700, 350]);
+fig7a = figure('Name', 'Bateria DC - Tensao Ajustada', 'Color', 'white', 'Position', [220, 220, 700, 350]);
 plot(t_us, data{:, 'V(n001)'}, 'Color', [0 0.5 0], 'LineWidth', 1.5);
 xlabel('Tempo (\mu s)', 'FontSize', 11, 'FontWeight', 'bold');
 ylabel('Tensão (V)', 'FontWeight', 'bold');
 xlim([0 max(t_us)]);
+ylim([21.5 22.5]); % <-- LENTE NO EIXO Y: Foca na tensão nominal e ignora as quedas transientes
 grid on; grid minor;
 set(gca, 'Color', 'white', 'FontSize', 11, 'LineWidth', 1.2);
 
-exportgraphics(fig7a, fullfile(pasta_saida, '7a_bateria_tensao.png'), 'Resolution', 300, 'BackgroundColor', 'white');
+exportgraphics(fig7a, fullfile(pasta_saida, '7a_bateria_tensao_ajustada.png'), 'Resolution', 300, 'BackgroundColor', 'white');
 
 %% ========================================================================
-% Figura 7b: Bateria - Corrente
+% Figura 7b: Bateria - Corrente (Escala Ajustada / Sem Picos)
 % =========================================================================
 % Extrai a corrente invertendo o sinal para consumo positivo
 I_bat_pos = data{:, 'I(Battery)'} * -1;
 
-fig7b = figure('Name', 'Bateria DC - Corrente', 'Color', 'white', 'Position', [300, 300, 700, 350]);
+fig7b = figure('Name', 'Bateria DC - Corrente Ajustada', 'Color', 'white', 'Position', [300, 300, 700, 350]);
 plot(t_us, I_bat_pos, 'Color', [0 0.2 0.8], 'LineWidth', 1.5);
 xlabel('Tempo (\mu s)', 'FontSize', 11, 'FontWeight', 'bold');
 ylabel('Corrente (A)', 'FontWeight', 'bold');
 xlim([0 max(t_us)]);
+ylim([-5 35]); % <-- LENTE NO EIXO Y: Mostra perfeitamente a rampa de carga, cortando os picos > 200A
 grid on; grid minor;
 set(gca, 'Color', 'white', 'FontSize', 11, 'LineWidth', 1.2);
 
-exportgraphics(fig7b, fullfile(pasta_saida, '7b_bateria_corrente.png'), 'Resolution', 300, 'BackgroundColor', 'white');
+exportgraphics(fig7b, fullfile(pasta_saida, '7b_bateria_corrente_ajustada.png'), 'Resolution', 300, 'BackgroundColor', 'white');
+
+%% ========================================================================
+% Figura 7c: Bateria - Tensão (Detalhe Transientes Completos)
+% =========================================================================
+fig7c = figure('Name', 'Bateria DC - Tensao (Transientes)', 'Color', 'white', 'Position', [380, 380, 700, 350]);
+plot(t_us, data{:, 'V(n001)'}, 'Color', [0 0.5 0], 'LineWidth', 1.5);
+xlabel('Tempo (\mu s)', 'FontSize', 11, 'FontWeight', 'bold');
+ylabel('Tensão (V)', 'FontWeight', 'bold');
+xlim([0 max(t_us)]);
+% Sem o comando ylim, o MATLAB exibe a escala completa automaticamente
+grid on; grid minor; set(gca, 'Color', 'white', 'FontSize', 11, 'LineWidth', 1.2);
+
+exportgraphics(fig7c, fullfile(pasta_saida, '7c_bateria_tensao_transientes.png'), 'Resolution', 300, 'BackgroundColor', 'white');
+
+%% ========================================================================
+% Figura 7d: Bateria - Corrente (Detalhe Transientes Completos)
+% =========================================================================
+fig7d = figure('Name', 'Bateria DC - Corrente (Transientes)', 'Color', 'white', 'Position', [460, 460, 700, 350]);
+plot(t_us, I_bat_pos, 'Color', [0 0.2 0.8], 'LineWidth', 1.5);
+xlabel('Tempo (\mu s)', 'FontSize', 11, 'FontWeight', 'bold');
+ylabel('Corrente (A)', 'FontWeight', 'bold');
+xlim([0 max(t_us)]);
+% Sem o comando ylim, o MATLAB plota os picos de até 250A
+grid on; grid minor; set(gca, 'Color', 'white', 'FontSize', 11, 'LineWidth', 1.2);
+
+exportgraphics(fig7d, fullfile(pasta_saida, '7d_bateria_corrente_transientes.png'), 'Resolution', 300, 'BackgroundColor', 'white');
 
 disp('====================================================');
 disp('Todos os gráficos foram gerados e salvos com sucesso.');

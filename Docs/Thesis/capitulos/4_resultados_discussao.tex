@@ -6,7 +6,7 @@ Este capítulo apresenta exclusivamente os resultados obtidos na execução do p
 
 Para a validação conceitual do hardware de potência antes da montagem física, utilizou-se o software \textbf{LTSpice}. A simulação concentrou-se no estágio de potência do inversor, modelando as chaves semicondutoras e a carga indutiva. Foram elaborados dois cenários de simulação: uma topologia monofásica (meia-ponte) para análise isolada e uma topologia trifásica completa para validação do fluxo de corrente inter-fases (Figura \ref{fig:simulacao_trifasica}). Os esquemáticos e curvas de resultado em \texttt{Simulation/} estão disponíveis no repositório~\cite{esp32BldcEscRepo}.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Esquemático da simulação trifásica do ESC em estado estático de comutação.}
     \includegraphics[width=\textwidth]{Simulation/trifasico.png}
@@ -22,7 +22,7 @@ Como o esquemático foca na validação da transferência de energia em um insta
 
 A Figura \ref{fig:sim_correntes_motor} apresenta os resultados transitórios das correntes de fase ($I_A$, $I_B$ e $I_C$) durante os dois primeiros ciclos de chaveamento do inversor, totalizando $100 \: \mu s$. Observa-se que, durante o primeiro tempo de condução ($T_{on}$) do sinal PWM entre $0$ e $25 \: \mu s$, a corrente $I_A$ ascende de forma linear até atingir o patamar de aproximadamente $13,5 \: A$. Simultaneamente, a corrente $I_B$ apresenta a mesma magnitude, porém com polaridade invertida ($-13,5 \: A$), enquanto a corrente $I_C$ permanece nula, oscilando apenas com os ruídos numéricos do simulador próximos a zero. Durante o tempo de bloqueio do PWM ($T_{off}$) entre $25 \: \mu s$ e $50 \: \mu s$, as correntes $I_A$ e $I_B$ não caem abruptamente para zero, mas sim sofrem um decaimento suave. O ciclo se repete aos $50 \: \mu s$, elevando as correntes ao patamar de $26 \: A$.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Dinâmica das correntes de fase do motor durante os primeiros $100 \: \mu s$ de simulação (Passo 1).}
     \includegraphics[width=0.8\textwidth]{Simulation/plot_simulacao/1_correntes_motor.png}
@@ -30,13 +30,13 @@ A Figura \ref{fig:sim_correntes_motor} apresenta os resultados transitórios das
     \label{fig:sim_correntes_motor}
 \end{figure}
 
-Este comportamento é a resposta direta da excitação do circuito indutivo do estator sob a topologia de modulação \textit{High-Side PWM / Low-Side ON}. Ao disparar o transistor superior da fase A e manter o transistor inferior da fase B em condução plena, estabelece-se um fluxo de elétrons que obrigatoriamente passa por duas bobinas em série ($V = L_{eq} \frac{di}{dt} + R_{eq}i$). A inclinação constante ($di/dt$) da rampa de corrente é ditada pela reatância indutiva nominal do motor. Durante o ciclo $T_{off}$ da chave superior, a energia magnética armazenada na indutância do estator força a manutenção do fluxo de corrente, que encontra caminho através do diodo de roda livre (\textit{freewheeling diodo}) intrínseco ao MOSFET inferior da fase A, justificando a lenta taxa de decaimento observada.
+Este comportamento é a resposta direta da excitação do circuito indutivo do estator sob a topologia de modulação \textit{High-Side PWM / Low-Side ON}. Ao disparar o transistor superior da fase A e manter o transistor inferior da fase B em condução plena, estabelece-se um fluxo de elétrons que obrigatoriamente passa por duas bobinas em série ($V = L_{eq} \cdot \frac{di}{dt} + R_{eq} \cdot i$). A inclinação constante ($di/dt$) da rampa de corrente é ditada pela reatância indutiva nominal do motor. Durante o ciclo $T_{off}$ da chave superior, a energia magnética armazenada na indutância do estator força a manutenção do fluxo de corrente, que encontra caminho através do diodo de roda livre (\textit{freewheeling diodo}) intrínseco ao MOSFET inferior da fase A, justificando a lenta taxa de decaimento observada.
 
 Ao compararmos com o arcabouço teórico, o resultado valida a comutação de seis passos apresentada na Tabela \ref{tab:mcpwm_map}. A frequência estabelecida pelo projeto de $20 \: kHz$ é ratificada pelo período exato de $50 \: \mu s$ entre os picos de chaveamento valor não arbitrário, mas coerente com o \textit{trade-off} entre perdas térmicas, conforto acústico e \textit{ripple} de corrente fundamentado na Subseção~\ref{subsec:freq_chaveamento_pwm} e dimensionado quantitativamente na Subseção~\ref{subsec:determinacao_fsw}. Mais importante ainda, a completa inércia da fase C ($I_C \approx 0 \: A$) confirma a eficácia do estado de alta impedância (Hi-Z) no braço inversor não excitado, condição \textit{sine qua non} para a medição livre de distorções da Força Contraeletromotriz (FCEM) na posterior transição para a malha fechada.
 
 A Figura \ref{fig:sim_tensoes_neutro} ilustra o comportamento dinâmico das tensões de fase referenciadas ao ponto neutro da carga ($V_{AN}$, $V_{BN}$ e $V_{CN}$). Durante o período de condução do PWM ($T_{on}$), nota-se que o eixo de oscilação das tensões se estabelece em médias de $+11,1 \: V$ para a fase A, $-11,1 \: V$ para a fase B, e $0 \: V$ para a fase C. A severa oscilação de alta frequência (\textit{ringing}) sobreposta aos sinais é um artefato numérico característico do ambiente de simulação. Como a fase C está em estado de alta impedância (flutuante) e o modelo utiliza indutores puros, forma-se um tanque LC não amortecido com as capacitâncias parasitas do transistor, fenômeno que no circuito físico real seria drasticamente atenuado pelas perdas no núcleo ferromagnético do motor e pelo filtro RC do circuito de leitura.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Tensões de fase em relação ao ponto neutro do motor durante o Passo 1.}
     \includegraphics[width=0.8\textwidth]{Simulation/plot_simulacao/3_tensoes_fase_neutro.png}
@@ -49,33 +49,57 @@ Do ponto de vista físico, o estabelecimento das tensões em $\pm 11,1 \: V$ é 
 
 Comparando este resultado com os fundamentos da comutação trapezoidal detalhados na metodologia, a simulação valida a correta formação e estabilidade do potencial de neutro. Esta validação teórica prévia é de suma importância, pois ratifica a viabilidade da técnica de reconstrução de neutro virtual adotada no \textit{hardware}, assegurando que o microcontrolador possuirá uma referência de tensão simétrica e confiável para a detecção da Força Contraeletromotriz (FCEM) durante a operação em malha fechada.
 
-A Figura \ref{fig:sim_bateria_esforco} demonstra o severo esforço transitório imposto à fonte de alimentação primária (bateria LiPo) quando conectada diretamente à ponte inversora, sem o auxílio de capacitores de barramento (\textit{Link DC}), o qual será inserido no projeto final. Observa-se como fato primário que, durante o \textbf{tempo de condução ($T_{on}$)}, a tensão da bateria decai gradualmente de $22,2 \: V$ para aproximadamente $21,9 \: V$, conforme ilustrado na Figura \ref{fig:bateria_tensao}. Esse comportamento acompanha a rampa de subida da corrente, que atinge o patamar de $13 \: A$. O fator mais crítico, no entanto, ocorre nos instantes exatos de comutação ($50 \: \mu s$ e $100 \: \mu s$), nos quais a corrente drena picos agudos que ultrapassam os $130 \: A$ e $200 \: A$, respectivamente, como detalhado na Figura \ref{fig:bateria_corrente}. Esses picos provocam quedas instantâneas (\textit{voltage sags}) severas na tensão da bateria, reduzindo-a para níveis próximos de $19,5 \: V$. Durante o \textbf{tempo de bloqueio ($T_{off}$)}, a corrente da bateria cessa completamente, pois a corrente do motor passa a circular em roda livre pelos diodos da ponte.
+A Figura \ref{fig:sim_bateria_nominal} demonstra o comportamento macro e o esforço contínuo imposto à fonte de alimentação primária (bateria LiPo) quando conectada diretamente à ponte inversora, sem o auxílio do banco de capacitores de barramento (\textit{Link DC}). Observa-se como fato primário que, durante o \textbf{tempo de condução ($T_{on}$)}, a tensão da bateria decai gradualmente de 22,2 V para aproximadamente 21,9 V, conforme ilustrado na Figura \ref{fig:bateria_tensao_nom}. Esse comportamento acompanha a rampa de subida da corrente, que atinge o patamar de 13 A. Durante o \textbf{tempo de bloqueio ($T_{off}$)}, a corrente da bateria cessa completamente, pois a corrente do motor passa a circular em roda livre pelos diodos da ponte.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
-    \caption{Análise dinâmica dos parâmetros de entrada da bateria LiPo no Passo 1 sem filtragem capacitiva: (a) Transiente de tensão; (b) Transiente de corrente.}
-    \label{fig:sim_bateria_esforco}
+    \captionsetup[subfigure]{justification=centering}
+    \caption{Análise dinâmica dos parâmetros de entrada da bateria LiPo (escala ajustada): (a) Tensão nominal; (b) Rampa de corrente contínua.}
+    \label{fig:sim_bateria_nominal}
+    
     \begin{subfigure}[b]{0.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{Simulation/plot_simulacao/7a_bateria_tensao.png}
+        \includegraphics[width=\textwidth]{Simulation/plot_simulacao/7a_bateria_tensao_ajustada.png}
         \caption{Tensão de barramento.}
-        \label{fig:bateria_tensao}
+        \label{fig:bateria_tensao_nom}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{Simulation/plot_simulacao/7b_bateria_corrente.png}
+        \includegraphics[width=\textwidth]{Simulation/plot_simulacao/7b_bateria_corrente_ajustada.png}
         \caption{Corrente drenada.}
-        \label{fig:bateria_corrente}
+        \label{fig:bateria_corrente_nom}
     \end{subfigure}
     \legendafonte{Elaborado pelo autor (2026).}
 \end{figure}
 
-A causa física para o decaimento gradual da tensão é a queda de potencial ôhmica intrínseca ($V_{drop} = I_a \cdot R_{ser}$) sobre a \textbf{resistência série equivalente} da bateria, que no modelo foi parametrizada como $19 \: m\Omega$. Por outro lado, os transientes agudos (\textit{spikes}) de corrente são consequência da elevadíssima taxa de variação ($di/dt$) exigida para carregar as capacitâncias parasitas dos MOSFETs e suprir a corrente de recuperação reversa (\textit{reverse recovery}) dos diodos corporais nos instantes de ativação (\textit{turn-on}). Como o circuito simulado neste ensaio possui apenas a bateria como fonte de energia, ela é forçada a fornecer instantaneamente toda a carga transitória.
+O fator mais crítico e destrutivo, no entanto, é revelado ao observar a escala completa do ensaio. Nos instantes exatos de comutação (50 $\mu$s e 100 $\mu$s), a ponte inversora drena picos agudos de corrente que ultrapassam 130 A e 200 A, respectivamente, como detalhado na Figura \ref{fig:bateria_corrente_trans}. Esses picos provocam quedas instantâneas (\textit{voltage sags}) severas na tensão da bateria, reduzindo-a para níveis próximos a 19,5 V, conforme ilustrado na Figura \ref{fig:bateria_tensao_trans}.
 
-A comparação deste comportamento simulado com a teoria de eletrônica de potência com o dimensionamento estabelecido na Metodologia. A simulação prova que submeter uma bateria LiPo a este nível de corrente de ondulação (\textit{ripple}) e picos transientes resultaria em superaquecimento severo e degradação química prematura das células. Fica, portanto, validada a necessidade imperativa da instalação do banco de \textbf{capacitores de filtro Low-ESR} ($940 \: \mu F$) projetado fisicamente na placa de circuito impresso (PCB), cuja função será atuar como um reservatório local de energia de baixíssima impedância para absorver estes transientes de alta frequência, isolando e protegendo a fonte primária.
+\begin{figure}[htbp]
+    \centering
+    \captionsetup[subfigure]{justification=centering}
+    \caption{Detalhamento do estresse transiente sobre a bateria LiPo: (a) Quedas instantâneas de tensão (\textit{voltage sags}); (b) Picos transientes de corrente de comutação.}
+    \label{fig:sim_bateria_transiente}
+    
+    \begin{subfigure}[b]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Simulation/plot_simulacao/7c_bateria_tensao_transientes.png}
+        \caption{Tensão de barramento (transientes).}
+        \label{fig:bateria_tensao_trans}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Simulation/plot_simulacao/7d_bateria_corrente_transientes.png}
+        \caption{Picos de corrente.}
+        \label{fig:bateria_corrente_trans}
+    \end{subfigure}
+    \legendafonte{Elaborado pelo autor (2026).}
+\end{figure}
 
-\pagebreak
+A causa física para o decaimento gradual da tensão nominal é a queda de potencial ôhmica intrínseca ($V_{drop} = I_a \cdot R_{ser}$) sobre a \textbf{resistência série equivalente} da bateria, que no modelo foi parametrizada como 19 m$\Omega$. Por outro lado, os transientes agudos (\textit{spikes}) de corrente são consequência da elevadíssima taxa de variação ($di/dt$) exigida para carregar as capacitâncias parasitas dos MOSFETs e suprir a corrente de recuperação reversa (\textit{reverse recovery}) dos diodos corporais nos instantes de ativação (\textit{turn-on}). Como o circuito simulado neste ensaio possui apenas a bateria como fonte de energia, ela é forçada a fornecer instantaneamente toda a carga transitória.
+
+A comparação deste comportamento simulado com a teoria de eletrônica de potência embasa o dimensionamento estabelecido na Metodologia. A simulação prova que submeter uma bateria LiPo a este nível de corrente de ondulação (\textit{ripple}) e picos transientes resultaria em superaquecimento severo e degradação química prematura das células. Fica, portanto, validada a necessidade imperativa da instalação do banco de \textbf{capacitores de filtro Low-ESR} (940 $\mu$F) projetado fisicamente na placa de circuito impresso (PCB), cuja função será atuar como um reservatório local de energia de baixíssima impedância para absorver estes transientes de alta frequência, isolando e protegendo a fonte primária.
 
 \section{Projeto Eletrônico e Análise dos Esquemáticos}
 
@@ -85,7 +109,7 @@ Esta seção transita da validação computacional para o hardware físico do pr
 
 A Figura \ref{fig:esquematico_supply} detalha a arquitetura de entrada e distribuição de energia do ESC. A conexão primária é realizada através de um conector de alta capacidade XT90, protegida imediatamente em série por um \textbf{fusível MIDI} de $80 \: A$ (modelo 0498080.M). O barramento DC (\textit{Link DC}) é suportado por um banco de capacitores híbrido em topologia paralela, composto por seis capacitores polarizados de $220 \: \mu F$ e três capacitores cerâmicos não polarizados de $1 \: \mu F$. A partir deste barramento filtrado, a tensão nominal da bateria alimenta dois módulos conversores \textit{buck} LM2596 dispostos em paralelo, responsáveis por gerar as malhas de tensão independentes de $15 \: V$ (\textit{Vcc 1}) e $5 \: V$ (\textit{Vcc 2}). Adicionalmente, o esquemático implementa uma separação explícita entre o \textbf{terra de potência (PGND)} e o \textbf{terra de sinal (SGND)}, interligados fisicamente por RJ1.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Esquemático do estágio de entrada, filtragem do barramento DC e regulação de tensão auxiliar (Folha \textit{Supply}).}
     \includegraphics[width=1\textwidth]{imagens/esquematico_supply.png}
@@ -101,13 +125,13 @@ A primeira divergência refere-se ao \textbf{fusível de proteção}. O dimensio
 
 A segunda divergência envolve a \textbf{topologia do banco de capacitores do barramento DC}. A metodologia projetou dois capacitores eletrolíticos de $470\,\mu\text{F}$ em paralelo, totalizando $940\,\mu\text{F}$. O projeto final emprega seis capacitores de $220\,\mu\text{F}$ em paralelo ($1320\,\mu\text{F}$) complementados por três capacitores cerâmicos de $1\,\mu\text{F}$. O argumento central para esta mudança é a redução da \textbf{ESR total do barramento}: associar seis unidades em paralelo divide a ESR equivalente por seis, enquanto duas unidades a dividem apenas por dois — resultando em uma corrente de ondulação (\textit{ripple}) por unidade três vezes menor, o que reduz drasticamente o aquecimento interno dos capacitores por efeito Joule ($P = I_{rms}^2 \cdot ESR$). Secundariamente, capacitores de $220\,\mu\text{F}$ são componentes de dimensões físicas reduzidas que permitem uma distribuição espacial mais uniforme ao redor dos drenos dos MOSFETs, encurtando o comprimento dos laços de comutação e, portanto, a indutância parasita do circuito. Os capacitores cerâmicos de $1\,\mu\text{F}$ complementam o banco no domínio de alta frequência, suprimindo transientes que os eletrolíticos não conseguem filtrar devido à sua \textbf{ESL} (Indutância Série Equivalente).
 
-A terceira divergência refere-se à \textbf{topologia dos reguladores auxiliares}. Enquanto o texto preliminar previa reguladores em cascata (bateria $\rightarrow$ $15 \: V$ $\rightarrow$ $5 \: V$), o arranjo físico adota dois módulos LM2596 dispostos em paralelo, ambos alimentados diretamente pelo barramento DC. Esta decisão elimina o gargalo térmico de fazer o regulador de menor tensão processar toda a corrente do estágio primário, garantindo maior eficiência e isolamento galvânico entre o circuito de acionamento de \textit{gate} ($15 \: V$) e a lógica de processamento digital ($5 \: V$).
+A terceira divergência refere-se à \textbf{topologia dos reguladores auxiliares}. Enquanto o texto preliminar previa reguladores em cascata (bateria $\rightarrow$ $15 \: V$ $\rightarrow$ $5 \: V$), o arranjo físico adota dois módulos LM2596 dispostos em paralelo, ambos alimentados diretamente pelo barramento DC. Esta decisão elimina o gargalo térmico de fazer o regulador de menor tensão processar toda a corrente do estágio primário, garantindo maior rendimento e isolamento galvânico entre o circuito de acionamento de \textit{gate} ($15 \: V$) e a lógica de processamento digital ($5 \: V$).
 
 \subsection{Unidade de Processamento Lógico e Interface de Acionamento}
 
 A Figura \ref{fig:esquematico_control} ilustra o núcleo de inteligência do ESC e sua interface direta com o estágio de potência. A Unidade de Processamento, baseada no módulo ESP32 (Figura \ref{fig:control_esp32}), é alimentada pela malha de $5 \: V$ (\textit{Vcc 2}). O regulador linear interno do microcontrolador reduz essa tensão para $3,3 \: V$, sinal que é exportado pelo pino 1 sob a nomenclatura \textit{Vmicro Ref}. Esta estratégia de projeto é fundamental: o \textit{Vmicro Ref} é roteado diretamente para os pinos de alimentação lógica (\textit{VDD}) dos três \textit{drivers} IR2110 (Figura \ref{fig:control_drivers}). Isso garante que o limiar de transição lógica (\textit{logic high threshold}) dos \textit{drivers} seja idêntico à tensão de saída dos pinos GPIO do ESP32, eliminando falhas de interpretação de sinal por incompatibilidade de níveis de tensão.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Esquemáticos do núcleo de controle e interface de potência: (a) Microcontrolador ESP32-WROOM-32; (b) Estágio de translação de nível com \textit{drivers} IR2110.}
     \label{fig:esquematico_control}
@@ -129,15 +153,13 @@ A Figura \ref{fig:esquematico_control} ilustra o núcleo de inteligência do ESC
 
 O isolamento contra ruídos é efetivado pela segregação dos planos de terra nos \textit{drivers} IR2110. O referencial lógico (\textit{VSS}) é conectado exclusivamente ao terra de sinal (\textbf{SGND}), enquanto o retorno de potência (\textit{COM}), que lida com os pulsos de alta corrente de carga e descarga dos MOSFETs, é roteado para o terra de potência (\textbf{PGND}). A comunicação de segurança entre o microcontrolador e os \textit{drivers} ocorre de forma redundante: o ESP32 gera os seis sinais do MCPWM ($AH, AL$, etc.) e possui controle direto sobre os pinos de \textit{Shutdown} ($SD$) de cada IR2110. Adicionalmente, o pino \textit{OC Trip} (\textit{Overcurrent Trip}) permite que um evento de falta detectado pelos sensores interrompa a geração de PWM no \textit{hardware} do ESP32 em microssegundos.
 
-Na saída dos \textit{drivers}, o esquemático valida o projeto do circuito de \textit{bootstrap} e o condicionamento de \textit{gate}. A malha de \textit{bootstrap} utiliza um diodo de recuperação ultra-rápida (UF4004) alimentando uma associação capacitiva paralela ($4,7 \: \mu F$ e $0,1 \: \mu F$), combinando grande capacidade de reserva de carga com resposta instantânea a transientes. O valor de $4{,}7\,\mu\text{F}$ representa uma quarta divergência em relação ao dimensionamento preliminar, que havia especificado $10\,\mu\text{F}$. A justificativa é dupla: do ponto de vista funcional, ambos os valores satisfazem com ampla margem o critério de projeto de armazenar pelo menos $15 \times Q_g$ da carga do gate ($Q_{min} = 15 \times 360\,\text{nC} = 5{,}4\,\mu\text{C}$), pois $4{,}7\,\mu\text{F} \times 15\,\text{V} = 70{,}5\,\mu\text{C} \gg 5{,}4\,\mu\text{C}$, a queda de tensão por ciclo é de apenas $\Delta V_{boot} = 360\,\text{nC}/4{,}7\,\mu\text{F} \approx 77\,\text{mV}$ ($0{,}5\,\%$ da tensão de alimentação), desprezível para a saturação do MOSFET. Do ponto de vista comercial, $4{,}7\,\mu\text{F}$ é o valor padronizado predominante nas notas de aplicação do IR2110 \cite{infineon2005} e em projetos de referência de circuitos de \textit{bootstrap} para \textit{drivers} de porta de potência, o que o torna amplamente disponível em encapsulamentos compactos com baixa ESR. Capacitores de $10\,\mu\text{F}$ em encapsulamentos equivalentes tendem a apresentar maior ESR (por serem eletrolíticos em vez de alumínio-polimérico), o que degrada a eficiência da transferência de carga para o \textit{gate} durante transições rápidas. O acionamento dos MOSFETs foi projetado com uma topologia de \textbf{resistência de \textit{gate} assimétrica}: a ativação (\textit{turn-on}) é limitada pelos resistores de $10 \: \Omega$, amortecendo ressonâncias (\textit{ringing}) e picos de emissão eletromagnética (EMI). Em contrapartida, o bloqueio (\textit{turn-off}) ocorre através de diodos Schottky (1N5819) polarizados reversamente em paralelo com os resistores. Esta configuração fornece um caminho de baixíssima impedância para o escoamento imediato da carga do \textit{gate} ($Q_g$), garantindo que o transistor desligue mais rápido do que liga, prevenindo a ocorrência de condução cruzada (\textit{shoot-through}) no braço do inversor. Em bancada, um curto resistivo no resistor R3 da fase B, primeiro elemento dessa malha a jusante da saída LO do IR2110, foi identificado como causa de falhas espúrias de OCP e de leitura de corrente; o caso é analisado no Ensaio~0b (Subseção~\ref{subsubsec:ensaio0b_curto_fase_b}).
-
-\pagebreak
+Na saída dos \textit{drivers}, o esquemático valida o projeto do circuito de \textit{bootstrap} e o condicionamento de \textit{gate}. A malha de \textit{bootstrap} utiliza um diodo de recuperação ultra-rápida (UF4004) alimentando uma associação capacitiva paralela ($4,7 \: \mu F$ e $0,1 \: \mu F$), combinando grande capacidade de reserva de carga com resposta instantânea a transientes. O valor de $4{,}7\,\mu\text{F}$ representa uma quarta divergência em relação ao dimensionamento preliminar, que havia especificado $10\,\mu\text{F}$. A justificativa é dupla: do ponto de vista funcional, ambos os valores satisfazem com ampla margem o critério de projeto de armazenar pelo menos $15 \times Q_g$ da carga do gate ($Q_{min} = 15 \times 360\,\text{nC} = 5{,}4\,\mu\text{C}$), pois $4{,}7\,\mu\text{F} \times 15\,\text{V} = 70{,}5\,\mu\text{C} \gg 5{,}4\,\mu\text{C}$, a queda de tensão por ciclo é de apenas $\Delta V_{boot} = 360\,\text{nC}/4{,}7\,\mu\text{F} \approx 77\,\text{mV}$ ($0{,}5\,\%$ da tensão de alimentação), desprezível para a saturação do MOSFET. Do ponto de vista comercial, $4{,}7\,\mu\text{F}$ é o valor padronizado predominante nas notas de aplicação do IR2110 \cite{infineon2005} e em projetos de referência de circuitos de \textit{bootstrap} para \textit{drivers} de porta de potência, o que o torna amplamente disponível em encapsulamentos compactos com baixa ESR. Capacitores de $10\,\mu\text{F}$ em encapsulamentos equivalentes tendem a apresentar maior ESR (por serem eletrolíticos em vez de alumínio-polimérico), o que degrada o rendimento da transferência de carga para o \textit{gate} durante transições rápidas. O acionamento dos MOSFETs foi projetado com uma topologia de \textbf{resistência de \textit{gate} assimétrica}: a ativação (\textit{turn-on}) é limitada pelos resistores de $10 \: \Omega$, amortecendo ressonâncias (\textit{ringing}) e picos de emissão eletromagnética (EMI). Em contrapartida, o bloqueio (\textit{turn-off}) ocorre através de diodos Schottky (1N5819) polarizados reversamente em paralelo com os resistores. Esta configuração fornece um caminho de baixíssima impedância para o escoamento imediato da carga do \textit{gate} ($Q_g$), garantindo que o transistor desligue mais rápido do que liga, prevenindo a ocorrência de condução cruzada (\textit{shoot-through}) no braço do inversor. Em bancada, um curto resistivo no resistor R3 da fase B, primeiro elemento dessa malha a jusante da saída LO do IR2110, foi identificado como causa de falhas espúrias de OCP e de leitura de corrente; o caso é analisado no Ensaio~0b (Subseção~\ref{subsubsec:ensaio0b_curto_fase_b}).
 
 \subsection{Condicionamento de Sinais e Sensoriamento}
 
 A Figura \ref{fig:esquematico_sensors} detalha a topologia de aquisição de dados do inversor. Na Figura \ref{fig:sensor_voltage}, a tensão total do barramento (\textit{Vcc Supply}) é monitorada por um divisor resistivo de $39 \: k\Omega$ e $4,7 \: k\Omega$, resultando em um fator de atenuação de $0,1075$. Isso mapeia a tensão máxima da bateria 6S ($25,2 \: V$) para seguros $2,71 \: V$ no ADC do microcontrolador. Em contrapartida, na condição de alimentação com a tensão mínima projetada para o sistema (uma bateria 3S em seu limite de descarga operacional, com aproximadamente $9,0 \: V$), a tensão resultante no divisor será de $0,97 \: V$. Isso garante que toda a janela de operação mecânica e de alimentação do projeto permaneça estritamente dentro da faixa linear de leitura do ESP32, cujo limite lógico é $3,3 \: V$. Adicionalmente, o capacitor de $0,1 \: \mu F$, em conjunto com a resistência equivalente de Thévenin do divisor ($R_{th} \approx 4,19 \: k\Omega$), forma um filtro passa-baixa com frequência de corte ($f_c$) de aproximadamente $379 \: Hz$, como o sinal útil da queda de tensão da bateria é essencialmente contínuo ($0 \: Hz$), fixar a frequência de corte em $379 \: Hz$ empurra a frequência de chaveamento agressiva do inversor ($20 \: kHz$) quase duas décadas para dentro da banda de atenuação do filtro, caindo a uma taxa de $-20 \: dB/\text{década}$. Isso garante que as flutuações de comutação sejam suprimidas antes de atingirem o microcontrolador.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Esquemáticos do estágio de sensoriamento e proteção: (a) Monitoramento da bateria; (b) Amplificadores de corrente das fases (INA240); (c) Comparadores de sobrecorrente (LM339).}
     \label{fig:esquematico_sensors}
@@ -170,13 +192,13 @@ A escolha do INA240A1DR representa uma \textbf{quinta divergência} em relação
 
 A Figura \ref{fig:sensor_ocp} exibe o circuito de Proteção contra Sobrecorrente (OCP). O \textbf{LM339N} é um circuito integrado que encapsula quatro comparadores de tensão independentes, notável pela sua alta velocidade de reposta (na escala de nanossegundos) e pela sua arquitetura de saída em coletor aberto (\textit{open-collector}). Esta característica de coletor aberto é o que viabiliza a interligação das três proteções de fase em um único nó lógico (\textit{Wired-OR}), utilizando o resistor de \textit{pull-up} R10. Durante a revisão do projeto, realizou-se um ajuste topológico essencial nesta malha: a tensão limitadora (\textit{Vdac Ref}) foi conectada à porta não-inversora (+), enquanto o sinal dos sensores de corrente (\textit{Isense}) foi roteado para a porta inversora (-). Desta forma, em operação nominal ($Isense < Vdac$), os transistores de saída internos do LM339 permanecem em estado de corte (alta impedância), e o R10 mantém o pino \textit{OC Trip} em $3,3 \: V$. No instante em que qualquer fase individual superar o limite de segurança ($Isense > Vdac$), o seu respectivo comparador saturará, conduzindo a linha imediatamente ao terra ($0 \: V$). Esta ação puramente em \textit{hardware} contorna a latência intrínseca de qualquer \textit{software}, gerando uma interrupção prioritária no ESP32 para o bloqueio instantâneo do sinal PWM e salvaguardando a ponte inversora contra catástrofes térmicas ou elétricas.
 
-\pagebreak
+
 
 \subsection{Estágio de Potência e Ponte Inversora}
 
 A Figura \ref{fig:esquematico_power} expõe a topologia final da ponte inversora trifásica, o núcleo de comutação de força do ESC. O arranjo utiliza seis transistores MOSFET IRFS7530-7PPBF de altíssima capacidade de corrente, estruturados em três braços independentes (Fases A, B e C). Para aumentar a confiabilidade dois detalhes de projeto merecem destaque: a inclusão de resistores de \textit{pull-down} de $10 \: k\Omega$ (R13 a R18) conectados aos terminais \textit{Gate-Source} de cada chave, e a alocação de três resistores \textit{shunt} de liga metálica (encapsulamento de potência 3920, modelo CSS2H-3920R-1L00F de $1 \: m\Omega$) inseridos especificamente nos ramos inferiores da ponte (\textit{Low-Side Sensing}).
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Esquemático do estágio de potência contendo a ponte inversora trifásica e resistores \textit{shunt} individuais para medição de corrente.}
     \includegraphics[width=0.9\textwidth]{imagens/esquematico_power.png}
@@ -190,13 +212,13 @@ Adicionalmente, em relação a escolha do invólucro de 7 pinos para os MOSFETs 
 
 O valor de $1\,m\Omega$ constitui a \textbf{sexta e última divergência} sistemática em relação ao dimensionamento da Metodologia, que havia calculado $0{,}5\,m\Omega$ com base em um amplificador externo de ganho $A_v = 73\,\text{V/V}$ para mapear os $91\,\text{A}$ de pico em $3{,}3\,\text{V}$ na escala completa do ADC. A substituição do amplificador pelo INA240 de ganho fixo ($20\,\text{V/V}$) alterou fundamentalmente o critério de seleção do \textit{shunt}: com $1\,m\Omega$ e ganho de $20\,\text{V/V}$, o limite de proteção de hardware de $8\,\text{A}$ gera uma tensão diferencial de $V_{shunt} = 8\,\text{A} \times 1\,m\Omega = 8\,\text{mV}$, que o INA240 amplifica para $\Delta V_{out} = 20 \times 8\,\text{mV} = 160\,\text{mV}$ acima do offset de $1{,}65\,\text{V}$, resultando em $V_{dac} \approx 1{,}81\,\text{V}$, valor utilizado diretamente pelo DAC1 do ESP32 como referência do comparador LM339. O modelo CSS2H-3920R-1L00F de $1\,m\Omega$ é um componente comercialmente padronizado em encapsulamento de potência 3920, especificado com coeficiente de temperatura de resistência inferior a $75\,\text{ppm/°C}$ e corrente máxima compatível com os $90\,\text{A}$ de pico do projeto nominal. A topologia individual por fase (três \textit{shunts} independentes, em vez do único \textit{shunt} de barramento previsto inicialmente) acrescenta a capacidade de medição de corrente por fase, habilitando a detecção granular de desequilíbrios entre braços do inversor e constituindo a infraestrutura de sensoriamento necessária para uma futura migração para o algoritmo de Controle Orientado ao Campo (FOC).
 
-\pagebreak
+
 
 \subsection{Estratégias de Layout, Roteamento e Fabricação da PCB Protótipo}
 
 O projeto físico do protótipo de inversor, ilustrado na Figura \ref{fig:pcb_layout}, foi materializado a partir de um laminado virgem de fibra de vidro (FR4) com dupla face de cobre nu, sem a aplicação de máscara de solda comercial (\textit{solder mask}). A placa possui dimensões de $150 \times 200 \: mm$ e espessura de $1,5 \: mm$. Durante a fase de engenharia de manufatura, o método de fabricação sofreu uma alteração: a confecção por corrosão química manual foi substituída pela usinagem em fresadora CNC (\textit{Computer Numerical Control}). A causa física para esta mudança baseia-se na precisão geométrica e na integridade do material condutor. Na corrosão de placas com imensas áreas de cobre, o processo tende a gerar \textit{undercutting} (corrosão lateral) e variações na espessura final da malha. A usinagem CNC atua de forma oposta, removendo mecanicamente apenas o material estritamente necessário para criar os isolamentos (\textit{clearances}), preservando a massa total e a espessura original do cobre contínuo. Para garantir a viabilidade da usinagem, as regras de \textit{design} (DRC) foram ajustadas para manter uma largura mínima de $0,6 \: mm$ nas trilhas de sinais lógicos e um \textit{clearance} mínimo de $0,6 \: mm$ entre elementos, prevenindo curtos-circuitos mecânicos e rompimentos de trilha durante a fresagem.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Projeto de roteamento da Placa de Circuito Impresso no Altium Designer: (a) \textit{Top Layer} evidenciando os polígonos de potência; (b) \textit{Bottom Layer} evidenciando os planos de terra.}
     \label{fig:pcb_layout}
@@ -218,7 +240,7 @@ O projeto físico do protótipo de inversor, ilustrado na Figura \ref{fig:pcb_la
 
 Embora as análises computacionais prévias tenham apontado transientes teóricos de comutação com picos próximos a $90 \: A$, ressalta-se que este protótipo inicial de bancada foi projetado para maximizar a capacidade de condução de corrente dentro das limitações físicas de fabricação local, não sendo esperado o regime de operação contínua sob esta magnitude extrema, já que o protótipo, em sua fase inicial, teve como objetivo demonstrar a viabilidade do \textit{design}, sendo os ensaios conduzidos com o motor A2212/10T 1400\,kV e bateria $4S$, simulada com uma fonte de bancada com corrente limitada a $3\,\text{A}$ e fusível de $20\,\text{A}$, como podemos observar na Figura \ref{fig:prototipo}.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Protótipo do ESC: (a) Visão Superior; (b) Visão Inferior.}
     \label{fig:prototipo}
@@ -302,7 +324,7 @@ Dentro de \texttt{fsm\_system\_init()}:
 
 O módulo legado \texttt{esc\_boot\_early\_calibrate()} (\texttt{esc\_boot\_sensors.c}) permanece no repositório do projeto~\cite{esp32BldcEscRepo} mas \textbf{não é invocado} no boot atual. Na configuração de bancada de junho de 2026 (junho de 2026), \texttt{BOARD\_ENABLE\_SERIAL\_HMI=1}, \texttt{BOARD\_ENABLE\_PS4\_BT=0} e \texttt{INA240\_USE\_MANUAL\_OFFSET=1} substituem a calibração em três etapas validada anteriormente com Wi-Fi AP e PS4 ativos. Qualquer falha em etapa intermediária da FSM invoca \texttt{enter\_fault\_state()} e mantém o ESC em \texttt{FAULT}, prevenindo operação com subsistema em estado indeterminado. A detecção de número de células LiPo ocorre em \textit{boot} e é travada, uma troca de bateria de 4S para 6S, ou vice-versa, exige \textit{power-cycle} do controlador para atualizar os limiares de UVLO.
 
-Internamente ao estado \texttt{RUNNING}, o módulo \texttt{motor\_control} executa sua própria sub-FSM de partida, com as fases \texttt{IDLE}, \texttt{ALIGN}, \texttt{RUN} (modo corrente), \texttt{RUN\_OPEN} e \texttt{RUN\_SPEED} (modo velocidade). A fase de alinhamento aplica o vetor estático do passo 0 (CW) ou do passo 3 (CCW) por $100\,\text{ms}$, com ciclo de trabalho nominal de $3\,\%$ atingido por rampa linear de $0\,\%$ a $3\,\%$ (\texttt{align\_ramp\_duty\_percent()}), garantindo posição angular inicial $\theta_0$ conhecida antes do início da rampa trapezoidal, requisito fundamental para a estratégia \textit{sensorless} sem detecção de FCEM em velocidade zero. A transição para a fase \texttt{RUN\_SPEED} no modo cascata condiciona-se ao RPM estimado superar 600\,RPM por ao menos 200\,ms consecutivos, evitando transição prematura de malha para o PI de velocidade em condição de aceleração instável.
+Internamente ao estado \texttt{RUNNING}, o módulo \texttt{motor\_control} executa sua própria sub-FSM de partida, com as fases \texttt{IDLE}, \texttt{ALIGN}, \texttt{RUN} (modo corrente), \texttt{RUN\_OPEN} e \texttt{RUN\_SPEED} (modo velocidade). A fase de alinhamento aplica o vetor estático do passo 0 (CW) ou do passo 3 (CCW) por $100\,\text{ms}$, com ciclo de trabalho nominal de $3\,\%$ atingido por rampa linear de $0\,\%$ a $3\,\%$ (\texttt{align\_ramp\_duty\_percent()}), garantindo posição angular inicial $\theta_0$ conhecida antes do início da rampa trapezoidal, requisito fundamental para a estratégia \textit{sensorless} sem detecção de FCEM em velocidade zero. A transição para a fase \texttt{RUN\_SPEED} no modo cascata condiciona-se à velocidade estimada superar 600\,RPM por ao menos 200\,ms consecutivos, evitando transição prematura de malha para o PI de velocidade em condição de aceleração instável.
 
 Os ensaios de partida com carga permanecem no protocolo proposto (Metodologia, Subseção~\ref{subsec:protocolo_validacao_proposto}); a última sessão de bancada interrompeu-se na fase ALIGN por OCP da fonte (Ensaio a Vazio, Subseção~\ref{subsubsec:ensaio_vazio_falha}).
 
@@ -342,11 +364,11 @@ Em operação com comutação em malha aberta (\texttt{BOARD\_ENABLE\_BEMF\_ZCD\
     \item \textbf{Ausência de avanço de passo 6-step por um intervalo superior a $4 \times T_{passo\_esperado}$ (\texttt{MOTOR\_STALL\_STEP\_TIMEOUT\_MULT\,=\,4})} (\texttt{trip\_stall\_no\_commutation}).
     Opera apenas na comutação guiada por ZCD (modo \texttt{MOTOR\_COMM\_ZCD\_CLOSED}); com ZCD desativado, os passos avançam por temporizador independentemente da posição do rotor (\texttt{advance\_open\_loop\_if\_due}), de modo que \texttt{s\_last\_step\_change\_us} continua sendo atualizado mesmo com o eixo travado, este critério não dispara na configuração padrão de validação. Quando o rotor não consegue acompanhar o campo girante do estator, por travamento mecânico, carga excessiva ou perda de sincronismo magnético, os cruzamentos por zero da BEMF cessam ou tornam-se erráticos, impedindo que os comparadores LM339 detectem os instantes elétricos de comutação; a sequência 6-step congela-se e o intervalo desde o último passo executado excede $4 \times T_{passo\_esperado}$, caracterizando dessincronismo confirmado.
 
-    \item \textbf{RPM estimado abaixo do mínimo operacional (\texttt{MOTOR\_SPEED\_MIN\_RPM} = 300\,RPM) com referência de velocidade acima de 600\,RPM por mais de 300\,ms, na fase \texttt{RUN\_SPEED}} (\texttt{trip\_stall\_low\_rpm}).
-    Opera somente quando a comutação segue a BEMF do rotor (ZCD ativo); em malha aberta, $\widehat{n}$ deriva do intervalo entre passos comutados por temporizador e tende a acompanhar a referência comandada, não a rotação mecânica real (Seção~\ref{subsec:implementacao_malha} e parágrafo sobre estimativa de RPM abaixo). Indica que a taxa efetiva de comutação (agora sincronizada com o movimento do rotor) cai abaixo do mínimo operacional enquanto o controlador exige rotação elevada; manifestação de perda de passo ou escorregamento, no qual o ângulo elétrico $\theta_e$ excede a região de torque produtivo ($T_e \propto \sin\theta_e$ decrescente para $\theta_e > 90°$ elétricos).
+    \item \textbf{Velocidade estimada abaixo do mínimo operacional (\texttt{MOTOR\_SPEED\_MIN\_RPM} = 300\,RPM) com referência de velocidade acima de 600\,RPM por mais de 300\,ms, na fase \texttt{RUN\_SPEED}} (\texttt{trip\_stall\_low\_rpm}).
+    Opera somente quando a comutação segue a BEMF do rotor (ZCD ativo); em malha aberta, $\widehat{n}$ deriva do intervalo entre passos comutados por temporizador e tende a acompanhar a referência comandada, não a rotação mecânica real (Seção~\ref{subsec:implementacao_malha} e parágrafo sobre estimativa de velocidade abaixo). Indica que a taxa efetiva de comutação (agora sincronizada com o movimento do rotor) cai abaixo do mínimo operacional enquanto o controlador exige rotação elevada; manifestação de perda de passo ou escorregamento, no qual o ângulo elétrico $\theta_e$ excede a região de torque produtivo ($T_e \propto \sin\theta_e$ decrescente para $\theta_e > 90°$ elétricos).
 \end{itemize}
 
-Na configuração adotada nesta validação (\texttt{BOARD\_ENABLE\_BEMF\_ZCD\,=\,0}), a proteção efetiva contra \textit{stall} recai sobre o critério de corrente sustentada, complementar à OCP: enquanto a segunda age em microssegundos sobre picos instantâneos, a primeira identifica a condição crônica de rotor travado com corrente moderada que esgotaria a bateria e aqueceria os enrolamentos progressivamente. Os critérios por ausência de comutação e por RPM baixo permanecem implementados no firmware como salvaguardas para a futura transição à malha fechada por ZCD, quando a sequência 6-step e a estimativa de velocidade passarão a refletir o movimento real do rotor.
+Na configuração adotada nesta validação (\texttt{BOARD\_ENABLE\_BEMF\_ZCD\,=\,0}), a proteção efetiva contra \textit{stall} recai sobre o critério de corrente sustentada, complementar à OCP: enquanto a segunda age em microssegundos sobre picos instantâneos, a primeira identifica a condição crônica de rotor travado com corrente moderada que esgotaria a bateria e aqueceria os enrolamentos progressivamente. Os critérios por ausência de comutação e por velocidade baixa permanecem implementados no firmware como salvaguardas para a futura transição à malha fechada por ZCD, quando a sequência 6-step e a estimativa de velocidade passarão a refletir o movimento real do rotor.
 
 \subsubsection{Sequência Unificada de Entrada em Falha e Recuperação}
 
@@ -358,7 +380,7 @@ Independentemente da origem da falha, hardware analógico, ISR de interrupção 
 
 O motor A2212/10T 1400\,kV foi selecionado como carga representativa para os ensaios dinâmicos previstos no protocolo experimental (Metodologia, Subseção~\ref{subsec:protocolo_validacao_proposto}). A parametrização de rampa, ganhos PI e mapeamento de referências encontra-se documentada na mesma subseção; neste capítulo registra-se apenas a validação estática do firmware e a interrupção dos ensaios de potência no ensaio a vazio.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Motor BLDC A2212/10T 1400\,kV utilizado como carga de bancada (Prova de Conceito em escala reduzida).}
     \includegraphics[width=0.45\textwidth]{imagens/A2212-10t-1400-kv.jpg}
@@ -372,17 +394,17 @@ A interface de comando via DualShock 4, gerenciada pela biblioteca Bluepad32 int
 \subsection{Interface de Monitoramento e Telemetria Sem Fio}
 % ============================================================
 
-A validação dinâmica do ESC em bancada com motor em rotação impõe a observação contínua de grandezas elétricas e de estado interno do firmware (correntes de fase, tensão de barramento, RPM estimado, fase de partida, código de falha e status do controle PS4) sem manter o microcontrolador acoplado por cabo USB ao computador do operador. Para atender a esse requisito, foi implementada a dashboard de telemetria via Wi-Fi cuja motivação (isolamento galvânico virtual em relação ao barramento de potência) foi estabelecida na Metodologia. A arquitetura de software integra-se à camada de aplicação do firmware e opera conforme o fluxo descrito a seguir:
+A validação dinâmica do ESC em bancada com motor em rotação impõe a observação contínua de grandezas elétricas e de estado interno do firmware (correntes de fase, tensão de barramento, velocidade estimada, fase de partida, código de falha e status do controle PS4) sem manter o microcontrolador acoplado por cabo USB ao computador do operador. Para atender a esse requisito, foi implementada a dashboard de telemetria via Wi-Fi cuja motivação (isolamento galvânico virtual em relação ao barramento de potência) foi estabelecida na Metodologia. A arquitetura de software integra-se à camada de aplicação do firmware e opera conforme o fluxo descrito a seguir:
 
 \begin{enumerate}
     \item \textbf{Modo Access Point (AP):} o ESP32 cria uma rede Wi-Fi local (\texttt{ESC-Dashboard}, IP fixo \texttt{192.168.4.1}), independente de roteador externo e sem necessidade de conexão à internet.
     \item \textbf{Servidor HTTP assíncrono:} o módulo \texttt{wifi\_telemetry} utiliza a biblioteca ESPAsyncWebServer para servir a interface web (\texttt{index.html}) e o endpoint de dados \texttt{GET /data}, ambos armazenados no sistema de arquivos LittleFS da flash interna.
     \item \textbf{Telemetria por HTTP \textit{polling}:} o \textit{browser} do operador requisita o JSON de telemetria a cada $1\,\text{s}$ via \texttt{GET /data}. Fora de \texttt{RUNNING} (ou com \texttt{WIFI\_TELEMETRY\_DEFER\_IN\_RUNNING}\,$= 0$), o \texttt{loop()} atualiza o \textit{snapshot} denso a cada $100\,\text{ms}$ via \texttt{push\_wifi\_telemetry\_full()}. Essa estratégia foi preferida à conexão WebSocket persistente para limitar o consumo de \textit{heap} ($\approx 19\,\text{KB}$ por cliente WebSocket), recurso já pressionado pela coexistência de Bluetooth Classic (PS4) e Wi-Fi no mesmo rádio do ESP32.
     \item \textbf{Visualização local:} a biblioteca Chart.js é servida a partir da flash (arquivo \texttt{chart.min.js}), eliminando dependência de CDN externo, inacessível quando o operador está conectado exclusivamente ao AP do ESC.
-    \item \textbf{Telemetria diferida em \texttt{RUNNING}:} com \texttt{WIFI\_TELEMETRY\_DEFER\_IN\_RUNNING}\,$= 1$ (padrão quando o AP está ativo), o firmware não publica JSON denso durante a rotação: amostras compactas ($\approx 12\,\text{B}$: tempo, RPM, corrente medida, \textit{duty} e $f_{el}$) são gravadas em \textit{ring buffer} de $80$ pontos ($\approx 8\,\text{s}$ a $100\,\text{ms}$); \texttt{GET /data} recebe \textit{snapshot} leve (\texttt{buffering:true}, \texttt{buf\_n}) no máximo a $1\,\text{Hz}$; ao retornar a \texttt{IDLE} ou \texttt{FAULT}, o lote é exposto em \texttt{GET /data/batch} e a dashboard preenche os gráficos com a última corrida.
+    \item \textbf{Telemetria diferida em \texttt{RUNNING}:} com \texttt{WIFI\_TELEMETRY\_DEFER\_IN\_RUNNING}\,$= 1$ (padrão quando o AP está ativo), o firmware não publica JSON denso durante a rotação: amostras compactas ($\approx 12\,\text{B}$: tempo, velocidade, corrente medida, \textit{duty} e $f_{el}$) são gravadas em \textit{ring buffer} de $80$ pontos ($\approx 8\,\text{s}$ a $100\,\text{ms}$); \texttt{GET /data} recebe \textit{snapshot} leve (\texttt{buffering:true}, \texttt{buf\_n}) no máximo a $1\,\text{Hz}$; ao retornar a \texttt{IDLE} ou \texttt{FAULT}, o lote é exposto em \texttt{GET /data/batch} e a dashboard preenche os gráficos com a última corrida.
 \end{enumerate}
 
-O \textit{payload} JSON denso consolida, em chaves compactas, o estado da FSM, correntes de fase, tensão de barramento, RPM, parâmetros do PI, latência do motor, \textit{heap} livre, status do controle PS4 (\texttt{ps4c}, R2, Circle) e código de falha ativo. A telemetria serial por UART ($115200\,\text{baud}$) permanece disponível para depuração em laboratório. A arquitetura de telemetria adiada está implementada no firmware (\texttt{wifi\_telemetry.cpp}, \texttt{index.html}); os ensaios de potência documentados neste capítulo mantiveram \texttt{BOARD\_ENABLE\_WIFI\_TELEMETRY}\,$= 0$ e telemetria serial a $500\,\text{ms}$. A validação com motor em rotação constitui etapa do protocolo proposto (Metodologia, Subseção~\ref{subsec:protocolo_validacao_proposto}).
+O \textit{payload} JSON denso consolida, em chaves compactas, o estado da FSM, correntes de fase, tensão de barramento, velocidade, parâmetros do PI, latência do motor, \textit{heap} livre, status do controle PS4 (\texttt{ps4c}, R2, Circle) e código de falha ativo. A telemetria serial por UART ($115200\,\text{baud}$) permanece disponível para depuração em laboratório. A arquitetura de telemetria adiada está implementada no firmware (\texttt{wifi\_telemetry.cpp}, \texttt{index.html}); os ensaios de potência documentados neste capítulo mantiveram \texttt{BOARD\_ENABLE\_WIFI\_TELEMETRY}\,$= 0$ e telemetria serial a $500\,\text{ms}$. A validação com motor em rotação constitui etapa do protocolo proposto (Metodologia, Subseção~\ref{subsec:protocolo_validacao_proposto}).
 
 A inicialização do subsistema Wi-Fi precede a do Bluetooth no \texttt{setup()}, conforme exigência do \textit{scheduler} de coexistência de rádio do ESP-IDF; a inversão dessa ordem impede a subida correta do Access Point. As leituras de corrente e tensão continuam roteadas ao ADC1 (GPIO 34--36 e 39), distinto do ADC2, que torna-se indisponível com o rádio ativo. O ADC1 permanece operacional durante a coexistência Wi-Fi/Bluetooth e sustenta a malha de controle a $1\,\text{kHz}$; contudo, o canal A (GPIO\,34, ADC1\_CH6) pode apresentar deriva residual ou impulsos de RF nas leituras em repouso após a subida do softAP e do scan Bluetooth, fenômeno distinto do bloqueio do ADC2 e documentado no Ensaio~1a, mitigado por recalibração pós-rádio, mediana e filtro EMA dedicados à fase A.
 
@@ -395,7 +417,7 @@ Os sintomas recorrentes foram: (i)~desconexões espontâneas do DualShock\,4 na 
 
 A depuração identificou três classes de defeito de software, resumidas na Tabela~\ref{tab:regressoes_coexistencia_radio}.
 
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
     \caption{Regressões de firmware na coexistência Bluetooth, Wi-Fi AP e \texttt{RUNNING}.}
     \label{tab:regressoes_coexistencia_radio}
@@ -440,7 +462,7 @@ Os sintomas iniciais (zumbido no estator, corrente baixa e uma única transiçã
 
 Em sessões subsequentes, o padrão dominante foi ciclo \texttt{BT=OFF} $\to$ reconexão em $0{,}5$--$2\,\text{s}$, frequentemente antes de completar a calibração de repouso do R2 ($2\,\text{s}$). Cada queda zerava o estado de calibração (\texttt{recal R2 necessária}), impedindo transição estável para \texttt{RUNNING} e tornando inconclusivos os ensaios de partida com PS4. Logs de depuração registraram \texttt{DS4: Failed to create virtual device} em conexões repetidas (issue conhecida da pilha Bluepad32) e falhas na camada SDP/GAP antes do \textit{callback} de controle, mitigadas experimentalmente por \texttt{PS4\_FORGET\_BT\_KEYS\_ON\_BOOT}\,$= 1$ (uma vez) e por esquecer o ESP32 no menu Bluetooth do controle. Importante: quedas de enlace em \texttt{IDLE}, com MCPWM desanexado e pinos PWM em GPIO LOW, \textbf{não} implicam conflito entre Bluetooth e acionamento da ponte; evidência de logs com \texttt{BT=OFF} sem \texttt{[HAL] MCPWM attach OK}.
 
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
     \caption{Regressões de enlace Bluetooth Classic (PS4 / Bluepad32) em ensaios de potência, Wi-Fi desligado.}
     \label{tab:regressoes_bluetooth_ps4}
@@ -475,7 +497,7 @@ Em sessões subsequentes, o padrão dominante foi ciclo \texttt{BT=OFF} $\to$ re
     \legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
-Para a bancada de junho de 2026, adotou-se \texttt{BOARD\_ENABLE\_PS4\_BT}\,$= 0$ e \texttt{BOARD\_ENABLE\_SERIAL\_HMI}\,$= 1$: comandos \texttt{A/a} (arm/disarm), \texttt{+}/\texttt{-} (setpoint), espaço (e-stop) e \texttt{c/C} (liberação de falha) via monitor USB a $115200\,\text{baud}$, com telemetria \texttt{HMI=SER}. Essa contingência removeu a variável RF da depuração de potência sem alterar a malha de controle a $1\,\text{kHz}$. Pareamento estável por vários minutos foi obtido na configuração mitigada com Wi-Fi desligado; o ensaio a vazio (Subseção~\ref{subsubsec:ensaio_vazio_falha}) prosseguiu sob interface serial.
+Para a bancada de junho de 2026, adotou-se \texttt{BOARD\_ENABLE\_PS4\_BT}\,$= 0$ e \texttt{BOARD\_ENABLE\_SERIAL\_HMI}\,$= 1$: comandos \texttt{A/a} (arm/disarm), \texttt{+}/\texttt{-} (\textit{setpoint}), espaço (e-stop) e \texttt{c/C} (liberação de falha) via monitor USB a $115200\,\text{baud}$, com telemetria \texttt{HMI=SER}. Essa contingência removeu a variável RF da depuração de potência sem alterar a malha de controle a $1\,\text{kHz}$. Pareamento estável por vários minutos foi obtido na configuração mitigada com Wi-Fi desligado; o ensaio a vazio (Subseção~\ref{subsubsec:ensaio_vazio_falha}) prosseguiu sob interface serial.
 
 A interface web servida localmente pelo LittleFS inclui gráficos históricos, exportação CSV e captura PNG; a validação operacional com motor em rotação permanece no protocolo proposto (Metodologia, Subseção~\ref{subsec:protocolo_validacao_proposto}).
 
@@ -507,7 +529,7 @@ O hardware de condicionamento de sinal para o ZCD (divisores resistivos de fase,
 \section{Testes Físicos de Bancada}
 % ============================================================
 
-A validação experimental do hardware constitui a etapa de maior criticidade no ciclo de desenvolvimento de um inversor de potência: é nela que as hipóteses de projeto (dimensionamento de componentes, topologias de proteção e estratégias de layout) são confrontadas com a realidade física dos circuitos. Resultados de simulação e análise esquemática, por mais rigorosos que sejam, operam sobre modelos idealizados que abstraem tolerâncias de componentes, indutâncias parasitas de trilha, resistências de contato e acoplamentos capacitivos não modelados.
+A validação experimental do hardware constitui a etapa de maior criticidade no ciclo de desenvolvimento de um inversor de potência. É nela que as hipóteses de projeto (dimensionamento de componentes, topologias de proteção e estratégias de layout) são confrontadas com a realidade física dos circuitos. Resultados de simulação e análise esquemática, por mais rigorosos que sejam, operam sobre modelos idealizados que abstraem tolerâncias de componentes, indutâncias parasitas de trilha, resistências de contato e acoplamentos capacitivos não modelados.
 
 O protocolo de testes seguiu a filosofia de \textbf{energização incremental}: o estágio de potência foi desconectado eletricamente da carga e da fonte de alta corrente nas fases iniciais, permitindo que qualquer defeito de montagem ou erro de firmware fosse identificado e corrigido sob condições de energia mínima, sem risco de destruição dos semicondutores. Apenas após a confirmação inequívoca de cada subsistema a energização foi progressivamente elevada.
 
@@ -517,7 +539,7 @@ O protocolo de testes seguiu a filosofia de \textbf{energização incremental}: 
 
 O primeiro lote de ensaios, denominado \textit{validação estática}, foi conduzido integralmente com o motor desconectado da ponte inversora. A ausência de carga indutiva eliminou os transientes de comutação e a corrente de roda livre, isolando cada bloco funcional do hardware para análise individual. A alimentação foi fornecida por uma fonte de bancada regulada, operando em modo de limitação de corrente fixada em $100\,\text{mA}$ e tensão de saída de $12\,\text{V}$, valores suficientes para energizar os reguladores auxiliares LM2596, o microcontrolador ESP32 e os amplificadores INA240, sem risco de dano aos semicondutores de potência em caso de curto-circuito residual na placa.
 
-\subsubsection{Ensaio 0: Inicialização segura do MCPWM e prevenção de \textit{shoot-through} no boot}
+\subsubsection{Ensaio 0: Inicialização segura do MCPWM e prevenção de \textit{shoot-through} no \textit{boot}}
 \label{subsubsec:ensaio0_mcpwm_boot}
 
 Antes dos ensaios de calibração e de medição de \textit{dead-time}, verificou-se em bancada um defeito crítico de firmware durante o \textit{power-up} e o \textit{reset} do ESP32. Com a ponte alimentada em $12\,\text{V}$ e limitação de corrente em $100\,\text{mA}$, a execução da rotina \texttt{hal\_pwm\_init()}, na ordem original de implementação, provocava um pico de corrente no barramento DC compatível com \textit{shoot-through}: ambas as pernas de um mesmo braço ($AH$ e $AL$, e analogamente $B$ e $C$) assumiam nível lógico alto simultaneamente por uma fração de segundo. A causa raiz foi identificada por inspeção de código: a função \texttt{mcpwm\_gpio\_init()} atrelava os pinos físicos ao periférico \textit{antes} de \texttt{mcpwm\_deadtime\_enable()} e de fixar ambos os geradores em repouso via \texttt{mcpwm\_set\_signal\_low()}. Nesse intervalo, o timer MCPWM já ativo aplicava estados complementares não protegidos diretamente aos \textit{gates} via IR2110 (\textit{Active-High}), impondo condução simultânea dos MOSFETs \textit{High-Side} e \textit{Low-Side}.
@@ -533,7 +555,7 @@ A topologia de acionamento da fase B está detalhada na Figura~\ref{fig:control_
 
 O procedimento de depuração adotou a estratégia de \textit{divide et impera} por remoção sequencial de componentes e medição de continuidade com multímetro. A Tabela~\ref{tab:depuracao_curto_fase_b} resume as hipóteses investigadas e os resultados obtidos.
 
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
     \caption{Resultados do isolamento de falha no braço B da ponte inversora (placa desenergizada).}
     \label{tab:depuracao_curto_fase_b}
@@ -573,7 +595,7 @@ A topologia de condicionamento associada a U9 segue o arranjo comum às três fa
 
 O procedimento de depuração replicou a estratégia \textit{divide et impera} adotada no Ensaio~0b: verificação de \textit{Vmicro Ref} ($\approx 3{,}3\,\text{V}$ íntegro), continuidade entre \textit{OUT} e \textbf{SGND} com a placa desenergizada, e inspeção visual ampliada da \textit{footprint} de U9. A Tabela~\ref{tab:depuracao_curto_ina240_u9} resume as hipóteses e os resultados.
 
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
     \caption{Resultados do isolamento de falha no amplificador INA240 U9 (placa desenergizada, exceto onde indicado).}
     \label{tab:depuracao_curto_ina240_u9}
@@ -609,7 +631,7 @@ Após os ensaios de integridade estática dos braços B e C (Ensaios~0b e~0c), a
 
 A Tabela~\ref{tab:depuracao_rtc_sd} resume a depuração. A correção em \texttt{hal\_gpio.c} passou a usar \texttt{rtc\_gpio\_set\_level()} para comutação normal e \texttt{RTC\_GPIO\_OUT\_W1TS/W1TC} na ISR de OCP; o mapa lógico definitivo em \texttt{board\_config.h} foi alinhado ao layout (AH\,=\,GPIO\,19, AL\,=\,22, CH\,=\,15, CL\,=\,18, SD\_A\,=\,32, SD\_B\,=\,33, SD\_C\,=\,4). Somente após essa correção os IR2110 saíram de \textit{shutdown} e a ponte passou a conduzir de fato, expondo, em sessões posteriores, picos de \textit{inrush} e a necessidade de mitigações adicionais na fase ALIGN (Ensaio a Vazio, Subseção~\ref{subsubsec:ensaio_vazio_falha}).
 
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
     \caption{Depuração dos pinos SD em RTC GPIO (placa energizada, motor desconectado).}
     \label{tab:depuracao_rtc_sd}
@@ -654,7 +676,7 @@ Após a eliminação do curto físico em U9 (Ensaio~0c, Subseção~\ref{subsubse
 
 A depuração firmware identificou, adicionalmente, um bug de calibração: a rotina anterior executava \textbf{duas leituras ADC} por amostra, contaminando a coerência entre \texttt{mV\_linear} e \texttt{mV\_cal} no canal A. A correção adotou uma única conversão por amostra via \texttt{hal\_adc\_raw\_to\_mv()} e descarte de amostra após troca de canal no multiplexador ADC1. Sobre essa base, implementou-se a sequência de mitigações resumida na Tabela~\ref{tab:evolucao_mitigacao_ina240_a}.
 
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
     \caption{Evolução das mitigações firmware e comportamento de $I_A$ em \texttt{IDLE} (motor desconectado, boot completo com Wi-Fi AP e PS4).}
     \label{tab:evolucao_mitigacao_ina240_a}
@@ -752,7 +774,7 @@ Ao enviar \texttt{A} no monitor serial, a FSM transita \texttt{IDLE} $\to$ \text
 
 Do ponto de vista analítico, em circuito aberto (sem carga indutiva do motor) a corrente de barramento deveria restringir-se essencialmente à carga capacitiva dos \textit{gates} e à recarga dos capacitores de \textit{bootstrap}, da ordem de dezenas a poucas centenas de miliamperes durante a rampa de alinhamento a $3\,\%$ de ciclo de trabalho. O disparo da OCP da fonte com limite de apenas $1{,}0\,\text{A}$ e leitura de corrente de fase da ordem de $7\,\text{A}$ atesta um \textbf{caminho de baixa impedância indesejado} no estágio de potência: condução cruzada física entre semicondutores, degradação de MOSFETs ou defeito estrutural de montagem que estabelece um trajeto resistivo anômalo entre o barramento DC e o referencial de terra, incompatível com o comportamento nominal do inversor a vazio.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \caption{Oscilograma na perna de R13 (\textit{gate} High-Side da Fase A) durante tentativa de ALIGN: subida até $V_{max} \approx 14{,}5\,\text{V}$ (saída do IR2110) seguida de colapso abrupto quando a fonte de bancada aciona OCP e remove $V_{DC}$ da placa ($V_{pp} = 11{,}8\,\text{V}$; evento não periódico; escala $20\,\text{ms/div}$, $5\,\text{V/div}$, sonda $\times 1$).}
     \includegraphics[width=0.65\textwidth]{imagens/bancada_align_gate_r13_ocp.png}
@@ -762,7 +784,7 @@ Do ponto de vista analítico, em circuito aberto (sem carga indutiva do motor) a
 
 A Figura~\ref{fig:bancada_align_gate_r13_ocp} evidencia que o pico no \textit{gate} corresponde à tentativa de energização do MOSFET High-Side; o tombo subsequente não reflete desarme voluntário do ESP32, e sim \textbf{corte de alimentação} pela fonte após detectar sobrecorrente. A Tabela~\ref{tab:cronologia_align_ocp} resume as mitigações de firmware aplicadas na mesma linha temporal; nenhuma eliminou o OCP da fonte na última sessão documentada.
 
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
     \caption{Cronologia de correções de firmware na depuração do OCP na fase ALIGN (junho de 2026).}
     \label{tab:cronologia_align_ocp}
@@ -878,7 +900,7 @@ O uso de memória Flash (memória de programa) foi extraído do relatório de \t
 
 O relatório de \textit{build} do PlatformIO (\texttt{pio run}, 29/06/2026, plataforma \texttt{esp32doit-devkit-v1}) está resumido na Tabela~\ref{tab:pio_memory}. O perfil padrão de bancada (\texttt{BOARD\_ENABLE\_WIFI\_TELEMETRY}\,$= 0$) consome $89\,400\,\text{B}$ de SRAM ($27{,}3\,\%$ de $327\,680\,\text{B}$) e $850\,469\,\text{B}$ de Flash de aplicação ($64{,}9\,\%$ de $1\,310\,720\,\text{B}$). Com telemetria Wi-Fi habilitada, o consumo sobe para $110\,880\,\text{B}$ de RAM ($33{,}8\,\%$) e $1\,252\,121\,\text{B}$ de Flash ($95{,}5\,\%$; margem livre $\approx 58\,599\,\text{B}$), confirmando que a pilha AsyncWebServer\,+\,LittleFS é a contribuição dominante ao segmento \texttt{.flash.text} e \texttt{.rodata}.
 
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
     \caption{Uso de memória reportado pelo PlatformIO (Identificador de ensaio~30, 29/06/2026).}
     \label{tab:pio_memory}
@@ -910,7 +932,15 @@ A comparação entre o consumo total de RAM estática (\texttt{.data} + \texttt{
 \label{subsec:sintese_wifi_desempenho}
 % ------------------------------------------------------------
 
-A dashboard de telemetria via Wi-Fi integra-se ao firmware como subsistema de \textbf{observação e documentação}, e não como extensão do caminho crítico de controle do inversor. A malha de corrente, velocidade e comutação trapezoidal permanece disparada a $1\,\text{kHz}$ pelo temporizador \texttt{esp\_timer}, em \textit{task} FreeRTOS de prioridade superior ao \texttt{loop()} Arduino (contexto no qual residem o \textit{polling} do DualShock\,4 ($20\,\text{ms}$), a telemetria Wi-Fi e o atendimento assíncrono das requisições \texttt{GET /data} e \texttt{GET /data/batch} pelo ESPAsyncWebServer. Com \texttt{WIFI\_TELEMETRY\_DEFER\_IN\_RUNNING}\,$= 1$, em \texttt{RUNNING} o firmware grava amostras compactas em \textit{ring buffer} RAM a cada $100\,\text{ms}$ e publica \textit{snapshot} leve em \texttt{s\_last\_json} ($\leq 1\,\text{Hz}$); fora de \texttt{RUNNING}, \texttt{push\_wifi\_telemetry\_full()} serializa, via \texttt{snprintf()}, o JSON denso para \texttt{s\_last\_json}. O \textit{browser} consome esses \textit{snapshots} sem reprocessar PI, MCPWM, limiares de proteção analógica ou de software. Do ponto de vista do desempenho elétrico do ESC) ganhos dos controladores, sequência de seis passos, tempos de \textit{dead-time} e resposta às proteções OCP/UVLO, a interface web \textbf{não introduz alteração funcional}; seu impacto restringe-se ao consumo de recursos compartilhados do microcontrolador: tempo de CPU ocioso, \textit{heap} dinâmica, compartilhamento do rádio entre Bluetooth e Wi-Fi, e espaço de Flash ocupado pelo LittleFS (\texttt{index.html}, \texttt{chart.min.js}).
+\subsubsection{Síntese do Impacto da Telemetria Wi-Fi no Desempenho Global}
+\label{subsec:sintese_wifi_desempenho}
+% ------------------------------------------------------------
+
+A interface de supervisão via Wi-Fi integra-se ao sistema embarcado estritamente como um subsistema de \textbf{observação e documentação}, sem interferir no caminho crítico de controle do inversor. As malhas de controle de corrente e velocidade, assim como a comutação trapezoidal, permanecem sincronizadas a $1\,\text{kHz}$ por um temporizador de \textit{hardware} dedicado. Estas rotinas críticas são executadas em uma tarefa do sistema operacional de tempo real (FreeRTOS) com prioridade máxima, isolando-as do laço de execução padrão do microcontrolador.
+
+Neste contexto de menor prioridade (laço principal) operam as rotinas não críticas: a varredura do controle remoto (com período de $20\,\text{ms}$), o gerenciamento da conexão Wi-Fi e o atendimento assíncrono das requisições HTTP pelo servidor \textit{web} embarcado. Para garantir a integridade do processamento em regimes de alta exigência, o \textit{firmware} adota uma estratégia de postergação de telemetria. Durante o estado de operação ativa do motor, o sistema armazena amostras de dados em um \textit{buffer} circular na memória RAM a cada $100\,\text{ms}$ e disponibiliza apenas um pacote simplificado de informações em baixa frequência ($\leq 1\,\text{Hz}$). Somente quando o motor retorna ao estado de inatividade, o sistema serializa e transmite o conjunto denso de dados estruturados no formato JSON.
+
+O navegador consome essas informações de forma assíncrona. Dessa forma, o processamento da telemetria não afeta o cálculo das malhas de controle proporcional-integral (PI), a modulação por largura de pulso (MCPWM) ou os limiares das proteções analógicas e de \textit{software}. Do ponto de vista do desempenho elétrico do controlador, que abrange o cálculo dos ganhos, a sequência de seis passos, a inserção de tempo morto (\textit{dead-time}) e a resposta rápida a falhas de sobrecorrente e subtensão (OCP e UVLO), a interface \textit{web} \textbf{não introduz qualquer alteração funcional}. O seu impacto restringe-se estritamente ao consumo de recursos ociosos e periféricos compartilhados do microcontrolador, compreendendo o tempo residual de CPU, a alocação dinâmica de memória, o compartilhamento da antena de rádiofrequência e o espaço de armazenamento na memória \textit{Flash} utilizado pelos arquivos da página \textit{web}.
 
 A quantificação do impacto da dashboard articula-se em três eixos. No \textbf{eixo temporal}, o Sub-teste~5.1 registrou $t_{tick}$ na configuração mitigada (BT ativo, Wi-Fi desligado); o comparativo Cenário\,A/Cenário\,B não foi concluído, substituído pelo relatório da Subsubseção~\ref{subsubsec:bugs_coexistencia_radio}. No \textbf{eixo de memória}, o Sub-teste~5.2 registrou $H_{livre} \approx 133$--$137\,\text{KB}$ sem dashboard ativa. No \textbf{eixo de estabilidade operacional}, a tentativa de operação simultânea Bluetooth\,+\,Wi-Fi AP\,+\,dashboard\,+\,\texttt{RUNNING} produziu desconexões BT, saturação da UART e regressão da \textit{lightbar}; esse resultado qualitativo \textbf{substitui} o ensaio de $\geq 5\,\text{min}$ com exportação CSV previsto originalmente.
 
