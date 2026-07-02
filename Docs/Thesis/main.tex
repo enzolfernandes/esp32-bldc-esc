@@ -34,6 +34,12 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{float}
+% --- Configurações automáticas de posicionamento ---
+\renewcommand{\topfraction}{0.9}    % Permite que figuras ocupem até 90% do topo da página
+\renewcommand{\bottomfraction}{0.8} % Permite que ocupem 80% da base
+\renewcommand{\textfraction}{0.05}  % Permite que o texto ocupe apenas 5% da página se necessário
+\renewcommand{\floatpagefraction}{0.85} % Só cria uma página só de figuras se elas ocuparem 85% dela
+\usepackage[section]{placeins} % Muro invisível automático no final de cada seção
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric, arrows.meta, positioning, automata, backgrounds, calc}
 \usepackage[american, siunitx]{circuitikz}

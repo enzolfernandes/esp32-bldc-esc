@@ -204,9 +204,10 @@ Dentre as topologias disponíveis, destacam-se os conversores buck (step-down). 
 \begin{figure}[htbp]
     \centering
     \caption{Módulo Comercial LM2596.}
-    \includegraphics[width=7cm]{imagens/Módulo LM2596.jpg}
+    \includegraphics[width=4.6cm]{imagens/Módulo LM2596.jpg}
     \legendafonte{\cite{usinaInfoLM2596}.}
 \end{figure}
+
 
 \subsection{Sensoriamento de Corrente e Proteção (Shunt)}
 
@@ -267,6 +268,7 @@ Para essa aplicação, foi selecionado o ESP32-DevKit C. Utilizando como princip
  \label{esp32DevkitC}
 \end{figure}
 
+
 \begin{figure}[htbp]
     \centering
     \caption{Pinagem do Microcontrolador ESP32-DevKit C.}
@@ -274,6 +276,7 @@ Para essa aplicação, foi selecionado o ESP32-DevKit C. Utilizando como princip
     \legendafonte{\cite{ESP32-DevKitCOverview}.}
  \label{esp32DevkitCPinLayout}
 \end{figure}
+
 
 Apesar dessas vantagens, os níveis lógicos de $3,3V$ exigem o uso de drivers de gate dedicados para a interface com o estágio de potência, conforme detalhado na subseção de dimensionamento do inversor.
 
@@ -323,6 +326,7 @@ O controle lógico do inversor é centralizado no microcontrolador, responsável
 \label{fig:hal_camadas}
 \end{figure}
 
+
 \subsubsection{Taxa de Amostragem da Malha de Controle}
 \label{subsec:taxa_amostragem_malha}
 
@@ -362,6 +366,7 @@ Velocidade (\texttt{s\_speed\_pi}) & 0{,}02 & 0{,}5 \\
 \end{tabular}
 \legendafonte{Elaborado pelo autor (2026).}
 \end{table}
+
 
 A saída do PI de corrente é limitada a 0--95\,\% de \textit{duty cycle} (margem para recarga do \textit{bootstrap} IR2110). O integrador de cada malha possui limites próprios (\texttt{MOTOR\_PI\_INTEG\_MIN/MAX} para corrente; \texttt{MOTOR\_SPEED\_PI\_INTEG\_MIN/MAX} para velocidade), implementando anti-windup por \textit{clamping} conforme a Equação~\ref{eq:pi_saida}. Em eventos de falha ou desarme (\texttt{motor\_control\_on\_disarm()}), os estados integrais são zerados para evitar \textit{windup} residual na re-armagem.
 
@@ -496,6 +501,7 @@ A configuração segue o mapeamento da Tabela \ref{tab:mcpwm_map}, onde o \texti
     \legendafonte{Elaborado pelo autor (2026).}
     {\footnotesize\textit{Nota:} "PWM / LOW" indica modulação. "LOW / ACTIVE" indica condução ao terra. "Hi-Z" alta impedância.}
 \end{table}
+
 
 Os \textit{drivers} IR2110 operam com lógica \textit{Active-High}: nível lógico alto no pino de entrada habilita a condução do MOSFET correspondente. A configuração do gerador PWM deve respeitar essa polaridade, qualquer inversão lógica (\textit{Active-Low}) comprometeria a segurança da ponte. Adicionalmente, o ciclo de trabalho inicial de ambas as pernas de cada braço deve ser nulo ($0\,\%$) até que o operador autorize explicitamente a operação do inversor.
 

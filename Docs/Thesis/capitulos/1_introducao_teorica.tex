@@ -3,7 +3,7 @@
 Os motores BLDC (\textit{Brushless Direct Current Motor}) representam um avanço significativo em relação aos motores CC tradicionais porque eliminam a necessidade de escovas mecânicas para a conversão de energia, resultando em maior rendimento energético, menos desgaste e maior vida útil \cite{hanselman2003brushless}. Esses avanços tecnológicos estão sendo impulsionados pela crescente demanda por sistemas de acionamento de maior rendimento, confiáveis e de baixa manutenção em diversas aplicações industriais, comerciais e de consumo. A precisão e controlabilidade dos motores BLDC os tornam ideais para aplicações que exigem alta exatidão de movimento, velocidade e controle de torque, como robótica, automação industrial, veículos elétricos e eletrônicos de consumo.
 
 \section{Motores CC Sem Escova}
-O princípio de funcionamento dos motores BLDC é baseado em campos magnéticos gerados por ímãs permanentes e enrolamentos de  (Figura \ref{Configuração de um motor DC convencional (A) e motor BLDC (B).}). A comutação da corrente para gerar movimento ocorre eletronicamente, por meio de um controlador dedicado normalmente chamado de ESC (Eletronic Speed Controller), que pode usar ou não sensores durante o processo, eliminando assim a necessidade de escovas mecânicas utilizadas em motores DC tradicionais. Esta abordagem resulta em uma diminuição significativa do desgaste mecânico, aumentando a vida útil do motor e reduzindo a necessidade de manutenção.
+O princípio de funcionamento dos motores BLDC é baseado em campos magnéticos gerados por ímãs permanentes e enrolamentos de  (Figura \ref{Configuração de um motor DC convencional (A) e motor BLDC (B).}). A comutação da corrente para gerar movimento ocorre eletronicamente, por meio de um controlador dedicado normalmente chamado de ESC (Eletronic Speed Controller), que pode usar ou não sensores durante o processo, eliminando assim a necessidade de escovas mecânicas utilizadas em motores DC tradicionais. Esta abordagem resulta em uma diminuição significativa do desgaste mecânico, aumentando a vida útil do motor e reduzindo a necessidade de manutenção. Os motores BLDC são amplamente utilizados em uma variedade de aplicações, desde eletrônicos de consumo, como ventiladores e ferramentas elétricas, até aplicações industriais e automotivas. Sua capacidade de fornecer um controle preciso de velocidade e posição, juntamente com uma resposta rápida, faz deles a escolha ideal para sistemas que exigem rendimento energético e alta performance.
 
 \begin{figure}[htbp]
 	\centering
@@ -13,9 +13,7 @@ O princípio de funcionamento dos motores BLDC é baseado em campos magnéticos 
  \label{Configuração de um motor DC convencional (A) e motor BLDC (B).}
 \end{figure}
 
-Amplamente utilizados em uma variedade de aplicações, desde eletrônicos de consumo, como ventiladores e ferramentas elétricas, até aplicações industriais e automotivas. Sua capacidade de fornecer um controle preciso de velocidade e posição, juntamente com uma resposta rápida, faz deles a escolha ideal para sistemas que exigem rendimento energético e alta performance.
-
-Apesar das muitas vantagens, não estão isentos de algumas limitações. A complexidade eletrônica necessária para o controle preciso, o custo inicial potencialmente mais elevado comparado a motores elétricos escovados, a sensibilidade a ambientes de alta temperatura, pois podem gerar a desmagnetização dos imãs permanentes, a exigência de eletrônica de controle especializada, o potencial de ruído eletromagnético (EMI) e a complexidade de manutenção do sistema como um todo são fatores a serem considerados ao escolher essa tecnologia. Cada aplicação específica deve ponderar essas considerações em relação aos benefícios que os BLDC oferecem, como rendimento, durabilidade e controle superior.
+Apesar das muitas vantagens, eles não estão isentos de algumas limitações. A complexidade eletrônica necessária para o controle preciso, o custo inicial potencialmente mais elevado comparado a motores elétricos escovados, a sensibilidade a ambientes de alta temperatura, pois podem gerar a desmagnetização dos imãs permanentes, a exigência de eletrônica de controle especializada, o potencial de ruído eletromagnético (EMI) e a complexidade de manutenção do sistema como um todo são fatores a serem considerados ao escolher essa tecnologia. Cada aplicação específica deve ponderar essas considerações em relação aos benefícios que os BLDC oferecem, como rendimento, durabilidade e controle superior.
 
 São categorizados como síncronos, ou seja, o rotor gira na mesma frequência do campo magnético gerado pelo estator \cite{jahns1984torque}. Também não apresentam o fenômeno de escorregamento que é característico dos motores de indução. Os motores BLDC estão disponíveis em configurações de uma fase, duas fases e três fases, sendo  essa a mais amplamente utilizada, por serem equilibrados em relação a oscilação de torque e custo de construção \cite{hendershot1994design}.
 
@@ -228,7 +226,7 @@ Embora chamadas de "constantes", $K_T$ e $K_e$ são afetadas pela temperatura. O
  
  Vale ressaltar que esses eventos de condução e bloqueio, e a consequente distorção transiente da tensão de fase gerada por esse terceiro caminho de corrente, são as principais causas das oscilações no torque do motor (\textit{torque ripple}) características deste método \cite{kim2017electric}.
  
- \begin{figure}[htbp]
+\begin{figure}[htbp]
      \centering
      \caption{Sequência de acionamento para um BLDC trifásico.}
      \includegraphics[width=11cm]{imagens/acionamento.png}
@@ -453,29 +451,29 @@ O rendimento do inversor é limitado por dois mecanismos principais de perda no 
 
 A frequência de chaveamento ($f_{sw}$) do PWM que modula os MOSFETs da ponte inversora é um parâmetro de projeto que acopla diretamente os mecanismos de perda descritos acima (em particular, $P_{sw} \propto f_{sw}$) à ondulação de corrente (\textit{ripple}) nas bobinas do motor e ao ruído acústico gerado por magnetostrição no estator \cite{mohan2003, hanselman2003brushless}. Não existe um valor universalmente ótimo: a indústria opera em faixas distintas conforme a aplicação, a dissipação térmica disponível no inversor e a carga de gate ($Q_g$) dos semicondutores selecionados \cite{rashid2014power}.
 
-\begin{table}[htbp]
-\centering
-\caption{Panorama de frequências de chaveamento PWM em acionamentos BLDC e afins}
-\label{tab:panorama_fsw_industria}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lll}
-\toprule
-\textbf{Faixa típica} & \textbf{Segmento / aplicação} & \textbf{Característica principal} \\
-\midrule
-4--8 kHz & Drives industriais legados, ESCs de baixo custo & Audível; menores perdas de comutação \\
-8--12 kHz & Ferramentas elétricas, ESCs \textit{entry-level} & Zumbido perceptível ao operador \\
-16--24 kHz & ESCs BLDC genéricos, VANTs & Próximo ao limiar ultrassônico ($\approx 20\,\text{kHz}$) \\
-\textbf{20 kHz} & \textbf{Este projeto} & Equilíbrio térmico, silêncio e \textit{ripple} (Cap.~Metodologia) \\
-32--48 kHz & Aeromodelismo, \textit{drones} de consumo & Menor \textit{ripple}; $P_{sw}$ maior \\
-48--96 kHz & ESCs \textit{racing} (ex.: BLHeli, SimonK) & Alta resposta; exige baixo $Q_g$ e dissipação agressiva \\
-10--20 kHz+ & FOC industrial & Malha de corrente rápida; escopo distinto do trapezoidal 6-step \\
-\bottomrule
-\end{tabular}%
-}
-\legendafonte{Elaborado pelo autor (2026), com base em \cite{rashid2014power, hanselman2003brushless, mohan2003}.}
-\end{table}
-
 Neste trabalho adota-se \textbf{20 kHz} como compromisso de engenharia para o par MOSFET/driver IRFS7530--IR2110: a carga de gate elevada dos transistores automotivos selecionados torna inviável, com dissipação passiva no volume da placa, as faixas de alta performance do aeromodelismo (48 kHz ou 96 kHz, comuns em ESCs \textit{racing}), enquanto valores inferiores a 16 kHz reintroduziriam ruído audível. O dimensionamento quantitativo, perdas de comutação, \textit{ripple} de corrente e corrente média de \textit{gate} do driver, encontra-se na Subseção de Determinação da Frequência de Chaveamento do Capítulo de Metodologia.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Panorama de frequências de chaveamento PWM em acionamentos BLDC e afins}
+    \label{tab:panorama_fsw_industria}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{lll}
+    \toprule
+    \textbf{Faixa típica} & \textbf{Segmento / aplicação} & \textbf{Característica principal} \\
+    \midrule
+    4--8 kHz & Drives industriais legados, ESCs de baixo custo & Audível; menores perdas de comutação \\
+    8--12 kHz & Ferramentas elétricas, ESCs \textit{entry-level} & Zumbido perceptível ao operador \\
+    16--24 kHz & ESCs BLDC genéricos, VANTs & Próximo ao limiar ultrassônico ($\approx 20\,\text{kHz}$) \\
+    \textbf{20 kHz} & \textbf{Este projeto} & Equilíbrio térmico, silêncio e \textit{ripple} (Cap.~Metodologia) \\
+    32--48 kHz & Aeromodelismo, \textit{drones} de consumo & Menor \textit{ripple}; $P_{sw}$ maior \\
+    48--96 kHz & ESCs \textit{racing} (ex.: BLHeli, SimonK) & Alta resposta; exige baixo $Q_g$ e dissipação agressiva \\
+    10--20 kHz+ & FOC industrial & Malha de corrente rápida; escopo distinto do trapezoidal 6-step \\
+    \bottomrule
+    \end{tabular}%
+    }
+    \legendafonte{Elaborado pelo autor (2026), com base em \cite{rashid2014power, hanselman2003brushless, mohan2003}.}
+    \end{table}
 
 \subsection{O Barramento DC e a Indutância Parasita}
 
