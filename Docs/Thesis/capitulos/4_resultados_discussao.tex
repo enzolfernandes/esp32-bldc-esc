@@ -369,7 +369,7 @@ Em operação com comutação em malha aberta (\texttt{BOARD\_ENABLE\_BEMF\_ZCD\
     Opera apenas na comutação guiada por ZCD (modo \texttt{MOTOR\_COMM\_ZCD\_CLOSED}); com ZCD desativado, os passos avançam por temporizador independentemente da posição do rotor (\texttt{advance\_open\_loop\_if\_due}), de modo que \texttt{s\_last\_step\_change\_us} continua sendo atualizado mesmo com o eixo travado, este critério não dispara na configuração padrão de validação. Quando o rotor não consegue acompanhar o campo girante do estator, por travamento mecânico, carga excessiva ou perda de sincronismo magnético, os cruzamentos por zero da BEMF cessam ou tornam-se erráticos, impedindo que os comparadores LM339 detectem os instantes elétricos de comutação; a sequência 6-step congela-se e o intervalo desde o último passo executado excede $4 \times T_{passo\_esperado}$, caracterizando dessincronismo confirmado.
 
     \item \textbf{Velocidade estimada abaixo do mínimo operacional (\texttt{MOTOR\_SPEED\_MIN\_RPM} = 300\,RPM) com referência de velocidade acima de 600\,RPM por mais de 300\,ms, na fase \texttt{RUN\_SPEED}} (\texttt{trip\_stall\_low\_rpm}).
-    Opera somente quando a comutação segue a BEMF do rotor (ZCD ativo); em malha aberta, $\widehat{n}$ deriva do intervalo entre passos comutados por temporizador e tende a acompanhar a referência comandada, não a rotação mecânica real (Seção~\ref{subsec:implementacao_malha} e parágrafo sobre estimativa de velocidade abaixo). Indica que a taxa efetiva de comutação (agora sincronizada com o movimento do rotor) cai abaixo do mínimo operacional enquanto o controlador exige rotação elevada; manifestação de perda de passo ou escorregamento, no qual o ângulo elétrico $\theta_e$ excede a região de torque produtivo ($T_e \propto \sin\theta_e$ decrescente para $\theta_e > 90°$ elétricos).
+    Opera somente quando a comutação segue a BEMF do rotor (ZCD ativo); em malha aberta, $\widehat{n}$ deriva do intervalo entre passos comutados por temporizador e tende a acompanhar a referência comandada, não a rotação mecânica real (Seção~\ref{subsec:implementacao_malha} e parágrafo sobre estimativa de velocidade abaixo). Indica que a taxa efetiva de comutação (agora sincronizada com o movimento do rotor) cai abaixo do mínimo operacional enquanto o controlador exige rotação elevada; manifestação de perda de passo ou escorregamento, no qual o ângulo elétrico $\theta_e$ excede a região de torque produtivo ($T_e \propto \sin\theta_e$ decrescente para $\theta_e > 90^\circ$ elétricos).
 \end{itemize}
 
 Na configuração adotada nesta validação (\texttt{BOARD\_ENABLE\_BEMF\_ZCD\,=\,0}), a proteção efetiva contra \textit{stall} recai sobre o critério de corrente sustentada, complementar à OCP: enquanto a segunda age em microssegundos sobre picos instantâneos, a primeira identifica a condição crônica de rotor travado com corrente moderada que esgotaria a bateria e aqueceria os enrolamentos progressivamente. Os critérios por ausência de comutação e por velocidade baixa permanecem implementados no firmware como salvaguardas para a futura transição à malha fechada por ZCD, quando a sequência 6-step e a estimativa de velocidade passarão a refletir o movimento real do rotor.
@@ -472,14 +472,14 @@ Em sessões subsequentes, o padrão dominante foi ciclo \texttt{BT=OFF} $\to$ re
     \caption{Regressões de enlace Bluetooth Classic (PS4 / Bluepad32) em ensaios de potência, Wi-Fi desligado.}
     \label{tab:regressoes_bluetooth_ps4}
     \resizebox{\textwidth}{!}{%
-    \begin{tabular}{p{3.2cm}p{2.8cm}p{3.8cm}p{3.0cm}p{2.2cm}}
+    \begin{tabular}{@{}p{3.0cm}p{2.5cm}p{3.6cm}p{2.8cm}p{2.0cm}@{}}
         \toprule
         \textbf{Sintoma} & \textbf{Subsistema} & \textbf{Causa raiz} & \textbf{Mitigação} & \textbf{Malha $1\,\text{kHz}$} \\
         \midrule
         Loop connect/disconnect ($0{,}5$--$2\,\text{s}$) &
         BT / SDP--GAP &
         Pareamento corrompido; virtual device DS4 &
-        \texttt{forgetBluetoothKeys}; perfil \texttt{BENCH\_STABLE} &
+        \texttt{forget\allowbreak{}Bluetooth\allowbreak{}Keys}; perfil \texttt{BENCH\_STABLE} &
         Íntegra \\
         Calibração R2 interrompida &
         PS4 / \texttt{ps4\_input} &
@@ -677,7 +677,7 @@ Em relação ao patamar teórico de $1650\,\text{mV}$, os desvios foram de $+20\
 
 Apesar da dispersão intercanais elevada, a operação do ESC em repouso permanece coerente com offset manual e mediana 16× no GPIO\,34: \texttt{ina240\_get\_offset\_mv()} reporta os valores do multímetro ($1670/1480/1510\,\text{mV}$). Para esta fase de Prova de Conceito, aceitou-se prosseguir com a calibração de ganho e os ensaios dinâmicos, reconhecendo que a assimetria de \textit{offset} reduz a margem simétrica disponível para leitura bidirecional nos canais B e C e constitui item de revisão de layout ou de inspeção dos demais INA240 em iterações futuras da placa.
 
-\paragraph{Ensaio 1a, Deriva pós-RF no canal A (GPIO\,34) e mitigação firmware}
+\paragraph{\texorpdfstring{Ensaio 1a, Deriva pós-RF no canal A (GPIO\,34) e mitigação firmware}{Ensaio 1a, Deriva pós-RF no canal A (GPIO 34) e mitigação firmware}}
 \label{par:ensaio1a_deriva_gpio34}
 
 Após a eliminação do curto físico em U9 (Ensaio~0c, Subseção~\ref{subsubsec:ensaio0c_curto_ina240_u9}), persistiu um sintoma restrito ao \textbf{canal A}: com motor desconectado, MCPWM desarmado e \textit{OUT} do INA240 estável em $1670\,\text{mV}$ no multímetro, a telemetria serial reportava correntes espúrias em \texttt{IDLE}, inicialmente oscilando em torno de $\pm 14\,\text{A}$, depois estabilizando com viés positivo de $+2$ a $+4\,\text{A}$. Os canais B e C permaneceram dentro de $\pm 0{,}5\,\text{A}$ nas mesmas condições. A divergência entre instrumentação analógica externa e ADC1 descartou nova falha do amplificador U9 e apontou para \textbf{deriva ou acoplamento de RF} na entrada GPIO\,34 (ADC1\_CH6) após ativação do softAP Wi-Fi e do scan Bluetooth, fenômeno distinto do bloqueio documentado do ADC2.
@@ -875,7 +875,7 @@ A análise do tempo ocioso $t_{idle}$ tem implicação direta sobre a escalabili
     \item \textbf{Filtro de Kalman Estendido (EKF) simplificado para dois estados:} propagação de covariância e ganho de Kalman para um modelo de ordem 2 envolve aproximadamente $30$ a $50$ operações de ponto flutuante, estimativa de $< 5\,\mu\text{s}$, ainda dentro da margem disponível.
 \end{itemize}
 
-Esses valores de referência confirmam que, mesmo com Bluetooth ativo no Core\,0 e a malha de controle no Core\,1, o ESP32 opera com capacidade computacional ociosa suficiente para acomodar algoritmos de estimação de complexidade moderada sem comprometer o determinismo de $1\,\text{kHz}$ da malha de controle. A síntese do impacto da telemetria Wi-Fi sobre CPU, memória e estabilidade operacional (incluindo o resultado negativo da coexistência tripla) é apresentada na Subsubsection~\ref{subsec:sintese_wifi_desempenho}.
+Esses valores de referência confirmam que, mesmo com Bluetooth ativo no Core\,0 e a malha de controle no Core\,1, o ESP32 opera com capacidade computacional ociosa suficiente para acomodar algoritmos de estimação de complexidade moderada sem comprometer o determinismo de $1\,\text{kHz}$ da malha de controle. A síntese do impacto da telemetria Wi-Fi sobre CPU, memória e estabilidade operacional (incluindo o resultado negativo da coexistência tripla) é apresentada na Subsubseção~\ref{subsubsec:sintese_wifi_desempenho}.
 
 % ------------------------------------------------------------
 \subsubsection{Sub-teste 5.2: Análise de Recursos de Memória: \textit{Heap} e Flash}
@@ -937,13 +937,8 @@ O relatório de \textit{build} do PlatformIO (\texttt{pio run}, 29/06/2026, plat
 
 A comparação entre o consumo total de RAM estática (\texttt{.data} + \texttt{.bss}) e a \textit{heap} livre em regime confirma a viabilidade de adição de novos módulos de algoritmo sem risco de esgotamento de memória. A margem disponível define, em particular, o limite superior do vetor de estado que um observador ou filtro de Kalman poderia manter em SRAM para estimação em tempo real da posição e velocidade do rotor.
 
-% ------------------------------------------------------------
 \subsubsection{Síntese do Impacto da Telemetria Wi-Fi no Desempenho Global}
-\label{subsec:sintese_wifi_desempenho}
-% ------------------------------------------------------------
-
-\subsubsection{Síntese do Impacto da Telemetria Wi-Fi no Desempenho Global}
-\label{subsec:sintese_wifi_desempenho}
+\label{subsubsec:sintese_wifi_desempenho}
 % ------------------------------------------------------------
 
 A interface de supervisão via Wi-Fi integra-se ao sistema embarcado estritamente como um subsistema de \textbf{observação e documentação}, sem interferir no caminho crítico de controle do inversor. As malhas de controle de corrente e velocidade, assim como a comutação trapezoidal, permanecem sincronizadas a $1\,\text{kHz}$ por um temporizador de \textit{hardware} dedicado. Estas rotinas críticas são executadas em uma tarefa do sistema operacional de tempo real (FreeRTOS) com prioridade máxima, isolando-as do laço de execução padrão do microcontrolador.

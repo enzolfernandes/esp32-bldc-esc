@@ -1,16 +1,18 @@
-\chapter{Introdução Teórica}
+\chapter{Introdução}
 
 Os motores BLDC (\textit{Brushless Direct Current Motor}) representam um avanço significativo em relação aos motores CC tradicionais porque eliminam a necessidade de escovas mecânicas para a conversão de energia, resultando em maior rendimento energético, menos desgaste e maior vida útil \cite{hanselman2003brushless}. Esses avanços tecnológicos estão sendo impulsionados pela crescente demanda por sistemas de acionamento de maior rendimento, confiáveis e de baixa manutenção em diversas aplicações industriais, comerciais e de consumo. A precisão e controlabilidade dos motores BLDC os tornam ideais para aplicações que exigem alta exatidão de movimento, velocidade e controle de torque, como robótica, automação industrial, veículos elétricos e eletrônicos de consumo.
 
+\input{capitulos/1_objetivos.tex}
+
 \section{Motores CC Sem Escova}
-O princípio de funcionamento dos motores BLDC é baseado em campos magnéticos gerados por ímãs permanentes e enrolamentos de  (Figura \ref{Configuração de um motor DC convencional (A) e motor BLDC (B).}). A comutação da corrente para gerar movimento ocorre eletronicamente, por meio de um controlador dedicado normalmente chamado de ESC (Eletronic Speed Controller), que pode usar ou não sensores durante o processo, eliminando assim a necessidade de escovas mecânicas utilizadas em motores DC tradicionais. Esta abordagem resulta em uma diminuição significativa do desgaste mecânico, aumentando a vida útil do motor e reduzindo a necessidade de manutenção. Os motores BLDC são amplamente utilizados em uma variedade de aplicações, desde eletrônicos de consumo, como ventiladores e ferramentas elétricas, até aplicações industriais e automotivas. Sua capacidade de fornecer um controle preciso de velocidade e posição, juntamente com uma resposta rápida, faz deles a escolha ideal para sistemas que exigem rendimento energético e alta performance.
+O princípio de funcionamento dos motores BLDC é baseado em campos magnéticos gerados por ímãs permanentes e enrolamentos de  (Figura \ref{fig:motor-dc-bldc-comparativo}). A comutação da corrente para gerar movimento ocorre eletronicamente, por meio de um controlador dedicado normalmente chamado de ESC (Eletronic Speed Controller), que pode usar ou não sensores durante o processo, eliminando assim a necessidade de escovas mecânicas utilizadas em motores DC tradicionais. Esta abordagem resulta em uma diminuição significativa do desgaste mecânico, aumentando a vida útil do motor e reduzindo a necessidade de manutenção. Os motores BLDC são amplamente utilizados em uma variedade de aplicações, desde eletrônicos de consumo, como ventiladores e ferramentas elétricas, até aplicações industriais e automotivas. Sua capacidade de fornecer um controle preciso de velocidade e posição, juntamente com uma resposta rápida, faz deles a escolha ideal para sistemas que exigem rendimento energético e alta performance.
 
 \begin{figure}[htbp]
 	\centering
 	\caption{Configuração de um motor DC convencional (A) e motor BLDC (B).}
 	\includegraphics[width=8cm]{imagens/Comparativo.png}
 	\legendafonte{\cite{kim2017electric}.}
- \label{Configuração de um motor DC convencional (A) e motor BLDC (B).}
+ \label{fig:motor-dc-bldc-comparativo}
 \end{figure}
 
 Apesar das muitas vantagens, eles não estão isentos de algumas limitações. A complexidade eletrônica necessária para o controle preciso, o custo inicial potencialmente mais elevado comparado a motores elétricos escovados, a sensibilidade a ambientes de alta temperatura, pois podem gerar a desmagnetização dos imãs permanentes, a exigência de eletrônica de controle especializada, o potencial de ruído eletromagnético (EMI) e a complexidade de manutenção do sistema como um todo são fatores a serem considerados ao escolher essa tecnologia. Cada aplicação específica deve ponderar essas considerações em relação aos benefícios que os BLDC oferecem, como rendimento, durabilidade e controle superior.
@@ -94,7 +96,7 @@ De forma análoga, a relação entre a FCEM e a velocidade é quantificada por c
     A FCEM é o mecanismo que limita a velocidade máxima do motor. O motor acelera até que a FCEM ($e_a = K_e \cdot \omega$) se aproxime da tensão de alimentação ($V$), ponto no qual a corrente resultante é apenas suficiente para vencer o atrito.
 \end{itemize}
 
-\subsection{A Equivalência entre $K_T$ e $K_e$}
+\subsection{\texorpdfstring{A Equivalência entre $K_T$ e $K_e$}{A Equivalência entre KT e Ke}}
 
 Um dos resultados mais notáveis na teoria de motores é a equivalência numérica entre $K_T$ e $K_e$ quando ambas são expressas em unidades do Sistema Internacional (SI): \textbf{Nm/A} para $K_T$ e \textbf{V·s/rad} para $K_e$.
 \begin{equation}
@@ -175,7 +177,7 @@ Esta fórmula é derivada diretamente da equivalência $K_T = K_e = 1/K_V$ após
 \legendafonte{Elaborado pelo autor (2026).}
 \end{table}
 
-\subsection{A Constante do Motor ($K_m$) como Figura de Mérito}
+\subsection{\texorpdfstring{A Constante do Motor ($K_m$) como Figura de Mérito}{A Constante do Motor (Km) como Figura de Mérito}}
 
 Uma constante mais fundamental para avaliar a qualidade do projeto de um motor é a \textbf{constante do motor ($K_m$)}:
 \begin{equation}
@@ -206,7 +208,7 @@ Embora chamadas de "constantes", $K_T$ e $K_e$ são afetadas pela temperatura. O
 
   As equações lineares de um motor DC só são diretamente aplicáveis a um motor BLDC devido à ação sofisticada do seu \textbf{Controlador Eletrônico de Velocidade (ESC)}. O ESC realiza a comutação eletrônica, energizando sequencialmente os enrolamentos do estator para criar um campo magnético giratório. Isso força a complexa máquina AC a se comportar como o motor DC idealizado, tornando as constantes $K_T$ e $K_e$ ferramentas de análise e projeto perfeitamente válidas \parencite{hendershot1994design}.
 
- \subsection{Consequências Práticas da Seleção de $K_V$} 
+ \subsection{\texorpdfstring{Consequências Práticas da Seleção de $K_V$}{Consequências Práticas da Seleção de KV}} 
 
  A seleção de $K_V$ é uma decisão de projeto crítica que estabelece um compromisso fundamental: 
  \begin{itemize} 
@@ -220,7 +222,7 @@ Embora chamadas de "constantes", $K_T$ e $K_e$ são afetadas pela temperatura. O
 
  \subsubsection{Comutação de Seis Passos} 
 
- A comutação de seis passos demanda um sincronismo de disparo dos transistores de modo que, no modelo ideal, sempre dois deles estejam fechados: um transistor do lado superior (\textit{high-side}) conectado ao barramento positivo e um transistor do lado inferior (\textit{low-side}) conectado ao barramento negativo. Assim, em cada setor de $60^\circ$ elétricos, duas fases são energizadas e a terceira permanece eletricamente aberta para que sua FCEM possa ser observada (Figura \ref{Sequência de acionamento para um BLDC trifásico}). Cada transistor permanece em condução durante $120^\circ$ elétricos.
+ A comutação de seis passos demanda um sincronismo de disparo dos transistores de modo que, no modelo ideal, sempre dois deles estejam fechados: um transistor do lado superior (\textit{high-side}) conectado ao barramento positivo e um transistor do lado inferior (\textit{low-side}) conectado ao barramento negativo. Assim, em cada setor de $60^\circ$ elétricos, duas fases são energizadas e a terceira permanece eletricamente aberta para que sua FCEM possa ser observada (Figura \ref{fig:sequencia-acionamento-bldc}). Cada transistor permanece em condução durante $120^\circ$ elétricos.
 
  A denominação ``seis passos'', entretanto, descreve apenas os seis estados estacionários comandados pelo controlador ao longo de um ciclo elétrico. Do ponto de vista físico da corrente, cada passagem entre dois setores contém também um intervalo transitório de comutação. Portanto, uma descrição mais completa pode ser entendida como doze subintervalos por ciclo elétrico: seis intervalos de condução principal, nos quais a corrente percorre duas fases, e seis intervalos de transferência, nos quais a corrente da fase que está sendo desligada ainda precisa encontrar um caminho de circulação.
 
@@ -258,7 +260,7 @@ Setor & Estado principal & Caminho principal da corrente & Intervalo de transfer
     \caption{Sequência de acionamento para um BLDC trifásico.}
     \includegraphics[width=11cm]{imagens/acionamento.png}
     \legendafonte{\cite{kim2017electric}.}
-    \label{Sequência de acionamento para um BLDC trifásico}
+    \label{fig:sequencia-acionamento-bldc}
 \end{figure}
 
  Nesta etapa de validação, a comutação opera em \textbf{malha aberta} (alinhamento e rampa forçada); a \textbf{transição para comutação em malha fechada orientada por ZCD} permanece como passo subsequente, após a confirmação da sequência 6-step e do condicionamento do sinal, conforme detalhado no Capítulo 4.
@@ -320,7 +322,7 @@ Durante os períodos de desligamento do PWM ($t_{off}$) na estratégia H\_PWM - 
     \caption{Modulação por largura de pulso utilizando uma fonte de $100V$.}
     \includegraphics[width=0.85\textwidth]{imagens/PWM.png}
     \legendafonte{\cite{matlabBLDC}.}
-    \label{Modulação por largura de pulso utilizando uma fonte de 100V}
+    \label{fig:pwm-fonte-100v}
 \end{figure}
 
  \subsection{Estratégia de Partida em Malha Aberta para Operação \textit{Sensorless}}

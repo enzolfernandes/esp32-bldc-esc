@@ -17,7 +17,7 @@ O motor BLDC Turnigy XK3674-$2200KV$ é um modelo comercial projetado principalm
     \caption{Motor Brushless Turnigy XK3674-$2200KV$.}
     \includegraphics[width=8cm]{imagens/Turnigy XK3674-2200KV.jpg}
     \legendafonte{\cite{turnigyMotor}.}
- \label{Motor Brushless Turnigy XK3674-2200KV}
+ \label{fig:motor-turnigy-xk3674}
 \end{figure}
 
 \subsection{Fonte de Alimentação Principal (Bateria)}
@@ -37,11 +37,11 @@ Baterias LiPo tem três principais características:
 \item Taxa de Descarga (ou \textit{C-rate}): Define a quantidade de corrente que a bateria pode fornecer sem danificar-se, é expressa em múltiplos de $C$.
 \end{itemize}
 
-Para calcular a corrente que tais baterias conseguem fornecer podemos aplicar a equação \ref{Corrente de uma bateria LiPo}, desconsiderando efeitos dissipativos ou a variação de tensão nominal que varia de acordo com o nível de carga da bateria, vale ressaltar que a capacidade da bateria deve estar em $Ah$.
+Para calcular a corrente que tais baterias conseguem fornecer podemos aplicar a equação \ref{eq:corrente-bateria-lipo}, desconsiderando efeitos dissipativos ou a variação de tensão nominal que varia de acordo com o nível de carga da bateria, vale ressaltar que a capacidade da bateria deve estar em $Ah$.
 
 \begin{equation}
 I = C-rate \cdot Capacidade
-\label{Corrente de uma bateria LiPo}
+\label{eq:corrente-bateria-lipo}
 \end{equation}
 
 
@@ -52,7 +52,7 @@ Uma bateria comercial que atende as especificações do projeto é o modelo Turn
     \caption{Turnigy Graphene Panther $1300mAh$ $6S$ $75C$.}
     \includegraphics[width=9cm]{imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg}
     \legendafonte{\cite{turnigyBattery}.}
- \label{Turnigy Graphene Panther 1300mAh 6S 75C}
+ \label{fig:bateria-turnigy-graphene-panther}
 \end{figure}
 
 \subsection{Sistema de Proteção Contra Sobrecorrentes}
@@ -757,7 +757,7 @@ Na fase \texttt{ALIGN}, aplicar-se-ia o vetor estático do Passo\,0 com rampa de
 \end{equation}
 \noindent onde $R_{eq}$ englobaria resistência de armadura em série e $R_{DS(on)}$ dos MOSFETs condutores. O resultado esperado seria um pulso de corrente estável nas fases A e B, referenciando $\theta_0$ antes de \texttt{RUN\_OPEN}.
 
-Em \texttt{RUN\_OPEN}, a frequência elétrica incrementar-se-ia linearmente até $300\,\text{Hz}$; as correntes de fase apresentariam o padrão trapezoidal característico da comutação de seis passos (pulsos de $120°$ elétricos, intervalo Hi-Z de $60°$). A transição para \texttt{RUN\_SPEED} ocorreria quando a velocidade estimada superasse 600\,RPM por 200\,ms consecutivos.
+Em \texttt{RUN\_OPEN}, a frequência elétrica incrementar-se-ia linearmente até $300\,\text{Hz}$; as correntes de fase apresentariam o padrão trapezoidal característico da comutação de seis passos (pulsos de $120^\circ$ elétricos, intervalo Hi-Z de $60^\circ$). A transição para \texttt{RUN\_SPEED} ocorreria quando a velocidade estimada superasse 600\,RPM por 200\,ms consecutivos.
 
 \subsubsection{Ensaio dinâmico 4.2: Determinismo temporal do PWM sob carga do escalonador FreeRTOS}
 

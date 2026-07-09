@@ -1,17 +1,30 @@
 %=====================================================
 % PREÂMBULO - CONFIGURAÇÕES GERAIS DO DOCUMENTO
 %======================================================
-\documentclass[12pt, a4paper, openright, oneside, brazilian]{abntex2}
+\documentclass[12pt, a4paper, openright, oneside, chapter=TITLE, brazilian]{abntex2}
 
 % --- PACOTES DE CODIFICAÇÃO ---
-\usepackage{fontenc}
+\usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
+\usepackage{mathptmx}
 
 % --- PACOTES DE LAYOUT E FORMATAÇÃO (ABNT/UNESP) ---
 \usepackage[left=3cm, top=3cm, right=2cm, bottom=2cm, headsep=1.5cm]{geometry}
 \usepackage{indentfirst} % Indenta o primeiro parágrafo de cada seção
 % Usando o comando nativo da classe memoir (base do abntex2) para espaçamento 1,5 [1]
 \OnehalfSpacing
+
+% --- HIERARQUIA TIPOGRÁFICA ABNT/UNESP ---
+\renewcommand{\ABNTEXchapterfont}{\normalfont\bfseries}
+\renewcommand{\ABNTEXchapterfontsize}{\normalsize}
+\renewcommand{\ABNTEXsectionfont}{\normalfont\bfseries}
+\renewcommand{\ABNTEXsectionfontsize}{\normalsize}
+\renewcommand{\ABNTEXsubsectionfont}{\normalfont}
+\renewcommand{\ABNTEXsubsectionfontsize}{\normalsize}
+\renewcommand{\ABNTEXsubsubsectionfont}{\normalfont\bfseries\itshape}
+\renewcommand{\ABNTEXsubsubsectionfontsize}{\normalsize}
+\renewcommand{\ABNTEXsubsubsubsectionfont}{\normalfont\itshape}
+\renewcommand{\ABNTEXsubsubsubsectionfontsize}{\normalsize}
 % --- PACOTES DE BIBLIOGRAFIA (ABNT) ---
 \usepackage{csquotes}
 % Opções simplificadas para máxima compatibilidade.
@@ -51,7 +64,7 @@
     labelfont=bf,
     labelsep=period
 }
-\newcommand{\legendafonte}[1]{{\footnotesize\caption*{Fonte: #1}}}
+\newcommand{\legendafonte}[1]{{\SingleSpacing\captionsetup{font=footnotesize}\caption*{Fonte: #1}}}
 
 % --- PACOTES ADICIONAIS ---
 \usepackage{ragged2e}
@@ -99,69 +112,123 @@
 \titulo{Desenvolvimento e Análise de um Controlador Eletrônico de Velocidade para Motores de Corrente Contínua Sem Escovas}
 \autor{Enzo Luiz Fernandes}
 \instituicao{
-  Universidade Estadual Paulista "Júlio de Mesquita Filho"
+  Universidade Estadual Paulista -- UNESP
   \par
-  Faculdade de Engenharia de Ilha Solteira
+  Faculdade de Engenharia -- Câmpus de Ilha Solteira
   \par
   Departamento de Engenharia Elétrica
 }
 \local{Ilha Solteira}
 \data{2026}
 \orientador{Prof. Dr. Guilherme de Azevedo e Melo}
-\tipotrabalho{monografia}
-\preambulo{Trabalho de Graduação apresentado ao Departamento de Engenharia Elétrica da Faculdade de Engenharia de Ilha Solteira, da Universidade Estadual Paulista "Júlio de Mesquita Filho", como parte dos requisitos para obtenção do título de Bacharel em Engenharia Elétrica.}
+\tipotrabalho{Trabalho de Conclusão de Curso}
+\preambulo{Trabalho de Conclusão de Curso apresentado à Universidade Estadual Paulista (UNESP), Faculdade de Engenharia, Câmpus de Ilha Solteira, para obtenção do título de Bacharel em Engenharia Elétrica.}
+
+\makeatletter
+\renewcommand{\folhaderostocontent}{
+  \begin{center}
+    {\normalfont\bfseries\imprimirautor}
+
+    \vspace*{\fill}\vspace*{\fill}
+
+    {\normalfont\bfseries\imprimirtitulo}
+
+    \vspace*{\fill}
+
+    \hspace{.45\textwidth}
+    \begin{minipage}{.5\textwidth}
+      {\SingleSpacing\imprimirpreambulo}
+      \par
+      \vspace*{1cm}
+      Orientador: \imprimirorientador
+    \end{minipage}
+
+    \vspace*{\fill}\vspace*{\fill}
+
+    \imprimirlocal
+    \par
+    \imprimirdata
+    \vspace*{1cm}
+  \end{center}
+}
+\makeatother
 
 \begin{document}
+\hypersetup{pageanchor=false}
 
 % --- ELEMENTOS PRÉ-TEXTUAIS --
 \begin{capa}
     \centering
-    {\ABNTEXchapterfont\large\imprimirinstituicao}
-    \vspace{1.5cm}
-    \includegraphics[width=9cm]{imagens/logoUNESP.jpg}
-    \vfill
-    {\ABNTEXchapterfont\large\imprimirautor}
+    {\normalfont\bfseries\MakeUppercase{Universidade Estadual Paulista -- UNESP}\par}
+    {Faculdade de Engenharia -- Câmpus de Ilha Solteira\par}
+    {Departamento de Engenharia Elétrica\par}
+    \vspace*{3cm}
+    {\normalfont\bfseries\MakeUppercase{\imprimirautor}}
     \vfill
     \begin{center}
-    {\ABNTEXchapterfont\bfseries\LARGE\imprimirtitulo}
+    {\normalfont\bfseries\MakeUppercase{\imprimirtitulo}}
     \end{center}
     \vfill
-    {\large\imprimirlocal}
+    {\imprimirlocal}
     \par
-    {\large\imprimirdata}
+    {\imprimirdata}
     \vspace*{1cm}
 \end{capa}
 
-\imprimirfolhaderostonostar{\folhaderostoname}
+\imprimirfolhaderosto*
+
 \begin{fichacatalografica}
-    % PLACEHOLDER -- substituir pelo texto gerado em
-    % https://www.biblioteca.unesp.br/ficha/
-    \vfill
+    \vspace*{7.2cm}
+    {\SingleSpacing\small
     \begin{center}
-        \textbf{[Ficha catalogr\'afica -- inserir texto da Biblioteca FEIS/Unesp]}
-    \end{center}
-    \vfill
+    \begin{minipage}{0.9\textwidth}
+        \fbox{%
+        \begin{minipage}{0.95\textwidth}
+            \vspace{0.3cm}
+            \begin{tabular}{@{}p{1.6cm}p{0.76\textwidth}@{}}
+                F363d &
+                Fernandes, Enzo Luiz\\
+                &
+                \hspace*{1.5em}Desenvolvimento e análise de um controlador eletrônico de velocidade para motores de corrente contínua sem escovas / Enzo Luiz Fernandes. -- Ilha Solteira, 2026\\
+                &
+                \hspace*{1.5em}126 p. : il., tabs., fotos\\[0.8cm]
+                &
+                \hspace*{1.5em}Trabalho de conclusão de curso (Bacharelado - Engenharia Elétrica) -- Universidade Estadual Paulista (UNESP), Faculdade de Engenharia, Ilha Solteira\\
+                &
+                \hspace*{1.5em}Orientador: Guilherme de Azevedo e Melo\\[0.8cm]
+                &
+                \hspace*{1.5em}1. Engenharia elétrica. 2. Motores elétricos. 3. Eletrônica de potência. 4. Sistemas embarcados. 5. Controle automático. I. Título.
+            \end{tabular}
+            \vspace{0.3cm}
+        \end{minipage}}
+
+        \vspace{0.2cm}
+        \noindent Sistema de geração automática de fichas catalográficas da Unesp. Dados fornecidos pelo autor(a).
+    \end{minipage}
+    \end{center}}
 \end{fichacatalografica}
 
 % Folha de Aprovação
 \begin{folhadeaprovacao} 
 \begin{center}
-{\ABNTEXchapterfont\large\textsc{\imprimirautor}}
-\par\vspace{\onelineskip}
-{\ABNTEXchapterfont\Large\bfseries\imprimirtitulo} 
-\end{center} 
-\vspace{1cm} 
-\hspace{.45\textwidth} \begin{minipage}{.5\textwidth} 
-\imprimirpreambulo 
-\end{minipage} 
+{\normalfont\bfseries\MakeUppercase{\imprimirautor}}
+\par\vspace{1cm}
+{\normalfont\bfseries\MakeUppercase{\imprimirtitulo}}
+\end{center}
+\vspace{2cm}
+\noindent\imprimirpreambulo
+\par
 \vspace{1cm}
+\noindent Data de aprovação: 6 de julho de 2026.
+\par
+\vspace{1cm}
+\noindent\textbf{BANCA EXAMINADORA}
 \par\vspace{\onelineskip}
-Trabalho aprovado. \imprimirlocal, \imprimirdata: 
 
 %Assinaturas 
-\assinatura{\imprimirorientador \\UNESP} 
-\assinatura{Assinatura 2\\ UNESP} 
-\assinatura{Assinatura 3 \\ UNESP} 
+\assinatura{\imprimirorientador \\ Orientador} 
+\assinatura{Dr. Rodrigo Alessandro Nunes de Oliveira \\ Membro da Banca} 
+\assinatura{Dr. Pablo Mauricio Portilla Hernandez \\ Membro da Banca} 
 
 \end{folhadeaprovacao}
 
@@ -191,14 +258,49 @@ This work presents the development and analysis of an electronic speed controlle
 \listoftables*
 \cleardoublepage
 
+\begin{siglas}
+    \item[ADC] Conversor analógico-digital
+    \item[BLDC] Motor de corrente contínua sem escovas
+    \item[CAN] \textit{Controller Area Network}
+    \item[ESC] Controlador eletrônico de velocidade
+    \item[FCEM] Força contraeletromotriz
+    \item[FOC] Controle orientado de campo
+    \item[FSM] Máquina de estados finitos
+    \item[GPIO] Entrada/saída de propósito geral
+    \item[HAL] Camada de abstração de hardware
+    \item[MCPWM] Módulo de PWM para controle de motores
+    \item[OCP] Proteção contra sobrecorrente
+    \item[PCB] Placa de circuito impresso
+    \item[PI] Proporcional-integral
+    \item[PWM] Modulação por largura de pulso
+    \item[UVLO] Bloqueio por subtensão
+    \item[ZCD] Detecção de cruzamento por zero
+\end{siglas}
+\cleardoublepage
+
+\begin{simbolos}
+    \item[$C_{bus}$] Capacitância total do barramento CC
+    \item[$D$] Ciclo de trabalho do sinal PWM
+    \item[$f_{sw}$] Frequência de chaveamento
+    \item[$I_A$, $I_B$, $I_C$] Correntes das fases A, B e C
+    \item[$K_e$] Constante de força contraeletromotriz
+    \item[$K_m$] Constante de mérito do motor
+    \item[$K_T$] Constante de torque
+    \item[$K_V$] Constante de velocidade
+    \item[$T_e$] Torque eletromagnético
+    \item[$V_{DC}$] Tensão do barramento CC
+    \item[$\omega$] Velocidade angular
+\end{simbolos}
+\cleardoublepage
+
 \pdfbookmark{\contentsname}{toc}
 \tableofcontents*
 \cleardoublepage
 
 % --- ELEMENTOS TEXTUAIS ---
+\hypersetup{pageanchor=true}
 \textual
 
-\input{capitulos/1_objetivos.tex}
 \input{capitulos/2_introducao_teorica.tex}
 \input{capitulos/3_metodologia.tex}
 \input{capitulos/4_resultados_discussao.tex}
