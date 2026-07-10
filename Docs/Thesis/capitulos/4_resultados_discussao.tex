@@ -6,7 +6,7 @@ Este capítulo apresenta exclusivamente os resultados obtidos na execução do p
 
 Para a validação conceitual do hardware de potência antes da montagem física, utilizou-se o software \textbf{LTSpice}. A simulação concentrou-se no estágio de potência do inversor, modelando as chaves semicondutoras e a carga indutiva. Foram elaborados dois cenários de simulação: uma topologia monofásica (meia-ponte) para análise isolada e uma topologia trifásica completa para validação do fluxo de corrente inter-fases (Figura \ref{fig:simulacao_trifasica}). Os esquemáticos e curvas de resultado em \texttt{Simulation/} estão disponíveis no repositório~\cite{esp32BldcEscRepo}.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Esquemático da simulação trifásica do ESC em estado estático de comutação.}
     \includegraphics[width=\textwidth]{Simulation/trifasico.png}
@@ -24,7 +24,7 @@ A Figura \ref{fig:sim_correntes_motor} apresenta os resultados transitórios das
 
 Este comportamento é a resposta direta da excitação do circuito indutivo do estator sob a topologia de modulação \textit{High-Side PWM / Low-Side ON}. Ao disparar o transistor superior da fase A e manter o transistor inferior da fase B em condução plena, estabelece-se um fluxo de elétrons que obrigatoriamente passa por duas bobinas em série ($V = L_{eq} \cdot \frac{di}{dt} + R_{eq} \cdot i$). A inclinação constante ($di/dt$) da rampa de corrente é ditada pela reatância indutiva nominal do motor. Durante o ciclo $T_{off}$ da chave superior, a energia magnética armazenada na indutância do estator força a manutenção do fluxo de corrente, que encontra caminho através do diodo de roda livre (\textit{freewheeling diodo}) intrínseco ao MOSFET inferior da fase A, justificando a lenta taxa de decaimento observada.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Dinâmica das correntes de fase do motor durante os primeiros $100 \: \mu s$ de simulação (Passo 1).}
     \includegraphics[width=0.8\textwidth]{Simulation/plot_simulacao/1_correntes_motor.png}
@@ -37,7 +37,7 @@ Ao compararmos com o arcabouço teórico, o resultado valida a comutação de se
 
 A Figura \ref{fig:sim_tensoes_neutro} ilustra o comportamento dinâmico das tensões de fase referenciadas ao ponto neutro da carga ($V_{AN}$, $V_{BN}$ e $V_{CN}$). Durante o período de condução do PWM ($T_{on}$), nota-se que o eixo de oscilação das tensões se estabelece em médias de $+11,1 \: V$ para a fase A, $-11,1 \: V$ para a fase B, e $0 \: V$ para a fase C. A severa oscilação de alta frequência (\textit{ringing}) sobreposta aos sinais é um artefato numérico característico do ambiente de simulação. Como a fase C está em estado de alta impedância (flutuante) e o modelo utiliza indutores puros, forma-se um tanque LC não amortecido com as capacitâncias parasitas do transistor, fenômeno que no circuito físico real seria drasticamente atenuado pelas perdas no núcleo ferromagnético do motor e pelo filtro RC do circuito de leitura.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Tensões de fase em relação ao ponto neutro do motor durante o Passo 1.}
     \includegraphics[width=0.8\textwidth]{Simulation/plot_simulacao/3_tensoes_fase_neutro.png}
@@ -52,7 +52,7 @@ Comparando este resultado com os fundamentos da comutação trapezoidal detalhad
 
 A Figura \ref{fig:sim_bateria_nominal} demonstra o comportamento macro e o esforço contínuo imposto à fonte de alimentação primária (bateria LiPo) quando conectada diretamente à ponte inversora, sem o auxílio do banco de capacitores de barramento (\textit{Link DC}). Observa-se como fato primário que, durante o \textbf{tempo de condução ($T_{on}$)}, a tensão da bateria decai gradualmente de 22,2 V para aproximadamente 21,9 V, conforme ilustrado na Figura \ref{fig:bateria_tensao_nom}. Esse comportamento acompanha a rampa de subida da corrente, que atinge o patamar de 13 A. Durante o \textbf{tempo de bloqueio ($T_{off}$)}, a corrente da bateria cessa completamente, pois a corrente do motor passa a circular em roda livre pelos diodos da ponte.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \captionsetup[subfigure]{justification=centering}
     \caption{Análise dinâmica dos parâmetros de entrada da bateria LiPo (escala ajustada): (a) Tensão nominal; (b) Rampa de corrente contínua.}
@@ -77,7 +77,7 @@ A Figura \ref{fig:sim_bateria_nominal} demonstra o comportamento macro e o esfor
 
 O fator mais crítico e destrutivo, no entanto, é revelado ao observar a escala completa do ensaio. Nos instantes exatos de comutação (50 $\mu$s e 100 $\mu$s), a ponte inversora drena picos agudos de corrente que ultrapassam 130 A e 200 A, respectivamente, como detalhado na Figura \ref{fig:bateria_corrente_trans}. Esses picos provocam quedas instantâneas (\textit{voltage sags}) severas na tensão da bateria, reduzindo-a para níveis próximos a 19,5 V, conforme ilustrado na Figura \ref{fig:bateria_tensao_trans}.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \captionsetup[subfigure]{justification=centering}
     \caption{Detalhamento do estresse transiente sobre a bateria LiPo: (a) Quedas instantâneas de tensão (\textit{voltage sags}); (b) Picos transientes de corrente de comutação.}
@@ -114,7 +114,7 @@ A Figura \ref{fig:esquematico_supply} detalha a arquitetura de entrada e distrib
 
 Fisicamente, a divisão do banco capacitivo em múltiplas unidades de $220 \: \mu F$ reduz drasticamente a \textbf{Resistência Série Equivalente (ESR)} total do barramento, otimizando a absorção da elevada corrente de ondulação (\textit{ripple}) gerada pela ponte inversora sem causar aquecimento excessivo nos componentes. Os capacitores cerâmicos de $1 \: \mu F$ atuam no desacoplamento de alta frequência, suprimindo transientes que os capacitores eletrolíticos não conseguem filtrar devido à sua \textbf{Indutância Série Equivalente (ESL)}. A separação galvânica e o controle de retorno por meio da junção estrita entre \textbf{PGND} e \textbf{SGND} (\textit{Star Grounding}) impedem que as severas correntes de comutação do motor provoquem flutuações de tensão (\textit{ground bounce}) no referencial sensível do microcontrolador. 
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Esquemático do estágio de entrada, filtragem do barramento DC e regulação de tensão auxiliar (Folha \textit{Supply}).}
     \includegraphics[width=1\textwidth]{imagens/esquematico_supply.png}
@@ -136,7 +136,7 @@ A Figura \ref{fig:esquematico_control} ilustra o núcleo de inteligência do ESC
 
 O isolamento contra ruídos é efetivado pela segregação dos planos de terra nos \textit{drivers} IR2110. O referencial lógico (\textit{VSS}) é conectado exclusivamente ao terra de sinal (\textbf{SGND}), enquanto o retorno de potência (\textit{COM}), que lida com os pulsos de alta corrente de carga e descarga dos MOSFETs, é roteado para o terra de potência (\textbf{PGND}). A comunicação de segurança entre o microcontrolador e os \textit{drivers} ocorre de forma redundante: o ESP32 gera os seis sinais do MCPWM ($AH, AL$, etc.) e possui controle direto sobre os pinos de \textit{Shutdown} ($SD$) de cada IR2110. Adicionalmente, o pino \textit{OC Trip} (\textit{Overcurrent Trip}) permite que um evento de falta detectado pelos sensores interrompa a geração de PWM no \textit{hardware} do ESP32 em microssegundos.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Esquemáticos do núcleo de controle e interface de potência: (a) Microcontrolador ESP32-WROOM-32; (b) Estágio de translação de nível com \textit{drivers} IR2110.}
     \label{fig:esquematico_control}
@@ -168,7 +168,7 @@ A Figura \ref{fig:esquematico_sensors} detalha a topologia de aquisição de dad
 
 Foi adotado o circuito integrado \textbf{INA240A1DR} em cada fase (Figura \ref{fig:sensor_current}). Este componente é um amplificador de detecção de corrente, projetado especificamente com tecnologia de rejeição de PWM (\textit{Enhanced PWM Rejection}) para suprimir grandes variações de tensão ($dv/dt$) inerentes à comutação de motores. A versão A1DR possui um ganho fixo de $20 \: V/V$. Como as correntes nas bobinas de um motor BLDC são fisicamente alternadas (circulando nos dois sentidos), o microcontrolador seria incapaz de ler o semiciclo negativo, pois seu ADC suporta apenas tensões positivas ($0 \: V$ a $3,3 \: V$). Para viabilizar esta leitura, aplicou-se uma técnica de polarização diferencial: o pino \textit{REF1} foi ligado a $3,3 \: V$ (\textit{Vmicro Ref}) e o pino \textit{REF2} ao \textit{SGND} ($0 \: V$). O circuito do INA240 realiza a média aritmética dessas referências, estabelecendo um \textit{offset} interno exato de $1,65 \: V$ na saída. Consequentemente, uma corrente nula ($0 \: A$) repousa em $1,65 \: V$; correntes positivas elevam a saída em direção a $3,3 \: V$, enquanto correntes negativas a reduzem em direção a $0 \: V$. Este condicionamento garante a bidirecionalidade absoluta da medição, pré-requisito fundamental para a futura implementação de algoritmos avançados de Controle Orientado ao Campo (FOC).
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Esquemáticos do estágio de sensoriamento e proteção: (a) Monitoramento da bateria; (b) Amplificadores de corrente das fases (INA240); (c) Comparadores de sobrecorrente (LM339).}
     \label{fig:esquematico_sensors}
@@ -203,7 +203,7 @@ A Figura \ref{fig:sensor_ocp} exibe o circuito de Proteção contra Sobrecorrent
 
 A Figura \ref{fig:esquematico_power} expõe a topologia final da ponte inversora trifásica, o núcleo de comutação de força do ESC. O arranjo utiliza seis transistores MOSFET IRFS7530-7PPBF de altíssima capacidade de corrente, estruturados em três braços independentes (Fases A, B e C). Para aumentar a confiabilidade dois detalhes de projeto merecem destaque: a inclusão de resistores de \textit{pull-down} de $10 \: k\Omega$ (R13 a R18) conectados aos terminais \textit{Gate-Source} de cada chave, e a alocação de três resistores \textit{shunt} de liga metálica (encapsulamento de potência 3920, modelo CSS2H-3920R-1L00F de $1 \: m\Omega$) inseridos especificamente nos ramos inferiores da ponte (\textit{Low-Side Sensing}).
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Esquemático do estágio de potência contendo a ponte inversora trifásica e resistores \textit{shunt} individuais para medição de corrente.}
     \includegraphics[width=0.9\textwidth]{imagens/esquematico_power.png}
@@ -226,7 +226,7 @@ Embora as análises computacionais prévias tenham apontado transientes teórico
 
 Com o propósito de mitigar as perdas ôhmicas, o roteamento físico descartou o uso de trilhas convencionais em favor de grandes polígonos de preenchimento (\textit{copper pours}) sólidos. A camada superior (Figura \ref{fig:pcb_top}) acomoda as ilhas de comutação das fases e o barramento positivo, com gargalos projetados em um mínimo de $5 \: mm$ de largura. Contudo, como a espessura padrão do cobre de um laminado comum (tipicamente $1 \: oz/ft^2$ ou $35 \: \mu m$) possui uma secção transversal insuficiente para conduzir altas correntes, o sistema estaria sujeito à falha por superaquecimento térmico via Efeito Joule ($P = I^2 \cdot R_{trilha}$). Para contornar essa limitação e elevar o limite térmico do circuito, podemos tirar proveito da própria natureza do material de prototipagem utilizado: o laminado de cobre nu. A ausência da máscara de solda isolante deixou todos os polígonos de potência naturalmente expostos. Esta característica facilitou a deposição manual de espessas camadas de liga de estanho e o assentamento de condutores de cobre sólido diretamente sobre as malhas críticas, aumentando substancialmente a área da secção transversal ($A$) das trilhas e reduzindo a sua resistência ôhmica equivalente ($\rho \cdot \frac{L}{A}$).
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Projeto de roteamento da Placa de Circuito Impresso no Altium Designer: (a) \textit{Top Layer} evidenciando os polígonos de potência; (b) \textit{Bottom Layer} evidenciando os planos de terra.}
     \label{fig:pcb_layout}
@@ -248,7 +248,7 @@ Com o propósito de mitigar as perdas ôhmicas, o roteamento físico descartou o
 
 Do ponto de vista de compatibilidade eletromagnética (EMC), duas estratégias de isolamento foram rigorosamente aplicadas no layout. Primeiro, os espaços não roteados da placa foram preenchidos por dois imensos planos de terra funcionalmente segregados: o Terra de Potência (\textit{PGND}), concentrado na camada inferior (Figura \ref{fig:pcb_bottom}) sob o estágio do inversor, e o Terra de Sinal (\textit{SGND}), restrito à periferia dos circuitos lógicos e sensores. A conexão elétrica entre esses dois referenciais foi consolidada estritamente através da técnica de ponto único de aterramento (\textit{Star Ground}). Essa configuração impede o surgimento de laços de terra (\textit{ground loops}) e garante que as severas correntes de retorno induzidas pelo chaveamento do motor permaneçam confinadas na malha de potência, mitigando o fenômeno de flutuação de referencial (\textit{ground bounce}) sobre a eletrônica sensível. Segundo, a Unidade de Controle (ESP32) foi posicionada no extremo oposto da placa em relação aos MOSFETs. Como a comutação rápida de corrente gera campos magnéticos irradiados devido às altas taxas de $di/dt$, o distanciamento físico atua atenuando a intensidade do acoplamento indesejado de forma inversamente proporcional ao quadrado da distância, blindando o microcontrolador contra perturbações eletromagnéticas e travamentos espúrios. A Figura \ref{fig:prototipo} documenta o protótipo físico montado para os ensaios de bancada descritos.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Protótipo do ESC: (a) Visão Superior; (b) Visão Inferior.}
     \label{fig:prototipo}
@@ -386,7 +386,7 @@ O motor A2212/10T 1400\,kV foi selecionado como carga representativa para os ens
 
 A interface de comando via DualShock 4, gerenciada pela biblioteca Bluepad32 integrada ao \textit{core} Arduino customizado, demonstrou comportamento estável nos ensaios de funcionalidade com \texttt{BOARD\_ENABLE\_WIFI\_TELEMETRY}\,$= 0$ (Access Point e dashboard desligados em tempo de compilação). O \textit{polling} do gamepad a cada 20\,ms, executado no \texttt{loop()} Arduino, não interferiu na malha de controle a 1\,kHz, pois esta reside em uma \textit{task} FreeRTOS despachada pelo \texttt{esp\_timer} (cadência temporal independente e de maior prioridade. O \textit{feedback} visual por \textit{lightbar}) âmbar na inicialização, azul em \texttt{IDLE}, verde em \texttt{RUNNING} e vermelho em \texttt{FAULT} (permitiu validar as transições da FSM sem monitor serial contínuo. A instabilidade observada quando o subsistema Wi-Fi coexistia com Bluetooth e \texttt{RUNNING} simultaneamente) documentada na Subsubseção~\ref{subsubsec:bugs_coexistencia_radio}, não invalida o isolamento temporal da malha; restringe-se aos subsistemas de interface humana no \texttt{loop()}. Problemas adicionais de enlace Bluetooth Classic isolado (sem Wi-Fi), que impediram ensaios de potência via PS4 antes da adoção do perfil Serial HMI, são relatados na Subsubseção~\ref{subsubsec:bugs_bluetooth_ps4}.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Motor BLDC A2212/10T 1400\,kV utilizado como carga de bancada (Prova de Conceito em escala reduzida).}
     \includegraphics[width=0.45\textwidth]{imagens/A2212-10t-1400-kv.jpg}
@@ -421,7 +421,7 @@ Os sintomas recorrentes foram: (i)~desconexões espontâneas do DualShock\,4 na 
 
 A depuração identificou três classes de defeito de software, resumidas na Tabela~\ref{tab:regressoes_coexistencia_radio}.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Regressões de firmware na coexistência Bluetooth, Wi-Fi AP e \texttt{RUNNING}.}
     \label{tab:regressoes_coexistencia_radio}
@@ -467,7 +467,7 @@ Os sintomas iniciais (zumbido no estator, corrente baixa e uma única transiçã
 
 Em sessões subsequentes, o padrão dominante foi ciclo \texttt{BT=OFF} $\to$ reconexão em $0{,}5$--$2\,\text{s}$, frequentemente antes de completar a calibração de repouso do R2 ($2\,\text{s}$). Cada queda zerava o estado de calibração (\texttt{recal R2 necessária}), impedindo transição estável para \texttt{RUNNING} e tornando inconclusivos os ensaios de partida com PS4. Logs de depuração registraram \texttt{DS4: Failed to create virtual device} em conexões repetidas (issue conhecida da pilha Bluepad32) e falhas na camada SDP/GAP antes do \textit{callback} de controle, mitigadas experimentalmente por \texttt{PS4\_FORGET\_BT\_KEYS\_ON\_BOOT}\,$= 1$ (uma vez) e por esquecer o ESP32 no menu Bluetooth do controle. Importante: quedas de enlace em \texttt{IDLE}, com MCPWM desanexado e pinos PWM em GPIO LOW, \textbf{não} implicam conflito entre Bluetooth e acionamento da ponte; evidência de logs com \texttt{BT=OFF} sem \texttt{[HAL] MCPWM attach OK}.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Regressões de enlace Bluetooth Classic (PS4 / Bluepad32) em ensaios de potência, Wi-Fi desligado.}
     \label{tab:regressoes_bluetooth_ps4}
@@ -560,7 +560,7 @@ A topologia de acionamento da fase B está detalhada na Figura~\ref{fig:control_
 
 O procedimento de depuração adotou a estratégia de \textit{divide et impera} por remoção sequencial de componentes e medição de continuidade com multímetro. A Tabela~\ref{tab:depuracao_curto_fase_b} resume as hipóteses investigadas e os resultados obtidos.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Resultados do isolamento de falha no braço B da ponte inversora (placa desenergizada).}
     \label{tab:depuracao_curto_fase_b}
@@ -600,7 +600,7 @@ A topologia de condicionamento associada a U9 segue o arranjo comum às três fa
 
 O procedimento de depuração replicou a estratégia \textit{divide et impera} adotada no Ensaio~0b: verificação de \textit{Vmicro Ref} ($\approx 3{,}3\,\text{V}$ íntegro), continuidade entre \textit{OUT} e \textbf{SGND} com a placa desenergizada, e inspeção visual ampliada da \textit{footprint} de U9. A Tabela~\ref{tab:depuracao_curto_ina240_u9} resume as hipóteses e os resultados.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Resultados do isolamento de falha no amplificador INA240 U9 (placa desenergizada, exceto onde indicado).}
     \label{tab:depuracao_curto_ina240_u9}
@@ -637,7 +637,7 @@ Após os ensaios de integridade estática dos braços B e C (Ensaios~0b e~0c), a
 
 A Tabela~\ref{tab:depuracao_rtc_sd} resume a depuração. A correção em \texttt{hal\_gpio.c} passou a usar \texttt{rtc\_gpio\_set\_level()} para comutação normal e \texttt{RTC\_GPIO\_OUT\_W1TS/W1TC} na ISR de OCP; o mapa lógico definitivo em \texttt{board\_config.h} foi alinhado ao layout (AH\,=\,GPIO\,19, AL\,=\,22, CH\,=\,15, CL\,=\,18, SD\_A\,=\,32, SD\_B\,=\,33, SD\_C\,=\,4). Somente após essa correção os IR2110 saíram de \textit{shutdown} e a ponte passou a conduzir de fato, expondo, em sessões posteriores, picos de \textit{inrush} e a necessidade de mitigações adicionais na fase ALIGN (Ensaio a Vazio, Subseção~\ref{subsubsec:ensaio_vazio_falha}).
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Depuração dos pinos SD em RTC GPIO (placa energizada, motor desconectado).}
     \label{tab:depuracao_rtc_sd}
@@ -684,7 +684,7 @@ Após a eliminação do curto físico em U9 (Ensaio~0c, Subseção~\ref{subsubse
 
 A depuração firmware identificou, adicionalmente, um bug de calibração: a rotina anterior executava \textbf{duas leituras ADC} por amostra, contaminando a coerência entre \texttt{mV\_linear} e \texttt{mV\_cal} no canal A. A correção adotou uma única conversão por amostra via \texttt{hal\_adc\_raw\_to\_mv()} e descarte de amostra após troca de canal no multiplexador ADC1. Sobre essa base, implementou-se a sequência de mitigações resumida na Tabela~\ref{tab:evolucao_mitigacao_ina240_a}.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Evolução das mitigações firmware e comportamento de $I_A$ em \texttt{IDLE} (motor desconectado, boot completo com Wi-Fi AP e PS4).}
     \label{tab:evolucao_mitigacao_ina240_a}
@@ -783,7 +783,7 @@ Ao enviar \texttt{A} no monitor serial, a FSM transita \texttt{IDLE} $\to$ \text
 
 Do ponto de vista analítico, em circuito aberto (sem carga indutiva do motor) a corrente de barramento deveria restringir-se essencialmente à carga capacitiva dos \textit{gates} e à recarga dos capacitores de \textit{bootstrap}, da ordem de dezenas a poucas centenas de miliamperes durante a rampa de alinhamento a $3\,\%$ de ciclo de trabalho. O disparo da OCP da fonte com limite de apenas $1{,}0\,\text{A}$ e leitura de corrente de fase da ordem de $7\,\text{A}$ atesta um \textbf{caminho de baixa impedância indesejado} no estágio de potência: condução cruzada física entre semicondutores, degradação de MOSFETs ou defeito estrutural de montagem que estabelece um trajeto resistivo anômalo entre o barramento DC e o referencial de terra, incompatível com o comportamento nominal do inversor a vazio.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Oscilograma na perna de R13 (\textit{gate} High-Side da Fase A) durante tentativa de ALIGN: subida até $V_{max} \approx 14{,}5\,\text{V}$ (saída do IR2110) seguida de colapso abrupto quando a fonte de bancada aciona OCP e remove $V_{DC}$ da placa ($V_{pp} = 11{,}8\,\text{V}$; evento não periódico; escala $20\,\text{ms/div}$, $5\,\text{V/div}$, sonda $\times 1$).}
     \includegraphics[width=0.65\textwidth]{imagens/bancada_align_gate_r13_ocp.png}
@@ -796,7 +796,7 @@ A Figura~\ref{fig:bancada_align_gate_r13_ocp} evidencia que o pico no \textit{ga
 
 Para isolar a camada lógica do estágio de potência, repetiu-se o arm com a \textbf{fonte DC desligada} e a placa alimentada apenas por USB: o osciloscópio foi posicionado em GPIO\,22 (AL) e nos demais pinos \textit{low-side}. Nenhum pino LOW apresentou tensão positiva ativa; leituras cravadas em $-1{,}5\,\text{V}$ interpretam-se como artefato de referência de terra flutuante (USB da placa versus borne da fonte, sem $V_{DC}$ comum), com a garra de terra no GND do ESP32, o nível efetivo é $0\,\text{V}$ (LOW). Conclui-se que \textbf{\textit{shoot-through} lógico no MCPWM foi descartado} na última sessão instrumentada.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Cronologia de correções de firmware na depuração do OCP na fase ALIGN (junho de 2026).}
     \label{tab:cronologia_align_ocp}
@@ -910,7 +910,7 @@ O uso de memória Flash (memória de programa) foi extraído do relatório de \t
 
 O relatório de \textit{build} do PlatformIO (\texttt{pio run}, 29/06/2026, plataforma \texttt{esp32doit-devkit-v1}) está resumido na Tabela~\ref{tab:pio_memory}. O perfil padrão de bancada (\texttt{BOARD\_ENABLE\_WIFI\_TELEMETRY}\,$= 0$) consome $89\,400\,\text{B}$ de SRAM ($27{,}3\,\%$ de $327\,680\,\text{B}$) e $850\,469\,\text{B}$ de Flash de aplicação ($64{,}9\,\%$ de $1\,310\,720\,\text{B}$). Com telemetria Wi-Fi habilitada, o consumo sobe para $110\,880\,\text{B}$ de RAM ($33{,}8\,\%$) e $1\,252\,121\,\text{B}$ de Flash ($95{,}5\,\%$; margem livre $\approx 58\,599\,\text{B}$), confirmando que a pilha AsyncWebServer\,+\,LittleFS é a contribuição dominante ao segmento \texttt{.flash.text} e \texttt{.rodata}.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Uso de memória reportado pelo PlatformIO (Identificador de ensaio~30, 29/06/2026).}
     \label{tab:pio_memory}

@@ -7,7 +7,7 @@ Os motores BLDC (\textit{Brushless Direct Current Motor}) representam um avanço
 \section{Motores CC Sem Escova}
 O princípio de funcionamento dos motores BLDC é baseado em campos magnéticos gerados por ímãs permanentes e enrolamentos de  (Figura \ref{fig:motor-dc-bldc-comparativo}). A comutação da corrente para gerar movimento ocorre eletronicamente, por meio de um controlador dedicado normalmente chamado de ESC (Eletronic Speed Controller), que pode usar ou não sensores durante o processo, eliminando assim a necessidade de escovas mecânicas utilizadas em motores DC tradicionais. Esta abordagem resulta em uma diminuição significativa do desgaste mecânico, aumentando a vida útil do motor e reduzindo a necessidade de manutenção. Os motores BLDC são amplamente utilizados em uma variedade de aplicações, desde eletrônicos de consumo, como ventiladores e ferramentas elétricas, até aplicações industriais e automotivas. Sua capacidade de fornecer um controle preciso de velocidade e posição, juntamente com uma resposta rápida, faz deles a escolha ideal para sistemas que exigem rendimento energético e alta performance.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 	\centering
 	\caption{Configuração de um motor DC convencional (A) e motor BLDC (B).}
 	\includegraphics[width=8cm]{imagens/Comparativo.png}
@@ -155,7 +155,7 @@ A elegância teórica é frequentemente obscurecida pelo uso de unidades inconsi
 \end{equation}
 Esta fórmula é derivada diretamente da equivalência $K_T = K_e = 1/K_V$ após a conversão da velocidade para rad/s \parencite{infineon2011bldc}. A tabela abaixo resume as conversões chave.
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{Unidades de Constantes de Motor e Fatores de Conversão para o SI}
 \label{tab:unidades}
@@ -232,7 +232,7 @@ Embora chamadas de "constantes", $K_T$ e $K_e$ são afetadas pela temperatura. O
 
  O caso complementar ocorre quando a fase que está saindo era a fase conectada ao barramento positivo. Em uma transição como $A^+C^-$ para $B^+C^-$, o transistor superior de A é bloqueado e a corrente da fase A, que ainda tende a entrar no enrolamento, força o terminal A a conduzir pelo diodo de corpo do transistor inferior de A ($L_A$). Assim, quando a fase de saída era um caminho de \textit{source}, a corrente é desviada para o barramento negativo; quando a fase de saída era um caminho de \textit{sink}, a corrente é desviada para o barramento positivo. A Tabela \ref{tab:subintervalos_comutacao_6step} resume essa sequência para uma rotação elétrica completa.
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{Estados principais e intervalos transitórios na comutação trapezoidal}
 \label{tab:subintervalos_comutacao_6step}
@@ -255,7 +255,7 @@ Setor & Estado principal & Caminho principal da corrente & Intervalo de transfer
  
  Esse algoritmo de acionamento dos transistores, também chamado de Controle Trapezoidal, é a base para o funcionamento do motor BLDC. Embora seja possível operá-lo em malha aberta (sequência fixa), esta abordagem apresenta baixo rendimento e é propensa à perda de sincronismo sob variações de carga. Portanto, neste trabalho, projeta-se e implementa-se a infraestrutura de \textit{hardware} e \textit{firmware} para um \textbf{ESC trapezoidal \textit{sensorless}}, incluindo os circuitos de reconstrução de neutro virtual, filtragem RC e comparadores LM339 destinados à detecção de cruzamento por zero (ZCD) da FCEM. 
  
- \begin{figure}[htbp]
+ \begin{figure}[H]
     \centering
     \caption{Sequência de acionamento para um BLDC trifásico.}
     \includegraphics[width=11cm]{imagens/acionamento.png}
@@ -317,7 +317,7 @@ No âmbito da comutação trapezoidal de seis passos, o sinal PWM gerado pelo pe
 
 Durante os períodos de desligamento do PWM ($t_{off}$) na estratégia H\_PWM - L\_ON, a energia armazenada no campo magnético indutivo da bobina força a circulação da corrente através do diodo de roda livre intrínseco do MOSFET complementar, estabelecendo um circuito de recirculação. A correta temporização e o entendimento de que a largura de pulso atua diretamente na magnetização do estator formam o alicerce para o controle de torque do sistema.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Modulação por largura de pulso utilizando uma fonte de $100V$.}
     \includegraphics[width=0.85\textwidth]{imagens/PWM.png}
@@ -372,7 +372,7 @@ Além da comutação trapezoidal e da modulação PWM, a operação precisa de u
 
 Um ESC trifásico opera com \textbf{duas camadas de controle independentes}, que não devem ser confundidas. A primeira decide \textit{quando} comutar as fases (sincronismo angular com o rotor); a segunda decide \textit{quanto} esforço elétrico aplicar em cada passo (corrente ou velocidade desejada). A nomenclatura ``malha aberta'' e ``malha fechada'' aplica-se separadamente a cada camada, e não ao sistema como um todo.
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{Duas camadas de controle no ESC deste trabalho}
 \label{tab:camadas_controle}
@@ -480,7 +480,7 @@ A frequência de chaveamento ($f_{sw}$) do PWM que modula os MOSFETs da ponte in
 
 Neste trabalho adota-se \textbf{20 kHz} como compromisso de engenharia para o par MOSFET/driver IRFS7530--IR2110: a carga de gate elevada dos transistores automotivos selecionados torna inviável, com dissipação passiva no volume da placa, as faixas de alta performance do aeromodelismo (48 kHz ou 96 kHz, comuns em ESCs \textit{racing}), enquanto valores inferiores a 16 kHz reintroduziriam ruído audível. O dimensionamento quantitativo, perdas de comutação, \textit{ripple} de corrente e corrente média de \textit{gate} do driver, encontra-se na Subseção de Determinação da Frequência de Chaveamento do Capítulo de Metodologia.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Panorama de frequências de chaveamento PWM em acionamentos BLDC e afins}
     \label{tab:panorama_fsw_industria}

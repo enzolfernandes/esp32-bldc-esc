@@ -12,7 +12,7 @@ A escolha dos componentes de potência baseia-se nas especificações do motor s
 \subsection{Especificações do Motor e Carga}
 O motor BLDC Turnigy XK3674-$2200KV$ é um modelo comercial projetado principalmente para Automodelismo, sendo do tipo Inrunner possui quatro polos, $2200KV$, Tensão Nominal de $25,2V$, Corrente Nominal de $70A$ e sendo capaz de produzir até $1750W$ de potência. A velocidade e torque a vazio do motor, como já vistos nos segmentos anteriores, é de $55440 RPM$ e $0,3 Nm$, desconsiderando efeitos dissipativos, como o atrito.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Motor Brushless Turnigy XK3674-$2200KV$.}
     \includegraphics[width=8cm]{imagens/Turnigy XK3674-2200KV.jpg}
@@ -47,7 +47,7 @@ I = C-rate \cdot Capacidade
 
 Uma bateria comercial que atende as especificações do projeto é o modelo Turnigy Graphene Panther $1300mAh$ $6S$ $75C$, capaz de fornecer por volta de $97,5A$, superior a margem de segurança estabelecida. Vale ressaltar que a baterias entrega de tensão nominal $22,2V$, inferior a tensão nominal o que para motores BLDC não é um problema, resultando apenas na redução da  sua velocidade nominal de $55440 RPM$ para $48840RPM$ a vazio, uma redução de aproximadamente $12\%$. 
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Turnigy Graphene Panther $1300mAh$ $6S$ $75C$.}
     \includegraphics[width=9cm]{imagens/Turnigy Graphene Panther 1300mAh 6S 75C.jpg}
@@ -201,7 +201,7 @@ Existem duas abordagens possíveis para a alimentação do microcontrolador e dr
 
 Dentre as topologias disponíveis, destacam-se os conversores buck (step-down). O conversor Buck é amplamente utilizado para a redução de tensão, operando com elevado rendimento (tipicamente superior a $85\%$) \cite{TIBuckCalculation}. No projeto será aplicado o módulo comercial de baixo custo \textbf{LM2596}, um conversor buck de $150kHz$ e $3A$. O sistema é configurado em cascata: a tensão da bateria ($22,2V - 25,2V$) é regulada para $15V$ para alimentar os drivers IR2110, e subsequentemente reduzida para $5V/3,3V$ para o microcontrolador ESP32.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Módulo Comercial LM2596.}
     \includegraphics[width=4.6cm]{imagens/Módulo LM2596.jpg}
@@ -260,7 +260,7 @@ Todos os materiais produzidos neste trabalho, monografia, firmware, projeto de h
 % ------------------------------------------------------------
 Para essa aplicação, foi selecionado o ESP32-DevKit C. Utilizando como principal elemento o módulo ESP32-WROOM-32, ele apresenta uma solução robusta para controle em tempo real. Capaz de operar em velocidades de clock de até $240 MHz$, permite a execução paralela de tarefas, característica crítica para sistemas ESC. A resolução de 16 bits dos geradores PWM amplia a precisão no controle da velocidade.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Visão Geral do Microcontrolador ESP32-DevKit C.}
     \includegraphics[width=10cm]{imagens/esp32-devkitc-v4-functional-overview.jpg}
@@ -269,7 +269,7 @@ Para essa aplicação, foi selecionado o ESP32-DevKit C. Utilizando como princip
 \end{figure}
 
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \caption{Pinagem do Microcontrolador ESP32-DevKit C.}
     \includegraphics[width=\textwidth]{imagens/esp32_devkitC_v4_pinlayout.png}
@@ -285,7 +285,7 @@ Apesar dessas vantagens, os níveis lógicos de $3,3V$ exigem o uso de drivers d
 % ------------------------------------------------------------
 O controle lógico do inversor é centralizado no microcontrolador, responsável pela leitura de sinais, implementação da máquina de estados de comutação e geração dos sinais PWM. Para garantir a manutenibilidade e o determinismo temporal exigidos por um controlador de potência em tempo real, o firmware é concebido segundo uma arquitetura em camadas com inversão de dependência, na qual o acesso direto ao silício do ESP32 fica concentrado exclusivamente na Camada de Abstração de Hardware (HAL), conforme ilustrado na Figura~\ref{fig:hal_camadas}.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \caption{Arquitetura em camadas do firmware do ESC com invers\~ao de depend\^encia.}
 \begin{tikzpicture}[
@@ -352,7 +352,7 @@ Dois modos operacionais, selecionados em tempo de compilação pela macro \textt
 
 Os ganhos padrão, definidos em \texttt{board\_config.h} e utilizados na inicialização de \texttt{motor\_control\_init()}, são:
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{Ganhos PI padrão do firmware}
 \label{tab:pi_ganhos_default}
@@ -455,7 +455,7 @@ A regra de projeto adotada complementa essa estrutura: cada módulo expõe exata
 % ------------------------------------------------------------
 A lógica de chaveamento constitui o núcleo funcional do ESC. Nesta abordagem, utiliza-se a comutação de seis passos em malha aberta, dentro de uma estratégia \textit{sensorless} (sem sensores Hall ou encoder de posição). A ponte inversora trifásica é acionada de forma que apenas dois MOSFETs conduzam simultaneamente a cada passo, criando um campo magnético giratório que avança em incrementos de $60^{\circ}$.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Sequência de Comutação de Seis Passos e Estado dos MOSFETs}
     \label{tab:logica_seis_passos}
@@ -482,7 +482,7 @@ Propõe-se utilizar o periférico dedicado \textit{Motor Control Pulse Width Mod
 
 A configuração segue o mapeamento da Tabela \ref{tab:mcpwm_map}, onde o \textit{Duty Cycle} é aplicado ao transistor do lado alto (High-Side) para controle de corrente, enquanto o lado baixo (Low-Side) é mantido em condução plena ou chaveado de forma complementar, dependendo da estratégia de frenagem regenerativa desejada.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Mapeamento dos Estados de Comutação para os Geradores MCPWM do ESP32}
     \label{tab:mcpwm_map}
@@ -530,7 +530,7 @@ Como o motor especificado (Turnigy XK3674) possui fechamento interno em triângu
 
 A técnica de detecção de cruzamento por zero da FCEM possui uma limitação física intrínseca: a amplitude da FCEM é proporcional à velocidade do rotor ($e = K_e \cdot \omega$). Na partida ($t=0$), a FCEM é nula, impossibilitando a determinação da posição do rotor pelos comparadores. Para contornar isso, projeta-se uma máquina de estados finitos composta por estágios sequenciais de partida, conforme ilustrado na Figura~\ref{fig:fsm_estados}:
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     % Trava a centralização especificamente para as sublegendas (a) e (b)
     \captionsetup[subfigure]{justification=centering}

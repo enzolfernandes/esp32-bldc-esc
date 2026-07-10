@@ -109,7 +109,7 @@ npx @mermaid-js/mermaid-cli -i fluxograma2_processo.mmd -o fluxograma2_processo.
 ### LaTeX (exemplo)
 
 ```latex
-\begin{figure}[htbp]
+\begin{figure}[H]
   \centering
   \includesvg[width=\textwidth]{imagens/fluxograma1_documentacao_fluxo_Completo.svg}
   \caption{... texto da legenda acima ...}
