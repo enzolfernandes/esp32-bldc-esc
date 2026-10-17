@@ -24,13 +24,13 @@ I worked on the power-stage and PCB design in Altium, LTspice simulations, C/C++
 
 I organized the firmware around application, input, control, driver and hardware abstraction modules.
 
-| Layer | Responsibility | Entry point |
+| Layer | Responsibility · Entry point |
 | --- | --- |
-| Application | Startup, operating states, command routing and telemetry | [main.cpp](Firmware/src/main.cpp), [fsm_system.c](Firmware/src/fsm_system.c) |
-| Input | Serial HMI and optional PS4/Bluetooth input | [input modules](Firmware/lib/input/) |
-| Control | Six-step commutation and PI routines, with FreeRTOS task infrastructure | [motor_control.c](Firmware/lib/control/motor_control.c) |
-| Drivers | Phase-current sensing, battery monitoring and protection interfaces | [drivers](Firmware/lib/drivers/) |
-| Hardware abstraction | MCPWM, ADC1, GPIO and DAC access through ESP-IDF APIs | [HAL](Firmware/lib/hal/) |
+| Application | Startup, operating states, command routing and telemetry · [main.cpp](Firmware/src/main.cpp), [fsm_system.c](Firmware/src/fsm_system.c) |
+| Input | Serial HMI and optional PS4/Bluetooth input · [input modules](Firmware/lib/input/) |
+| Control | Six-step commutation and PI routines, with FreeRTOS task infrastructure · [motor_control.c](Firmware/lib/control/motor_control.c) |
+| Drivers | Phase-current sensing, battery monitoring and protection interfaces · [drivers](Firmware/lib/drivers/) |
+| Hardware abstraction | MCPWM, ADC1, GPIO and DAC access through ESP-IDF APIs · [HAL](Firmware/lib/hal/) |
 
 I used **Arduino within PlatformIO**, alongside native ESP-IDF APIs and FreeRTOS. The configuration and pin mapping are in [platformio.ini](Firmware/platformio.ini), [board_config.h](Firmware/include/board_config.h) and [ESP32_PINMAP.md](Hardware/PCB_Project/ESP32_PINMAP.md).
 
