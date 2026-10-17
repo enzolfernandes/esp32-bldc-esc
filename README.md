@@ -1,6 +1,6 @@
 # ESP32 BLDC Electronic Speed Controller
 
-I graduated in **Electrical Engineering at UNESP/FEIS in August 2026**. For my final degree project, I developed and analyzed a three-phase BLDC controller prototype, combining power electronics, PCB design, simulation and embedded firmware.
+For my final degree project in **Electrical Engineering at UNESP/FEIS**, I developed and analyzed a three-phase BLDC controller prototype, combining power electronics, PCB design, simulation and embedded firmware.
 
 [My published thesis — UNESP](https://hdl.handle.net/11449/327581) · [Firmware guide](Firmware/DOCUMENTACAO_PROGRAMACAO.md) · [Schematics and PCB](Hardware/PCB_Project) · [Thesis results](Docs/Thesis/capitulos/5_conclusao.tex)
 
@@ -25,7 +25,7 @@ I worked on the power-stage and PCB design in Altium, LTspice simulations, C/C++
 I organized the firmware around application, input, control, driver and hardware abstraction modules.
 
 | Layer | Responsibility | Entry point |
-| --- | --- | --- |
+| --- | --- |
 | Application | Startup, operating states, command routing and telemetry | [main.cpp](Firmware/src/main.cpp), [fsm_system.c](Firmware/src/fsm_system.c) |
 | Input | Serial HMI and optional PS4/Bluetooth input | [input modules](Firmware/lib/input/) |
 | Control | Six-step commutation and PI routines, with FreeRTOS task infrastructure | [motor_control.c](Firmware/lib/control/motor_control.c) |
